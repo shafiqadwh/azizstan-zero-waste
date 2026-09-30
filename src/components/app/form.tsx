@@ -15,8 +15,8 @@ export function Field({
   const id = useId();
   const errorId = `${id}-error`;
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-ink text-[14px] font-semibold">
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="text-[14px] font-semibold text-ink">
         {label}
       </label>
       <input
@@ -24,13 +24,13 @@ export function Field({
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         className={cn(
-          'border-line-strong bg-surface text-ink focus-visible:ring-brand aria-invalid:border-danger h-12 rounded-md border px-3.5 text-[16px] outline-none focus-visible:ring-2',
+          'h-12 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3.5 text-[16px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand aria-invalid:border-danger',
           className,
         )}
         {...input}
       />
       {error ? (
-        <p id={errorId} role="alert" className="text-danger-ink text-[13px]">
+        <p id={errorId} role="alert" className="text-[13px] text-danger-ink">
           {error}
         </p>
       ) : null}
@@ -48,8 +48,8 @@ export function PasswordField({
   const errorId = `${id}-error`;
   const [visible, setVisible] = useState(false);
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-ink text-[14px] font-semibold">
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="text-[14px] font-semibold text-ink">
         {label}
       </label>
       <div className="relative">
@@ -58,7 +58,7 @@ export function PasswordField({
           type={visible ? 'text' : 'password'}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className="border-line-strong bg-surface text-ink focus-visible:ring-brand aria-invalid:border-danger h-12 w-full rounded-md border pr-12 pl-3.5 text-[16px] outline-none focus-visible:ring-2"
+          className="h-12 w-full rounded-md border border-line-strong bg-surface pr-12 pl-3.5 text-[16px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand aria-invalid:border-danger"
           {...input}
         />
         <button
@@ -66,13 +66,13 @@ export function PasswordField({
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
           aria-pressed={visible}
-          className="text-ink-muted hover:text-ink absolute inset-y-0 right-0 flex w-11 items-center justify-center"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-muted hover:text-ink"
         >
           {visible ? <EyeOff size={20} aria-hidden /> : <Eye size={20} aria-hidden />}
         </button>
       </div>
       {error ? (
-        <p id={errorId} role="alert" className="text-danger-ink text-[13px]">
+        <p id={errorId} role="alert" className="text-[13px] text-danger-ink">
           {error}
         </p>
       ) : null}
@@ -86,7 +86,7 @@ export function SubmitButton({ children, pendingLabel }: { children: string; pen
     <button
       type="submit"
       disabled={pending}
-      className="bg-brand hover:bg-brand-ink h-14 w-full rounded-md text-[16px] font-semibold text-white disabled:opacity-70"
+      className="h-14 w-full rounded-md bg-brand text-[16px] font-semibold text-white hover:bg-brand-ink disabled:opacity-70"
     >
       {pending ? pendingLabel : children}
     </button>
@@ -97,7 +97,7 @@ export function SubmitButton({ children, pendingLabel }: { children: string; pen
 export function FormError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p role="alert" className="bg-danger-soft text-danger-ink rounded-md px-3.5 py-3 text-[14px]">
+    <p role="alert" className="rounded-md bg-danger-soft px-3.5 py-3 text-[14px] text-danger-ink">
       {message}
     </p>
   );

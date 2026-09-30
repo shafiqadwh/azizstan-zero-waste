@@ -12,7 +12,7 @@ export default async function ChangePasswordPage({ searchParams }: { searchParam
   return (
     <AuthCard title="เปลี่ยนรหัสผ่าน">
       {user.mustChangePassword ? (
-        <p className="bg-warn-soft text-warn-ink mb-4 rounded-md px-3.5 py-3 text-[14px]">
+        <p className="mb-4 rounded-md bg-warn-soft px-3.5 py-3 text-[14px] text-warn-ink">
           กรุณาตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน (อย่างน้อย 8 ตัวอักษร)
         </p>
       ) : null}

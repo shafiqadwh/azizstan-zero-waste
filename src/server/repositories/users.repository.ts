@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, ne, sql } from 'drizzle-orm';
 import { sessions, users } from '../../../db/schema.ts';
 import type { DbOrTx } from '../transaction.ts';
 
@@ -66,4 +66,33 @@ export async function insertUser(db: DbOrTx, row: typeof users.$inferInsert): Pr
 
 export async function updateUser(db: DbOrTx, id: string, patch: Partial<typeof users.$inferInsert>): Promise<void> {
   await db.update(users).set(patch).where(eq(users.id, id));
+}
+
+/** Admin list: explicit columns, so password hashes never leave this layer. */
+export async function listUsers(db: DbOrTx) {
+  return db
+    .select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      role: users.role,
+      authSource: users.authSource,
+      isActive: users.isActive,
+      mustChangePassword: users.mustChangePassword,
+      lastLoginAt: users.lastLoginAt,
+    })
+    .from(users)
+    .orderBy(asc(users.role), asc(sql`lower(${users.username})`));
+}
+
+export async function countActiveSuperAdmins(db: DbOrTx): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(users)
+    .where(and(eq(users.role, 'super_admin'), eq(users.isActive, true)));
+  return row?.n ?? 0;
+}
+
+export async function deleteUserSessions(db: DbOrTx, userId: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.userId, userId));
 }

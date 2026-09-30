@@ -4,7 +4,7 @@ import pg from 'pg';
 
 /** Test users are created straight in the database (same argon2id parameters as the app). */
 export async function createTestUser(opts: {
-  role: 'admin' | 'executive' | 'teacher';
+  role: 'super_admin' | 'admin' | 'executive' | 'teacher';
   password: string;
   mustChange?: boolean;
 }) {
