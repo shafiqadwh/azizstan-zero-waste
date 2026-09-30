@@ -75,3 +75,15 @@ export function toAppError(err: unknown): AppError | null {
   }
   return null;
 }
+
+/** Validate service input with Zod; failures become AppError VALIDATION (field = dotted path of the first issue). */
+export function parseInput<S extends { parse: (v: unknown) => unknown }>(
+  schema: S,
+  raw: unknown,
+): ReturnType<S['parse']> {
+  try {
+    return schema.parse(raw) as ReturnType<S['parse']>;
+  } catch (err) {
+    throw toAppError(err) ?? err;
+  }
+}

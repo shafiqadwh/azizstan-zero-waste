@@ -3,8 +3,8 @@
  * that already exist, so running it twice leaves the same data.
  * Usage: DATABASE_URL=… pnpm db:seed
  *
- * Users are created without a password (must_change_password = true); set one with
- * scripts/create-super-admin.js once T10 lands. Students are fake — never seed real student data.
+ * Users are created without a password (must_change_password = true), so they cannot sign in; create a
+ * working super admin with `pnpm user:super-admin`. Students are fake — never seed real student data.
  */
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
