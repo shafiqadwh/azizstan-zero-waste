@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('home renders with IBM Plex Sans Thai and no horizontal scroll', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('AZIZSTAN Zero Waste');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('AZIZSTAN ZERO WASTE');
   await expect(page.locator('html')).toHaveAttribute('lang', 'th');
 
   const fontFamily = await page.evaluate(() => getComputedStyle(document.body).fontFamily);

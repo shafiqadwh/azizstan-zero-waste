@@ -66,7 +66,7 @@ Layouts: `(public)` top bar + bottom actions on mobile; `(committee)` app shell 
 
 ## 4. PWA
 
-- `manifest.webmanifest`: name "AZIZSTAN Zero Waste", short_name "Zero Waste", start_url `/tasks`, display
+- `manifest.webmanifest`: name "AZIZSTAN ZERO WASTE", short_name "ZERO WASTE", start_url `/tasks`, display
   `standalone`, theme `#1D6A4E`, background `#F5F4EF`, icons 192/512/maskable generated from the "ZW" monogram (no logo file exists — Q9; 08-ux-ui §2).
 - Service worker (Serwist): precache app shell + fonts; `NetworkFirst` for pages; `CacheFirst` for `/_next/static`;
   never cache `/api/v1/files`, `/api/v1/pdf`, or any staff JSON.

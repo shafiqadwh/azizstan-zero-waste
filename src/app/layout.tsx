@@ -4,7 +4,7 @@ import { plexThai } from './fonts';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AZIZSTAN Zero Waste',
+  title: 'AZIZSTAN ZERO WASTE',
   description: 'ระบบประเมินความสะอาดห้องเรียนและพื้นที่ โรงเรียนมูลนิธิอาซิซสถาน',
 };
 
