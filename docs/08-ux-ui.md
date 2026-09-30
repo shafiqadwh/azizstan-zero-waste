@@ -19,10 +19,10 @@ canvas differs (for example its lighter input borders), follow this document.
 ## 2. Brand and logo
 
 - Logo: the school has **no logo file** (Q9). Until one is provided, use a text wordmark
-  "AZIZSTAN Zero Waste" (IBM Plex Sans Thai 700, `brand` colour) in headers, and generate the app icon, favicon and
+  "AZIZSTAN ZERO WASTE" (all capitals) (IBM Plex Sans Thai 700, `brand` colour) in headers, and generate the app icon, favicon and
   notification icons from the letters "ZW" in white on a `brand` square (maskable-safe padding). Keep the logo
   behind one `<Logo>` component so a real file can be swapped in later without touching screens.
-- Product and project name everywhere: **AZIZSTAN Zero Waste** (short form "Zero Waste" only where space is too small, e.g. the PWA icon label); subtitle **ภาคเรียนที่ 2/2569**. The old names "โครงการลดขยะ" and "Aziz Clean Zone" are not used anywhere.
+- Product and project name everywhere: **AZIZSTAN ZERO WASTE**, always in capitals (short form "ZERO WASTE" only where space is too small, e.g. the PWA icon label); subtitle **ภาคเรียนที่ 2/2569**. The old names "โครงการลดขยะ" and "Aziz Clean Zone" are not used anywhere.
 - The logo's saturated colours are for the logo only; the UI uses the calmer tokens below so status colours
   stay meaningful.
 
