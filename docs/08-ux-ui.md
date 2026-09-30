@@ -18,9 +18,10 @@ canvas differs (for example its lighter input borders), follow this document.
 
 ## 2. Brand and logo
 
-- Logo: the current file still carries the text "AZIZ CLEAN ZONE" (green leaf-drop, orange squeegee-drop, berry broom-drop); replace it with a AZIZSTAN Zero Waste logo when the school provides one (Q9). Use the full logo in
-  headers ≥ 40 px tall; use the symbol-only version for the app icon, favicon and notifications (needs a
-  transparent PNG/SVG from the school — Q9). Keep clear space = ½ of the drop width. Never recolour.
+- Logo: the school has **no logo file** (Q9). Until one is provided, use a text wordmark
+  "AZIZSTAN Zero Waste" (IBM Plex Sans Thai 700, `brand` colour) in headers, and generate the app icon, favicon and
+  notification icons from the letters "ZW" in white on a `brand` square (maskable-safe padding). Keep the logo
+  behind one `<Logo>` component so a real file can be swapped in later without touching screens.
 - Product and project name everywhere: **AZIZSTAN Zero Waste** (short form "Zero Waste" only where space is too small, e.g. the PWA icon label); subtitle **ภาคเรียนที่ 2/2569**. The old names "โครงการลดขยะ" and "Aziz Clean Zone" are not used anywhere.
 - The logo's saturated colours are for the logo only; the UI uses the calmer tokens below so status colours
   stay meaningful.
@@ -145,12 +146,12 @@ all rounds finalized → "สรุปผลภาคเรียน" with term 
 
 ### 6.2 Rankings `/rankings`
 Controls: segmented ห้องเรียน/อาคาร; chips per round + "สะสมทั้งเทอม" (default = term-to-date).
-Classes: one card per rank group (ม.1…ม.6, ปวช., สายศาสนา) with top 3 and "ดูทั้งหมด {n} ห้อง" expanding in place.
+Classes: one card per rank group (ม.1…ม.6, ปวช., ซานาวี) with top 3 and "ดูทั้งหมด {n} ห้อง" expanding in place.
 Areas: one full list. Ties show the same badge number. Unscored rows: "รอผล".
 Empty: "ยังไม่มีคะแนนที่อนุมัติ" with the round's close date.
 
 ### 6.3 Class scores `/classes`
-Two selects side by side: ชั้น (ม.1…, ปวช., สายศาสนา) and ห้อง (filtered). Result card: `121 · ม.1 Amanah`,
+Two selects side by side: ชั้น (ม.1…, ปวช., ซานาวี) and ห้อง (filtered). Result card: `121 · ม.1 Amanah`,
 table rounds × (คะแนนห้อง, คะแนน{อาคาร/โซน}, รวม), term average row, small sparkline linking to /charts.
 No student names anywhere.
 
@@ -236,9 +237,17 @@ report → ยืนยันนำเข้า).
 Areas (type, code, name, description) · Rooms (building, number, floor, current class, QR download) ·
 Classes (track, grade, name, aliases, current room with "ย้ายห้อง" action that asks for the effective date).
 
+**ห้องเรียนที่ใช้ในภาคเรียนนี้** (FR-P7): one card per rank group with a checkbox per class and "เลือกทั้งหมด" /
+"ไม่เลือกทั้งหมด" per group; header count "ใช้ {n} จาก {total} ห้อง". Unselected classes are shown greyed with the
+label "ไม่ใช้ในภาคเรียนนี้" (never hidden, so they can be re-selected). Read-only once the term config is locked
+(BR-TM2), with the lock note. In a new academic year the page opens with nothing selected and an amber flag
+"ยังไม่ได้เลือกห้องเรียนที่ใช้".
+
 ### 6.15 Students `/admin/settings/students`
 Sync runs table (time, source, status, counts); review list showing **student codes and class strings only** with
 action "จับคู่กับห้อง…" (creates an alias); retention notice. No names.
+Card "ชั้นที่ไม่นำเข้า" (BR-Y step 4a): list of skip prefixes (e.g. "มุตะวัซซิต") with add/remove; the sync runs table
+shows the skipped count as a plain number ("ข้าม 42 คน"), never as a warning.
 
 ### 6.16 PDF (09-pdf)
 Matches the A4 artboard: formal, black on white, Sarabun, school crest left, project logo right.
@@ -250,7 +259,7 @@ Purpose: one place to see the state of every target in a round, from "not scored
 
 | User | Scope |
 |---|---|
-| super admin, admin, executive | every class and area of the term |
+| super admin, admin, executive | every class selected for the term and every area |
 | same users when they also hold committee duty | still everything; plus a toggle "เฉพาะที่ฉันรับผิดชอบ" (default off) |
 | committee member with no admin/executive role (e.g. teacher) | only the classes/zones/buildings assigned to them |
 | anyone else | no access (link hidden, server returns 403) |
@@ -262,7 +271,7 @@ round select, "ส่งออก Excel") → 6 status counters (tap = filter) �
 ช่องค้นหาห้อง · ผังห้อง/ตาราง toggle) → body: room map on the left, "ความเคลื่อนไหวล่าสุด" feed (300 px) on the right.
 Filters live in the URL; "ล้างตัวกรอง" appears when any is set.
 
-**Room map view**: one section per rank group (ม.1 … สายศาสนา), then the areas section. Each target is a 70 px tile
+**Room map view**: one section per rank group (ม.1 … ซานาวี), then the areas section. Each target is a 70 px tile
 (6 per row on desktop, 3 on mobile): room number (15/700), class name (13), status by fill **and** icon:
 dashed outline + ○ = ยังไม่ประเมิน; red 2 px border + ⚠ + "เลยกำหนด"; amber + clock + score = รออนุมัติ;
 red soft + undo = ส่งกลับให้แก้; solid brand green + ✓ + score = อนุมัติแล้ว (PDF ready); a small PDF badge marks
@@ -339,7 +348,8 @@ and a button to the page that fixes it. Footer: "ตรวจความพร�
 (readiness rules BR-TM5). The second-level menu shows the same amber flags so problems are visible from anywhere.
 
 **New-term wizard** (sheet, 4 steps): 1) ปีการศึกษา + ภาคเรียน · 2) copy settings from (latest term preselected) ·
-3) what to copy: rules (always), zones and responsible classes (default on), committee duties (default off) ·
+3) what to copy: rules (always), zones and responsible classes (default on), classes used this term (default on;
+hidden with the note "ปีการศึกษาใหม่ต้องเลือกห้องเรียนใหม่" when the academic year changes), committee duties (default off) ·
 4) summary → "สร้างภาคเรียน" (creates a `draft` term; the old term stays active until "เปิดใช้ภาคเรียนนี้").
 Copy explains: "ข้อมูลเทอมก่อนไม่ถูกลบ ดูย้อนหลังและเทียบกราฟได้ตลอด".
 

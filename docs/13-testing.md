@@ -37,9 +37,12 @@ student moves, class-string keys (§9.2), home class (FR-R10). Run:
 | T-R3 | BR-R3 | finalize writes frozen results equal to live computation; public API returns them |
 | T-TM1 | BR-TM2 | first evaluation sets `config_locked_at`; updateTermConfig afterwards → `CONFIG_LOCKED` |
 | T-TM2 | BR-TM1 | createTerm copies config/components/zones, not duties (unless flag) |
+| T-TM3 | FR-P7, BR-TM1 | createTerm for term 2 of the same academic year copies `term_classes`; createTerm for a new academic year copies none and readiness step 5 fails until a class is selected |
+| T-TM4 | FR-P7 | unselected class: not in `round_class_areas`, not a committee target, not in `/public/rankings` or `/pp5/terms/{id}/classes`; `setTermClasses` after config lock → `CONFIG_LOCKED` |
 | T-Y1 | BR-Y step 3 | CSV fixture with (a) line break inside province, (b) unquoted comma in phone, (c) empty cells → all students parsed with correct codes and classes |
 | T-Y2 | BR-Y step 6 | fixture with 15 % students missing → sync `aborted`, DB unchanged, admins notified |
 | T-Y3 | BR-Y step 4 | unknown class string → student `review`, not auto-created class |
+| T-Y5 | BR-Y step 4a | religious-only row `1M Al-Taqwa` / `มุตะวัซซิต ปี 1 …` → not imported, not `review`, no notification, `counts.skipped` = 1; same string for a student with a general class → imported normally (religious ignored) |
 | T-Y4 | FR-S1 | after sync, DB has no column/value containing a 13-digit national ID (scan all text columns) |
 | T-D1 | BR-D1..D4 | term closed 366 days ago → all its term data and files deleted, `purged_at` set, other terms untouched; student in no kept term with past `delete_after` → deleted |
 | T-A1 | FR-E10 | every mutating service call writes exactly one audit row (spy on audit.service) |

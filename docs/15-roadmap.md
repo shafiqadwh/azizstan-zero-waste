@@ -49,8 +49,10 @@ AC: only super admin can create users and set roles; an admin calling those acti
 
 **T13 Places register** — deps: T11
 Areas, physical rooms (QR token), classes + aliases, class–room links with effective dates (move flow),
-zones' descriptions; Excel import `rooms.xlsx` (dry-run → commit).
-AC: moving a class closes the old link at the effective date; overlap errors shown in Thai.
+zones' descriptions; Excel import `rooms.xlsx` (dry-run → commit); per-term class selection `term_classes`
+(FR-P7, 08-ux-ui §6.14).
+AC: moving a class closes the old link at the effective date; overlap errors shown in Thai; an unselected class
+is not a target, not ranked and not exported; a new academic year starts with no classes selected.
 
 **T14 Term & rounds settings** — deps: T13
 `/admin/settings/mode` + `/admin/settings/scoring` exactly as 08-ux-ui §6.12; copy-from-previous; lock; rounds CRUD with date rules (BR-R5);
@@ -123,8 +125,8 @@ URL; the activity feed shows a new score or edit within 30 s; every submit/edit/
 AC: e2e journey 6; no evaluator names/photos on public pages; LCP budget met on a throttled run.
 
 **T25 Student sync** — deps: T13, T02
-CSV fetch + robust parse (BR-Y), alias resolution, diff, abort guard, review list UI, manual run button.
-AC: T-Y1..Y4 with synthetic fixtures; raw CSV never written to disk (assert tmp dir empty).
+CSV fetch + robust parse (BR-Y), skip rules (step 4a), alias resolution, diff, abort guard, review list UI, manual run button.
+AC: T-Y1..Y5 with synthetic fixtures; raw CSV never written to disk (assert tmp dir empty).
 
 **T26 Notifications & PWA** — deps: T19, T23
 Inbox, Web Push (VAPID), service worker, install prompts, reminder/overdue jobs (11-jobs).

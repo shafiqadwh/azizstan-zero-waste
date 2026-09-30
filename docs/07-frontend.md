@@ -51,7 +51,7 @@ Layouts: `(public)` top bar + bottom actions on mobile; `(committee)` app shell 
    server says another member already scored it, the form is replaced by the read-only result + "ขออนุมัติแก้ไข".
 3. **Score input**: stepper (−/+ by `score_step`) + quick chips for integers 0…max (max ≤ 10 → chips; > 10 →
    numeric keypad input `inputmode="decimal"`). Value starts **empty** (FR-E2: 0 must be chosen).
-4. **Photos**: `<input type="file" accept="image/*" capture="environment">` per tap; each photo is resized
+4. **Photos**: `<input type="file" accept="image/*">` per tap (no `capture`: the phone offers camera **or** gallery, Q7); each photo is resized
    client-side to ≤ 2000 px JPEG 0.85 (canvas) before upload to save mobile data, then uploaded immediately
    (`POST /api/v1/uploads`) with a progress ring; server does the final processing (BR-V1).
 5. **Offline draft**: the form state (score, comment, evidence ids, and not-yet-uploaded image blobs) is saved to
@@ -67,7 +67,7 @@ Layouts: `(public)` top bar + bottom actions on mobile; `(committee)` app shell 
 ## 4. PWA
 
 - `manifest.webmanifest`: name "AZIZSTAN Zero Waste", short_name "Zero Waste", start_url `/tasks`, display
-  `standalone`, theme `#1D6A4E`, background `#F5F4EF`, icons 192/512/maskable from the symbol-only logo.
+  `standalone`, theme `#1D6A4E`, background `#F5F4EF`, icons 192/512/maskable generated from the "ZW" monogram (no logo file exists — Q9; 08-ux-ui §2).
 - Service worker (Serwist): precache app shell + fonts; `NetworkFirst` for pages; `CacheFirst` for `/_next/static`;
   never cache `/api/v1/files`, `/api/v1/pdf`, or any staff JSON.
 - Install prompt: custom button on `/tasks` ("ติดตั้งแอป") using `beforeinstallprompt` (Android/desktop); iOS

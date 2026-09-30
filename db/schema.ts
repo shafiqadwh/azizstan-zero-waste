@@ -166,9 +166,9 @@ export const physicalRooms = pgTable('physical_rooms', {
 export const classes = pgTable('classes', {
   id: uuid('id').primaryKey(),
   track: trackEnum('track').notNull(),
-  gradeCode: text('grade_code').notNull(),              // 'M1'..'M6', 'VOC1'..'VOC3', 'REL-MUT1', 'REL-SAN2'
-  gradeLabel: text('grade_label').notNull(),            // 'ม.1', 'ปวช.2', 'มุตะวัซซิต ปี 1'
-  rankGroup: text('rank_group').notNull(),              // ranking bucket: 'ม.1' … 'ปวช.' … 'สายศาสนา'
+  gradeCode: text('grade_code').notNull(),              // 'M1'..'M6', 'VOC1'..'VOC3', 'REL-SAN2', 'REL-SAN3'
+  gradeLabel: text('grade_label').notNull(),            // 'ม.1', 'ปวช.2', 'ซานาวี ปี 2'
+  rankGroup: text('rank_group').notNull(),              // ranking bucket: 'ม.1' … 'ปวช.', 'ซานาวี' (Q13)
   roomNo: smallint('room_no').notNull(),                // sort only, never shown for general track
   name: text('name').notNull(),                         // 'Amanah' | 'ปวช.2/1' | '2S Muslim'
   displayName: text('display_name').notNull(),          // 'ม.1 Amanah'
@@ -180,6 +180,16 @@ export const classAliases = pgTable('class_aliases', {
   classId: uuid('class_id').notNull().references(() => classes.id, { onDelete: 'cascade' }),
   alias: text('alias').notNull(),                       // normalized (see business rules §9.2)
 }, (t) => [uniqueIndex('class_aliases_alias_uq').on(t.alias)]);
+
+/**
+ * Class strings the student sync skips silently (BR-Y step 4a), e.g. มุตะวัซซิต classes that are not part of the
+ * system (Q13). Matched as a case-insensitive prefix of the normalized class string. Admin-editable, not hard-coded.
+ */
+export const classSkipRules = pgTable('class_skip_rules', {
+  id: uuid('id').primaryKey(),
+  prefix: text('prefix').notNull(),                     // normalized (§9.2), e.g. 'มุตะวัซซิต', '1M '
+  note: text('note'),
+}, (t) => [uniqueIndex('class_skip_rules_prefix_uq').on(t.prefix)]);
 
 /** Class ↔ physical room with effective dates (FR-P3). No overlap: see RAW_SQL. */
 export const classRoomLinks = pgTable('class_room_links', {
@@ -201,6 +211,15 @@ export const zonePlaces = pgTable('zone_places', {
 }, (t) => [index('zone_places_zone_idx').on(t.zoneId)]);
 
 /** Zone mode only: which classes are responsible for which zone this term (FR-P4). */
+/**
+ * Which classes take part in a term (FR-P7). Only these classes are evaluation targets, ranked, shown publicly
+ * and exported. The class register (`classes`) keeps every class; this table is the per-term selection.
+ */
+export const termClasses = pgTable('term_classes', {
+  termId: uuid('term_id').notNull().references(() => terms.id),
+  classId: uuid('class_id').notNull().references(() => classes.id),
+}, (t) => [primaryKey({ columns: [t.termId, t.classId] })]);
+
 export const termClassZones = pgTable('term_class_zones', {
   termId: uuid('term_id').notNull().references(() => terms.id),
   classId: uuid('class_id').notNull().references(() => classes.id),
@@ -444,7 +463,7 @@ export const syncRuns = pgTable('sync_runs', {
   startedAt: ts('started_at').notNull().defaultNow(),
   finishedAt: ts('finished_at'),
   status: syncStatusEnum('status'),
-  counts: jsonb('counts').$type<Record<string, number>>(),     // {rows, added, moved, renamed, inactive, review, malformed}
+  counts: jsonb('counts').$type<Record<string, number>>(),     // {rows, added, moved, renamed, inactive, review, malformed, skipped}
   changes: jsonb('changes').$type<unknown[]>(),                // per-student change list (codes only, no names)
   error: text('error'),
   triggeredBy: uuid('triggered_by').references(() => users.id), // null = scheduled
