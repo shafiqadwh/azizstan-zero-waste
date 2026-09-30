@@ -1,7 +1,7 @@
 # 03 — Database
 
 Source of truth: `db/schema.ts` (Drizzle). It has been generated into SQL with drizzle-kit and applied to
-PostgreSQL 16 together with `RAW_SQL` (33 tables, exclusion constraints and the append-only trigger verified; `term_classes` and `class_skip_rules` were added afterwards and are verified by T01). Extend it; do not rewrite it.
+PostgreSQL 16 together with `RAW_SQL` (35 tables; exclusion constraints, the append-only trigger and the reference data are covered by `pnpm test:db`). Extend it; do not rewrite it.
 
 ## 1. Entity map
 
