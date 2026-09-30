@@ -11,6 +11,9 @@ import { createDb } from './client.ts';
 import { runMigrations } from './migrate.ts';
 import { seed } from './seed.ts';
 import { readWorkerHeartbeat, writeWorkerHeartbeat } from '../src/server/repositories/system.repository.ts';
+import { AppError } from '../src/server/errors.ts';
+import { writeAudit } from '../src/server/services/audit.service.ts';
+import { withTransaction } from '../src/server/transaction.ts';
 
 const baseUrl = process.env.DATABASE_URL;
 if (!baseUrl) throw new Error('pnpm test:db needs DATABASE_URL (see .env.example)');
@@ -188,6 +191,37 @@ describe('worker heartbeat (T02)', () => {
       await writeWorkerHeartbeat(db, new Date('2026-11-16T01:00:00Z'), 1);
       await writeWorkerHeartbeat(db, new Date('2026-11-16T01:00:30Z'), 1);
       expect((await readWorkerHeartbeat(db))?.toISOString()).toBe('2026-11-16T01:00:30.000Z');
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe('service conventions (T03)', () => {
+  test('writeAudit inside withTransaction commits together with the change', async () => {
+    const { db, close } = createDb(url);
+    try {
+      await withTransaction(db, async (tx) => {
+        await writeAudit(tx, { actorId: null, action: 'test.commit', entity: 'test', entityId: 'c1', after: { v: 1 } });
+      });
+      const { rows } = await client.query(`SELECT actor_id, after FROM audit_logs WHERE action = 'test.commit'`);
+      expect(rows).toEqual([{ actor_id: null, after: { v: 1 } }]);
+    } finally {
+      await close();
+    }
+  });
+
+  test('an AppError thrown in the transaction rolls back the audit row', async () => {
+    const { db, close } = createDb(url);
+    try {
+      await expect(
+        withTransaction(db, async (tx) => {
+          await writeAudit(tx, { actorId: null, action: 'test.rollback', entity: 'test', entityId: 'r1' });
+          throw new AppError('CONFLICT');
+        }),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      const { rows } = await client.query(`SELECT count(*)::int AS n FROM audit_logs WHERE action = 'test.rollback'`);
+      expect(rows[0].n).toBe(0);
     } finally {
       await close();
     }
