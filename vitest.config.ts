@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config';
-import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: { tsconfigPaths: true },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'db/**/*.test.ts', 'worker/**/*.test.ts'],
+    exclude: ['db/db.test.ts', '**/*.db.test.ts', '**/node_modules/**'],
     environment: 'node',
   },
 });

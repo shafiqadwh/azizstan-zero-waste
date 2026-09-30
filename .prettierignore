@@ -7,3 +7,4 @@ db/schema.ts
 src/lib/scoring
 fonts
 deploy
+db/migrations
