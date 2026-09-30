@@ -1,9 +1,8 @@
 /**
  * Golden tests for docs/04-business-rules.md. IDs match docs/13-testing.md.
- * Run now (no deps):  node --experimental-strip-types --test src/lib/scoring/scoring.test.ts
- * In the project:     pnpm test   (Vitest runs node:test-style files via its compat, or port to `describe/it`)
+ * In the project:     pnpm test   (Vitest)
  */
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { parseScore as p, toDisplay, toDb, mulDiv, mean } from './decimal.ts';
 import { checkScore, roundTotal, termScore, termScoreByRound, competitionRank, individualClassValue, studentRoundTotals, type AppliedComponent } from './index.ts';

@@ -119,3 +119,13 @@ docker compose -f deploy/docker-compose.yml up -d
 - Empty, loading and error states implemented for every new screen (see `docs/08-ux-ui.md` §7).
 - Works at 360 px wide and at 1440 px wide.
 - No student personal data leaves the server, no student names rendered.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

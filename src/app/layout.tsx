@@ -1,0 +1,23 @@
+import type { Metadata, Viewport } from 'next';
+import type { ReactNode } from 'react';
+import { plexThai } from './fonts';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'AZIZSTAN Zero Waste',
+  description: 'ระบบประเมินความสะอาดห้องเรียนและพื้นที่ โรงเรียนมูลนิธิอาซิซสถาน',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#1D6A4E',
+  width: 'device-width',
+  initialScale: 1,
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="th" className={plexThai.variable}>
+      <body>{children}</body>
+    </html>
+  );
+}

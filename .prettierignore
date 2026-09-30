@@ -1,0 +1,9 @@
+.next
+node_modules
+pnpm-lock.yaml
+docs
+*.md
+db/schema.ts
+src/lib/scoring
+fonts
+deploy
