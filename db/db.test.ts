@@ -10,6 +10,7 @@ import { newId } from '../src/lib/ids.ts';
 import { createDb } from './client.ts';
 import { runMigrations } from './migrate.ts';
 import { seed } from './seed.ts';
+import { readWorkerHeartbeat, writeWorkerHeartbeat } from '../src/server/repositories/system.repository.ts';
 
 const baseUrl = process.env.DATABASE_URL;
 if (!baseUrl) throw new Error('pnpm test:db needs DATABASE_URL (see .env.example)');
@@ -176,5 +177,19 @@ describe('seed', () => {
   test('never seeds มุตะวัซซิต classes', async () => {
     const { rows } = await client.query(`SELECT count(*)::int AS n FROM classes WHERE grade_label LIKE 'มุตะวัซซิต%'`);
     expect(rows[0].n).toBe(0);
+  });
+});
+
+describe('worker heartbeat (T02)', () => {
+  test('is written and read back through app_settings, last write wins', async () => {
+    const { db, close } = createDb(url);
+    try {
+      expect(await readWorkerHeartbeat(db)).toBeNull();
+      await writeWorkerHeartbeat(db, new Date('2026-11-16T01:00:00Z'), 1);
+      await writeWorkerHeartbeat(db, new Date('2026-11-16T01:00:30Z'), 1);
+      expect((await readWorkerHeartbeat(db))?.toISOString()).toBe('2026-11-16T01:00:30.000Z');
+    } finally {
+      await close();
+    }
   });
 });

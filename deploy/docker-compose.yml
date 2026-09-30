@@ -28,6 +28,17 @@ services:
     networks: [internal]
     # No "ports:" — the database is never reachable from the host or LAN.
 
+  # One-shot: applies pending migrations (schema, constraints, reference data) before app and worker start.
+  # Same command by hand: docker compose -f deploy/docker-compose.yml run --rm app node scripts/migrate.js
+  migrate:
+    image: azizstan-zero-waste:${APP_VERSION:-latest}
+    command: ["node", "scripts/migrate.js"]
+    restart: "no"
+    <<: *app-env
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [internal]
+
   app:
     image: azizstan-zero-waste:${APP_VERSION:-latest}
     build: { context: .., dockerfile: deploy/Dockerfile }
@@ -37,7 +48,13 @@ services:
     volumes:
       - app-data:/data
     depends_on:
-      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     deploy:
       resources:
         limits: { memory: 768m }
@@ -48,11 +65,12 @@ services:
     image: azizstan-zero-waste:${APP_VERSION:-latest}
     command: ["node", "worker/index.js"]
     restart: unless-stopped
+    stop_grace_period: 30s
     <<: *app-env
     volumes:
       - app-data:/data
     depends_on:
-      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
     deploy:
       resources:
         limits: { memory: 1g }
