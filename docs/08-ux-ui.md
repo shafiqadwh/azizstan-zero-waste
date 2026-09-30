@@ -246,6 +246,8 @@ label "ไม่ใช้ในภาคเรียนนี้" (never hidden,
 ### 6.15 Students `/admin/settings/students`
 Sync runs table (time, source, status, counts); review list showing **student codes and class strings only** with
 action "จับคู่กับห้อง…" (creates an alias); retention notice. No names.
+Card "ชั้นที่ไม่นำเข้า" (BR-Y step 4a): list of skip prefixes (e.g. "มุตะวัซซิต") with add/remove; the sync runs table
+shows the skipped count as a plain number ("ข้าม 42 คน"), never as a warning.
 
 ### 6.16 PDF (09-pdf)
 Matches the A4 artboard: formal, black on white, Sarabun, school crest left, project logo right.

@@ -231,6 +231,12 @@ If final max were 20: 13 × 20/15 = 17.3333… → display **17.33**.
    never block a sync. Unknown class string (that must be resolved) → student status
    `review` with reason `unknown_class:<normalized string>`; the admin maps it once (creates an alias) and
    re-runs.
+4a. **Skip rules**: before alias resolution, a class string that must be resolved and starts with a
+   `class_skip_rules.prefix` (case-insensitive, after normalization) makes the row **skipped silently**: the student
+   is not imported, not put in `review`, and no one is notified; only `counts.skipped` goes up. Seeded with the
+   มุตะวัซซิต prefixes (`มุตะวัซซิต`, `1M `, `2M `, `3M `) — those classes are not part of the system (Q13).
+   A student already in the DB who becomes skipped is treated as absent (step 5) but is **not** counted towards the
+   abort guard (step 6).
 5. Diff against DB by `student_code`: new → insert; class changed → update (moved); name changed → update;
    present in DB but absent from both sources → candidate inactive; same code twice in the input → `review`.
 6. **Abort guard**: if candidates to inactivate > `SYNC_ABORT_RATIO` × active students → status `aborted`,

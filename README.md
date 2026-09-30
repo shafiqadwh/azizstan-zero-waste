@@ -12,7 +12,7 @@
 | `docs/00-glossary.md` | คำศัพท์ไทย ↔ ชื่อในโค้ด |
 | `docs/01-requirements.md` | ข้อกำหนดทั้งหมดที่ตกลงกันแล้ว มีรหัส FR-xx |
 | `docs/02-architecture.md` | สถาปัตยกรรม, container, layer, ตัวแปร `.env`, งบ RAM |
-| `docs/03-database.md` + `db/schema.ts` | ฐานข้อมูล 34 ตาราง (33 ตารางเดิมทดสอบ migrate บน PostgreSQL 16 แล้ว; `term_classes` เพิ่มภายหลัง ยังไม่ได้ทดสอบ) |
+| `docs/03-database.md` + `db/schema.ts` | ฐานข้อมูล 35 ตาราง (33 ตารางเดิมทดสอบ migrate บน PostgreSQL 16 แล้ว; `term_classes` และ `class_skip_rules` เพิ่มภายหลัง ยังไม่ได้ทดสอบ) |
 | `docs/04-business-rules.md` | กติกาแบบละเอียดทุกข้อ: รอบ, 24 ชม., คำขออนุมัติ, สูตรคะแนน, จัดอันดับ, sync รายชื่อ |
 | `docs/05-api.md` | Server actions, REST API, API สำหรับ ปพ.5, รหัส error + ข้อความไทย |
 | `docs/06-auth-permissions.md` | การล็อกอิน, ตารางสิทธิ์ทุกบทบาท |

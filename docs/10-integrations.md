@@ -34,7 +34,8 @@ by a comma without quotes; empty cells; text instead of a phone number. The pars
 
 ### 1.3 Home class and religious-only students
 `home_class = general class if the ชั้นสามัญ cell is non-empty, else religious class` (FR-R10). Students with
-neither → `review`.
+neither → `review`. Religious-only students whose religious class matches a skip rule (มุตะวัซซิต — Q13) are
+skipped silently: not imported, not in `review`, no notification (BR-Y step 4a).
 
 ### 1.4 Class register seed (from appointment order 23/2569, term 1/2569 — verify each term)
 

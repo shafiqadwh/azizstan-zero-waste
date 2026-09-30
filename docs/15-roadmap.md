@@ -125,8 +125,8 @@ URL; the activity feed shows a new score or edit within 30 s; every submit/edit/
 AC: e2e journey 6; no evaluator names/photos on public pages; LCP budget met on a throttled run.
 
 **T25 Student sync** — deps: T13, T02
-CSV fetch + robust parse (BR-Y), alias resolution, diff, abort guard, review list UI, manual run button.
-AC: T-Y1..Y4 with synthetic fixtures; raw CSV never written to disk (assert tmp dir empty).
+CSV fetch + robust parse (BR-Y), skip rules (step 4a), alias resolution, diff, abort guard, review list UI, manual run button.
+AC: T-Y1..Y5 with synthetic fixtures; raw CSV never written to disk (assert tmp dir empty).
 
 **T26 Notifications & PWA** — deps: T19, T23
 Inbox, Web Push (VAPID), service worker, install prompts, reminder/overdue jobs (11-jobs).

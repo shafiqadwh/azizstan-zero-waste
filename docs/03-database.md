@@ -1,7 +1,7 @@
 # 03 — Database
 
 Source of truth: `db/schema.ts` (Drizzle). It has been generated into SQL with drizzle-kit and applied to
-PostgreSQL 16 together with `RAW_SQL` (33 tables, exclusion constraints and the append-only trigger verified; `term_classes` was added afterwards and is verified by T01). Extend it; do not rewrite it.
+PostgreSQL 16 together with `RAW_SQL` (33 tables, exclusion constraints and the append-only trigger verified; `term_classes` and `class_skip_rules` were added afterwards and are verified by T01). Extend it; do not rewrite it.
 
 ## 1. Entity map
 
@@ -41,7 +41,7 @@ erDiagram
 |---|---|---|
 | Identity | `users`, `sessions`, `api_keys` | Session id = sha256(cookie token). API keys hashed. |
 | Term rules | `terms`, `rounds`, `score_components` | Everything a school may change lives here. |
-| Places | `areas`, `physical_rooms`, `classes`, `class_aliases`, `class_room_links`, `term_classes`, `term_class_zones` | `areas.type` is zone or building. |
+| Places | `areas`, `physical_rooms`, `classes`, `class_aliases`, `class_skip_rules`, `class_room_links`, `term_classes`, `term_class_zones` | `areas.type` is zone or building. |
 | Round freeze | `round_class_areas`, `roster_snapshots` | Written when a round opens. |
 | Work | `duties`, `evaluations`, `evaluation_student_scores`, `evidence`, `pdf_documents`, `requests` | |
 | Results | `round_class_results`, `round_area_results`, `round_student_results` | Recomputed live; `frozen=true` after finalize. |
@@ -80,3 +80,5 @@ Term score is **not stored**; it is computed from frozen round results (cheap: �
 - Seed script (`db/seed.ts`) creates: super admin, 2 admins, 3 executives, 1 term 2/2569 (building, group,
   decimal step 0.5, room 5 + building 10 = 15, 3 rounds), 8 buildings, the real class names from docs/10 §1.4,
   physical rooms `1xx`…`8xx`, and 200 **fake** students. Never seed real student data.
+- `class_skip_rules` for มุตะวัซซิต (`มุตะวัซซิต`, `1M `, `2M `, `3M `) is reference data: insert it in a migration
+  (not only in the dev seed) so production has it from day one (BR-Y step 4a).

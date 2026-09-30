@@ -181,6 +181,16 @@ export const classAliases = pgTable('class_aliases', {
   alias: text('alias').notNull(),                       // normalized (see business rules §9.2)
 }, (t) => [uniqueIndex('class_aliases_alias_uq').on(t.alias)]);
 
+/**
+ * Class strings the student sync skips silently (BR-Y step 4a), e.g. มุตะวัซซิต classes that are not part of the
+ * system (Q13). Matched as a case-insensitive prefix of the normalized class string. Admin-editable, not hard-coded.
+ */
+export const classSkipRules = pgTable('class_skip_rules', {
+  id: uuid('id').primaryKey(),
+  prefix: text('prefix').notNull(),                     // normalized (§9.2), e.g. 'มุตะวัซซิต', '1M '
+  note: text('note'),
+}, (t) => [uniqueIndex('class_skip_rules_prefix_uq').on(t.prefix)]);
+
 /** Class ↔ physical room with effective dates (FR-P3). No overlap: see RAW_SQL. */
 export const classRoomLinks = pgTable('class_room_links', {
   id: uuid('id').primaryKey(),
@@ -453,7 +463,7 @@ export const syncRuns = pgTable('sync_runs', {
   startedAt: ts('started_at').notNull().defaultNow(),
   finishedAt: ts('finished_at'),
   status: syncStatusEnum('status'),
-  counts: jsonb('counts').$type<Record<string, number>>(),     // {rows, added, moved, renamed, inactive, review, malformed}
+  counts: jsonb('counts').$type<Record<string, number>>(),     // {rows, added, moved, renamed, inactive, review, malformed, skipped}
   changes: jsonb('changes').$type<unknown[]>(),                // per-student change list (codes only, no names)
   error: text('error'),
   triggeredBy: uuid('triggered_by').references(() => users.id), // null = scheduled
