@@ -1,10 +1,12 @@
 /**
- * Authorization (06-auth §2–3): decision = role + duty. Role-only rules are answered here; duty, ownership and
- * approver checks arrive through `ctx`, resolved by the calling service.
+ * Authorization (06-auth §2–3): decision = role + duty. The matrix lives in ./matrix.ts as data; this module
+ * evaluates a cell. Duty, ownership and approver facts arrive through `ctx`, resolved by the calling service
+ * (06-auth §4 rule 2).
  */
 import { forbidden } from '../errors.ts';
+import { PERMISSIONS, type Action, type Actor, type Role, type Rule } from './matrix.ts';
 
-export type Role = 'super_admin' | 'admin' | 'executive' | 'teacher';
+export type { Action, Role } from './matrix.ts';
 
 export interface SessionUser {
   id: string;
@@ -16,74 +18,41 @@ export interface SessionUser {
   sessionId: string;
 }
 
-export type Action =
-  | 'public.read'
-  | 'staff.read'
-  | 'monitor.read'
-  | 'evaluation.create'
-  | 'evaluation.update'
-  | 'evaluation.delete'
-  | 'evaluation.approve'
-  | 'evaluation.return'
-  | 'request.create'
-  | 'request.decide'
-  | 'term.configure'
-  | 'round.manage'
-  | 'round.finalize'
-  | 'place.manage'
-  | 'duty.manage'
-  | 'student.sync'
-  | 'content.manage'
-  | 'apikey.manage'
-  | 'user.create'
-  | 'user.setRole'
-  | 'user.manage';
-
 export interface PolicyContext {
   /** The user holds a matching committee duty for the target (BR-P1). */
   hasDuty?: boolean;
-  /** The target is one of the user's own targets (teacher read scope). */
+  /** The target is one of the user's own targets. */
   ownTarget?: boolean;
+  /** Someone holds the approver duty for this target (BR-E6). */
+  approverAssigned?: boolean;
+  /** The user is that approver. */
+  isApprover?: boolean;
 }
 
-const STAFF: readonly Role[] = ['super_admin', 'admin', 'executive'];
-const ADMINS: readonly Role[] = ['super_admin', 'admin'];
+export function evaluateRule(rule: Rule, ctx: PolicyContext): boolean {
+  switch (rule) {
+    case 'yes':
+      return true;
+    case 'no':
+      return false;
+    case 'duty':
+      return ctx.hasDuty === true;
+    case 'own':
+      return ctx.ownTarget === true;
+    case 'approver':
+      return ctx.approverAssigned !== true || ctx.isApprover === true;
+  }
+}
 
 export function can(user: SessionUser | null, action: Action, ctx: PolicyContext = {}): boolean {
-  if (action === 'public.read') return true;
-  if (!user) return false;
-  const role = user.role;
-  switch (action) {
-    case 'staff.read':
-    case 'monitor.read':
-      return STAFF.includes(role) || ctx.ownTarget === true;
-    case 'evaluation.create':
-    case 'evaluation.update':
-    case 'evaluation.delete':
-    case 'request.create':
-      return ctx.hasDuty === true;
-    case 'evaluation.approve':
-    case 'evaluation.return':
-    case 'request.decide':
-    case 'term.configure':
-    case 'round.manage':
-    case 'round.finalize':
-    case 'place.manage':
-    case 'duty.manage':
-    case 'student.sync':
-    case 'content.manage':
-    case 'apikey.manage':
-      return ADMINS.includes(role);
-    case 'user.create':
-    case 'user.setRole':
-    case 'user.manage': // OPEN-QUESTION: Q8 answered — super admin only
-      return role === 'super_admin';
-  }
+  const actor: Actor = user ? user.role : 'anonymous';
+  return evaluateRule(PERMISSIONS[action][actor], ctx);
 }
 
 export function assertCan(user: SessionUser | null, action: Action, ctx?: PolicyContext): void {
   if (!can(user, action, ctx)) throw forbidden();
 }
 
-/** May open the admin area (executives read-only). */
+const STAFF: readonly Role[] = ['super_admin', 'admin', 'executive'];
+/** May open the admin area (06-auth §4 rule 3; executives read-only). */
 export const isStaffRole = (role: Role) => STAFF.includes(role);
