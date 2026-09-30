@@ -19,6 +19,9 @@ Same Docker Compose on both machines. Files: `deploy/docker-compose.yml`, `deplo
    docker compose -f deploy/docker-compose.yml run --rm app node scripts/create-super-admin.js
    docker compose -f deploy/docker-compose.yml up -d
    ```
+   `up` also runs the one-shot `migrate` service before `app` and `worker` start, so the explicit
+   `scripts/migrate.js` call is only needed before `create-super-admin.js`. Check with
+   `curl http://127.0.0.1:3000/api/v1/health` (inside the host) → `"status":"ok"` once the worker heartbeat arrives.
 6. **Access**: LAN only (`ports: ["127.0.0.1:3000:3000"]` + DSM reverse proxy) or Cloudflare Tunnel **with
    Cloudflare Access** restricted to allowed emails.
 7. After handover to the school: `docker compose down -v` and delete the encrypted folder.
