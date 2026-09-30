@@ -105,7 +105,8 @@ pnpm db:migrate       # apply migrations
 pnpm db:seed          # dev seed: 1 term, 3 rounds, rooms, zones, users (no real student data)
 pnpm dev              # next dev
 pnpm worker:dev       # pg-boss worker with watch
-pnpm test             # vitest
+pnpm test             # vitest (unit)
+pnpm test:db          # vitest against PostgreSQL (needs DATABASE_URL; creates and drops a temp database)
 pnpm test:e2e         # playwright
 pnpm lint && pnpm typecheck
 docker compose -f deploy/docker-compose.yml up -d
