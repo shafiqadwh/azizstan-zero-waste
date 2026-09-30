@@ -59,7 +59,7 @@ Each requirement has an ID. Tickets, tests and code comments reference these IDs
 |---|---|
 | FR-E1 | One evaluation per (round, target, score component). The first committee member to save it becomes its owner. Other committee members of the same target see who scored it and when, and cannot create, edit or delete it. |
 | FR-E2 | Required fields: score (0 must be entered explicitly; empty ≠ 0), site photos within min/max, signature-sheet photo **only for class (room) evaluations — building/zone evaluations have no signature** (per component flag `requires_signature`), comment (optional, ≤ 300 chars). |
-| FR-E3 | Photos are taken with the device camera at evaluation time; server stamps date/time; EXIF location stripped. Gallery upload allowed only for the signature sheet (P1) — see open question Q7. |
+| FR-E3 | Photos may be taken with the device camera or picked from the gallery (all photo kinds, incl. the signature sheet), because committees sometimes evaluate without internet (Q7); server stamps date/time; EXIF location stripped. |
 | FR-E4 | The owner can edit or delete their evaluation within the self-edit window (24 h after first submit) while it is not approved. |
 | FR-E5 | After the window, or for anyone other than the owner, changes require a **request** approved by an admin. |
 | FR-E6 | Request types: `late_entry`, `edit_score`, `edit_photos`, `edit_comment`, `move_target` (scored the wrong room), `delete`. The requester states a reason and attaches the new values; approval applies them automatically. |
@@ -81,7 +81,7 @@ Each requirement has an ID. Tickets, tests and code comments reference these IDs
 | FR-R5 | Term score = mean of the class's round totals over rounds that have a total, then scaled (FR-C5). Rounds weigh equally. |
 | FR-R6 | Individual mode: each student has their own room score; the class's room score for ranking is the mean over its snapshot students. |
 | FR-R7 | Store full precision; display and export rounded half-up to 2 decimals. |
-| FR-R8 | Rankings: per grade (all classes of a grade, including religious and vocational groups as their own grade groups) and per area. Two views: per round and term-to-date. Ties share a rank (1, 1, 3). Only approved scores count. |
+| FR-R8 | Rankings: per grade (all classes of a grade, including vocational as its own group and religious classes in two groups by level: มุตะวัซซิต and ซานาวี — Q13) and per area. Two views: per round and term-to-date. Ties share a rank (1, 1, 3). Only approved scores count. |
 | FR-R9 | A student who moves class keeps round scores earned in the old class; later rounds come from the new class (applies when student-level data is used). |
 | FR-R10 | Home class for a student: general class if present, else religious class. |
 

@@ -18,9 +18,10 @@ canvas differs (for example its lighter input borders), follow this document.
 
 ## 2. Brand and logo
 
-- Logo: the current file still carries the text "AZIZ CLEAN ZONE" (green leaf-drop, orange squeegee-drop, berry broom-drop); replace it with a AZIZSTAN Zero Waste logo when the school provides one (Q9). Use the full logo in
-  headers ≥ 40 px tall; use the symbol-only version for the app icon, favicon and notifications (needs a
-  transparent PNG/SVG from the school — Q9). Keep clear space = ½ of the drop width. Never recolour.
+- Logo: the school has **no logo file** (Q9). Until one is provided, use a text wordmark
+  "AZIZSTAN Zero Waste" (IBM Plex Sans Thai 700, `brand` colour) in headers, and generate the app icon, favicon and
+  notification icons from the letters "ZW" in white on a `brand` square (maskable-safe padding). Keep the logo
+  behind one `<Logo>` component so a real file can be swapped in later without touching screens.
 - Product and project name everywhere: **AZIZSTAN Zero Waste** (short form "Zero Waste" only where space is too small, e.g. the PWA icon label); subtitle **ภาคเรียนที่ 2/2569**. The old names "โครงการลดขยะ" and "Aziz Clean Zone" are not used anywhere.
 - The logo's saturated colours are for the logo only; the UI uses the calmer tokens below so status colours
   stay meaningful.
@@ -145,12 +146,12 @@ all rounds finalized → "สรุปผลภาคเรียน" with term 
 
 ### 6.2 Rankings `/rankings`
 Controls: segmented ห้องเรียน/อาคาร; chips per round + "สะสมทั้งเทอม" (default = term-to-date).
-Classes: one card per rank group (ม.1…ม.6, ปวช., สายศาสนา) with top 3 and "ดูทั้งหมด {n} ห้อง" expanding in place.
+Classes: one card per rank group (ม.1…ม.6, ปวช., มุตะวัซซิต, ซานาวี) with top 3 and "ดูทั้งหมด {n} ห้อง" expanding in place.
 Areas: one full list. Ties show the same badge number. Unscored rows: "รอผล".
 Empty: "ยังไม่มีคะแนนที่อนุมัติ" with the round's close date.
 
 ### 6.3 Class scores `/classes`
-Two selects side by side: ชั้น (ม.1…, ปวช., สายศาสนา) and ห้อง (filtered). Result card: `121 · ม.1 Amanah`,
+Two selects side by side: ชั้น (ม.1…, ปวช., มุตะวัซซิต, ซานาวี) and ห้อง (filtered). Result card: `121 · ม.1 Amanah`,
 table rounds × (คะแนนห้อง, คะแนน{อาคาร/โซน}, รวม), term average row, small sparkline linking to /charts.
 No student names anywhere.
 
@@ -262,7 +263,7 @@ round select, "ส่งออก Excel") → 6 status counters (tap = filter) �
 ช่องค้นหาห้อง · ผังห้อง/ตาราง toggle) → body: room map on the left, "ความเคลื่อนไหวล่าสุด" feed (300 px) on the right.
 Filters live in the URL; "ล้างตัวกรอง" appears when any is set.
 
-**Room map view**: one section per rank group (ม.1 … สายศาสนา), then the areas section. Each target is a 70 px tile
+**Room map view**: one section per rank group (ม.1 … ซานาวี), then the areas section. Each target is a 70 px tile
 (6 per row on desktop, 3 on mobile): room number (15/700), class name (13), status by fill **and** icon:
 dashed outline + ○ = ยังไม่ประเมิน; red 2 px border + ⚠ + "เลยกำหนด"; amber + clock + score = รออนุมัติ;
 red soft + undo = ส่งกลับให้แก้; solid brand green + ✓ + score = อนุมัติแล้ว (PDF ready); a small PDF badge marks

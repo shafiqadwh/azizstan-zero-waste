@@ -175,7 +175,7 @@ averaging percentages: `termScore = mean_i(total_i / max_i) × final_max` (refer
 With equal maxima this is identical to BR-S4. Always implement with `termScoreByRound`.
 
 ### 7.5 Ranking — BR-S5
-- Groups: `classes.rank_group` (ม.1 … ม.6, ปวช., สายศาสนา) and areas (all areas of the term type).
+- Groups: `classes.rank_group` (ม.1 … ม.6, ปวช., มุตะวัซซิต, ซานาวี — religious classes ranked by level, Q13) and areas (all areas of the term type).
 - Order: score descending. Ties share the rank; next rank skips (competition ranking: 14.5, 14.5, 13 → 1, 1, 3).
 - Compare at **thousandths** (not the rounded display value), so 13.333 vs 13.334 are different ranks even though
   both display 13.33. Ties at thousandths share the rank.
@@ -205,8 +205,8 @@ If final max were 20: 13 × 20/15 = 17.3333… → display **17.33**.
   EXIF, resize to max 1600 px long edge, WebP quality 80, stamp bottom-right
   `dd/MM/yyyy HH:mm · 121 · ม.1 Amanah` (Bangkok time, Buddhist year), store as `uploads/{sha[0:2]}/{sha}.webp`.
 - **BR-V2** `captured_at` = server receive time (client clocks are not trusted).
-- **BR-V3** Site photos must come from the camera (`<input capture="environment">` on mobile). The signature
-  sheet may also be picked from the gallery (Q7).
+- **BR-V3** Any evaluation photo (site photos and the signature sheet) may come from the camera **or** the gallery
+  (`<input type="file" accept="image/*">`, no `capture` attribute) — committees sometimes evaluate without internet (Q7).
 - **BR-V4** Uploads not attached to an evaluation within 24 h are garbage-collected.
 
 ## 9. Student sync — BR-Y*

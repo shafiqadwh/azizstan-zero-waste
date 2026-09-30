@@ -46,7 +46,8 @@ neither → `review`.
 | ม.4 | general | Intan, Delima, Nilam, Kristal, Al-Khawarizmi, Ash-Shafi'i, Al-Biruni, Amber, Mutiara, Topaz, Berlian |
 | ม.5 | general | Intan, Delima, Nilam, Kristal, Al-Khawarizmi, Ash-Shafi'i, Al-Biruni, Amber, Mutiara, Topaz |
 | ม.6 | general | Intan, Delima, Nilam, Kristal, Al-Khawarizmi, Ash-Shafi'i, Al-Biruni, Amber, Mutiara, Topaz |
-| สายศาสนา | religious | มุตะวัซซิต ปี 1 Al-Taqwa (1M), มุตะวัซซิต ปี 2 Al-Istiqamah (2M), ซานาวี ปี 2 Al-Bukhari (2S), ซานาวี ปี 2 Muslim (2S), ซานาวี ปี 3 Al-Bukhari (3S), ซานาวี ปี 3 Muslim (3S) |
+| มุตะวัซซิต | religious | มุตะวัซซิต ปี 1 Al-Taqwa (1M), มุตะวัซซิต ปี 2 Al-Istiqamah (2M) |
+| ซานาวี | religious | ซานาวี ปี 2 Al-Bukhari (2S), ซานาวี ปี 2 Muslim (2S), ซานาวี ปี 3 Al-Bukhari (3S), ซานาวี ปี 3 Muslim (3S) |
 | ปวช. | vocational | ปวช.1/1, ปวช.2/1, ปวช.2/2, ปวช.3/1, ปวช.3/2 |
 
 Total 79 classes. Room numbers (`roomNo`) follow the order listed. Seed aliases:

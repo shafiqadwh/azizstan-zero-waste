@@ -168,7 +168,7 @@ export const classes = pgTable('classes', {
   track: trackEnum('track').notNull(),
   gradeCode: text('grade_code').notNull(),              // 'M1'..'M6', 'VOC1'..'VOC3', 'REL-MUT1', 'REL-SAN2'
   gradeLabel: text('grade_label').notNull(),            // 'ม.1', 'ปวช.2', 'มุตะวัซซิต ปี 1'
-  rankGroup: text('rank_group').notNull(),              // ranking bucket: 'ม.1' … 'ปวช.' … 'สายศาสนา'
+  rankGroup: text('rank_group').notNull(),              // ranking bucket: 'ม.1' … 'ปวช.', 'มุตะวัซซิต', 'ซานาวี' (Q13)
   roomNo: smallint('room_no').notNull(),                // sort only, never shown for general track
   name: text('name').notNull(),                         // 'Amanah' | 'ปวช.2/1' | '2S Muslim'
   displayName: text('display_name').notNull(),          // 'ม.1 Amanah'
