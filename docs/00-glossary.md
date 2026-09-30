@@ -8,6 +8,7 @@ Use the English identifier in code, database, API and logs. Use the Thai term in
 | ภาคเรียน / เทอม | `term` | 1 or 2 within an academic year. All rules are configured per term |
 | รอบการประเมิน | `round` | One scoring period inside a term (this term: 3 rounds) |
 | ห้องเรียน | `class` | A class of students, e.g. ม.1 Amanah. Evaluated as a "room" |
+| ห้องเรียนที่ใช้ในภาคเรียนนี้ | `term_classes` | The classes selected to take part in one term (FR-P7) |
 | ห้องกายภาพ / หมายเลขห้อง | `physical_room`, `room_number` | The actual room in a building, e.g. 121 = building 1, floor 2, room 1 |
 | อาคาร | `building` | An `area` of type `building` |
 | โซน | `zone` | An `area` of type `zone` (A–Y), e.g. "ประตูใหญ่ทางเข้าโรงเรียน" |

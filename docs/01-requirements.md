@@ -7,7 +7,7 @@ Each requirement has an ID. Tickets, tests and code comments reference these IDs
 
 - School: โรงเรียนมูลนิธิอาซิซสถาน. Project and system name: **AZIZSTAN Zero Waste** (used everywhere in UI, PDF, notifications and code).
 - Replaces a Google Sites + Google Forms + Looker Studio setup ("AZIZSTAN Zero Waste 3.0").
-- Scale (term 1/2569): ~79 classes (ม.1–ม.6, ปวช. 1–3, religious-track classes), 25 zones (A–Y), ~150 staff.
+- Scale (term 1/2569): ~77 classes in the register (ม.1–ม.6, ปวช. 1–3, ซานาวี); each term uses only the classes selected for it (FR-P7), 25 zones (A–Y), ~150 staff.
 - This term (2/2569): **buildings**, **group mode**, **executives are the only committee**, 3 rounds,
   room score max 5 + building score max 10 = 15.
 - Next terms: rules can change completely (zones, individual mode, teachers as committee, deductions).
@@ -51,6 +51,7 @@ Each requirement has an ID. Tickets, tests and code comments reference these IDs
 | FR-P3 | Class ↔ physical room link with effective dates. One class ↔ one room at a time and vice versa (no sharing). Mid-year moves happen for some classes. |
 | FR-P4 | Zones: code (A–Y), description of the area, responsible classes (per term), responsible teachers (per term, P3), zone head (P3). |
 | FR-P5 | Everywhere a class is shown to staff it appears as `121 · ม.1 Amanah`. Committee can find a target by room number, by grade+name, or by QR code on the door (P2). |
+| FR-P7 | Per-term class selection: admin ticks which classes take part in the term (grouped by rank group, "เลือกทั้งหมด" per group). Only selected classes are evaluation targets, get committee duties, are ranked, appear on public pages and are exported to ปพ.5. Unselected classes stay in the register untouched. A new term in the **same** academic year starts with the previous term's selection; the first term of a **new** academic year starts with nothing selected and the admin must choose again. |
 | FR-P6 | Admin sees a coverage report: every class and every area has at least one committee member; no duplicates. |
 
 ## 5. Evaluation
@@ -81,7 +82,7 @@ Each requirement has an ID. Tickets, tests and code comments reference these IDs
 | FR-R5 | Term score = mean of the class's round totals over rounds that have a total, then scaled (FR-C5). Rounds weigh equally. |
 | FR-R6 | Individual mode: each student has their own room score; the class's room score for ranking is the mean over its snapshot students. |
 | FR-R7 | Store full precision; display and export rounded half-up to 2 decimals. |
-| FR-R8 | Rankings: per grade (all classes of a grade, including vocational as its own group and religious classes in two groups by level: มุตะวัซซิต and ซานาวี — Q13) and per area. Two views: per round and term-to-date. Ties share a rank (1, 1, 3). Only approved scores count. |
+| FR-R8 | Rankings: per grade (all classes of a grade, including vocational as its own group and religious classes as one group "ซานาวี"; มุตะวัซซิต classes are not part of the system — Q13) and per area. Two views: per round and term-to-date. Ties share a rank (1, 1, 3). Only approved scores count. |
 | FR-R9 | A student who moves class keeps round scores earned in the old class; later rounds come from the new class (applies when student-level data is used). |
 | FR-R10 | Home class for a student: general class if present, else religious class. |
 

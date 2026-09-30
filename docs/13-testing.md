@@ -37,6 +37,8 @@ student moves, class-string keys (§9.2), home class (FR-R10). Run:
 | T-R3 | BR-R3 | finalize writes frozen results equal to live computation; public API returns them |
 | T-TM1 | BR-TM2 | first evaluation sets `config_locked_at`; updateTermConfig afterwards → `CONFIG_LOCKED` |
 | T-TM2 | BR-TM1 | createTerm copies config/components/zones, not duties (unless flag) |
+| T-TM3 | FR-P7, BR-TM1 | createTerm for term 2 of the same academic year copies `term_classes`; createTerm for a new academic year copies none and readiness step 5 fails until a class is selected |
+| T-TM4 | FR-P7 | unselected class: not in `round_class_areas`, not a committee target, not in `/public/rankings` or `/pp5/terms/{id}/classes`; `setTermClasses` after config lock → `CONFIG_LOCKED` |
 | T-Y1 | BR-Y step 3 | CSV fixture with (a) line break inside province, (b) unquoted comma in phone, (c) empty cells → all students parsed with correct codes and classes |
 | T-Y2 | BR-Y step 6 | fixture with 15 % students missing → sync `aborted`, DB unchanged, admins notified |
 | T-Y3 | BR-Y step 4 | unknown class string → student `review`, not auto-created class |

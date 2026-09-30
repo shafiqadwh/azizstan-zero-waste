@@ -16,7 +16,7 @@ Agents: implement the **default**, mark the code with `// OPEN-QUESTION: Qn`, an
 | Q10 | Is a per-target approver needed, or can any admin approve anything? | **Answered 2026-09-30:** any admin; `approver` duty optional (if set, restricts) | T18 |
 | Q11 | After "ส่งกลับให้แก้", how long can the owner edit? | **Answered 2026-09-30:** new window of `self_edit_hours` from the return time | T18 |
 | Q12 | Building/zone evaluation: who signs the signature sheet (many classes share one area)? | **Answered:** no signature for building/zone evaluations (`requires_signature = false`) | T19, T22 |
-| Q13 | Ranking group for religious classes: one group "สายศาสนา" or by year (มุตะวัซซิต/ซานาวี)? | **Answered 2026-09-30:** **two** groups by level: "มุตะวัซซิต" and "ซานาวี" (not one "สายศาสนา" group) | T24 |
+| Q13 | Ranking group for religious classes: one group "สายศาสนา" or by year (มุตะวัซซิต/ซานาวี)? | **Answered 2026-09-30:** one religious group "ซานาวี". มุตะวัซซิต classes are removed from the system. Only some ซานาวี classes take part, so admins choose each term which classes are used (FR-P7, `term_classes`); a new academic year starts with no selection | T24 |
 | Q14 | Student API: rotated token, reduced columns, token in header | **Answered 2026-09-30:** not rotated/changed yet. Works with the current endpoint; token from `.env`. Token must still be rotated before production | T25 |
 | Q15 | List of buildings and room numbers; which class is in which room for 2/2569 | **Answered:** super admin/admin enter buildings and room numbers each term (UI or `rooms.xlsx`) | T13 |
 | Q16 | Production hostname (e.g. `zerowaste.azizstan.net`) | **Answered 2026-09-30:** `https://zerowaste.azizstan.net` (`APP_URL`) | T29 |

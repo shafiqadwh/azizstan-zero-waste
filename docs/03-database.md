@@ -1,7 +1,7 @@
 # 03 — Database
 
 Source of truth: `db/schema.ts` (Drizzle). It has been generated into SQL with drizzle-kit and applied to
-PostgreSQL 16 together with `RAW_SQL` (33 tables, exclusion constraints and the append-only trigger verified). Extend it; do not rewrite it.
+PostgreSQL 16 together with `RAW_SQL` (33 tables, exclusion constraints and the append-only trigger verified; `term_classes` was added afterwards and is verified by T01). Extend it; do not rewrite it.
 
 ## 1. Entity map
 
@@ -41,7 +41,7 @@ erDiagram
 |---|---|---|
 | Identity | `users`, `sessions`, `api_keys` | Session id = sha256(cookie token). API keys hashed. |
 | Term rules | `terms`, `rounds`, `score_components` | Everything a school may change lives here. |
-| Places | `areas`, `physical_rooms`, `classes`, `class_aliases`, `class_room_links`, `term_class_zones` | `areas.type` is zone or building. |
+| Places | `areas`, `physical_rooms`, `classes`, `class_aliases`, `class_room_links`, `term_classes`, `term_class_zones` | `areas.type` is zone or building. |
 | Round freeze | `round_class_areas`, `roster_snapshots` | Written when a round opens. |
 | Work | `duties`, `evaluations`, `evaluation_student_scores`, `evidence`, `pdf_documents`, `requests` | |
 | Results | `round_class_results`, `round_area_results`, `round_student_results` | Recomputed live; `frozen=true` after finalize. |
@@ -68,7 +68,7 @@ Term score is **not stored**; it is computed from frozen round results (cheap: �
 
 1. **Targets for a committee member** — duties(term, user, committee) → classes/areas → left join the evaluation
    of the open round per component → status for the task list. Index: `duties_user_term_idx`, `evaluations_round_idx`.
-2. **Coverage report** — every active class and area of the term's area type, count of committee duties; rows
+2. **Coverage report** — every class selected for the term (`term_classes`) and every area of the term's area type, count of committee duties; rows
    with 0 or > 1 highlighted.
 3. **Round board** — all targets × components with evaluation status; used by dashboard and finalize check.
 4. **Public results** — `round_class_results` + `round_area_results` where the round has any approved data

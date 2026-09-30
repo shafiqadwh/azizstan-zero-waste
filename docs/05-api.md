@@ -58,6 +58,7 @@ Every mutating input carries `expectedVersion` where the entity has a `version`.
 | `finalizeRound` | `{roundId}` | admin, BR-R3 |
 | `upsertArea` / `upsertPhysicalRoom` / `upsertClass` / `addClassAlias` | … | admin |
 | `linkClassRoom` | `{classId, physicalRoomId, effectiveFrom}` (closes previous link at the same date) | admin |
+| `setTermClasses` | `{termId, classIds[]}` (replaces the selection; rejected once config is locked) | admin, FR-P7 |
 | `setClassZone` | `{termId, classId, areaId}` | admin |
 | `editRoundClassArea` | `{roundId, classId, areaId}` | admin, BR-R4 |
 | `assignDuty` / `removeDuty` | `{termId, userId, duty, target?, isFreelance, validUntil?}` | admin |

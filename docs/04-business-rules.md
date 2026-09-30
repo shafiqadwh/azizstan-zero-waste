@@ -19,9 +19,10 @@ Reference implementation of the scoring rules: `src/lib/scoring/` (runs, tested)
 ## 2. Terms
 
 - **BR-TM1** Creating a term copies from the latest term: config columns, score components, and
-  `term_class_zones` (zone mode). Duties are **not** copied (committees change every term) unless the admin
+  `term_class_zones` (zone mode), and the class selection `term_classes` **only when the new term is in the same
+  academic year**; a term in a new academic year starts with no classes selected (FR-P7). Duties are **not** copied (committees change every term) unless the admin
   ticks "คัดลอกผู้ประเมินจากเทอมก่อน".
-- **BR-TM2** Config (terms row + components) is editable while `config_locked_at IS NULL`. The first evaluation
+- **BR-TM2** Config (terms row + components + `term_classes`) is editable while `config_locked_at IS NULL`. The first evaluation
   created in the term sets `config_locked_at = now` in the same transaction.
 - **BR-TM3** If `sum(max of score components with kind=score)` ≠ `final_max`, the UI shows the scaling
   factor `final_max / sum` next to the term maximum so the admin sees it (e.g. "คะแนนจะถูกแปลงเป็นเต็ม 20").
@@ -31,13 +32,15 @@ Reference implementation of the scoring rules: `src/lib/scoring/` (runs, tested)
   check is a step flag on the settings overview (08-ux-ui §6.20):
   1. term config saved; 2. a student sync succeeded within the last 7 days (**blocking only when `student_level_enabled`**; in group mode a
   missing sync or students in `review` are warnings, because group scores do not depend on the roster);
-  3. mode and score format set; 4. components' max > 0 and every round has dates; 5. every active class has a
-  current physical room (building mode) or a zone for the term (zone mode); 6. every class and area has ≥ 1
+  3. mode and score format set; 4. components' max > 0 and every round has dates; 5. at least one class is
+  selected for the term (`term_classes`, FR-P7) and every selected class has a
+  current physical room (building mode) or a zone for the term (zone mode); 6. every selected class and every area has ≥ 1
   committee member; 7. at least one appointment order uploaded (warning only — does not block);
   8. no class shares a room (guaranteed by the DB) and no area is empty of classes.
   If round 1's `opens_at` arrives while checks fail, the job does not open the round and notifies admins.
 - **BR-TM6** New-term wizard copies, from the chosen term: term config and components (always); zone places,
-  zone descriptions and `term_class_zones` (default on); committee/approver duties (default off). Class–room links
+  zone descriptions and `term_class_zones` (default on); class selection `term_classes` (same academic year only,
+  default on; never for a new academic year — FR-P7); committee/approver duties (default off). Class–room links
   are date-based and simply continue; the admin moves classes with an effective date. Nothing from the old term is
   modified or deleted.
 
@@ -51,11 +54,12 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 
 - **BR-R1 Open** (job `round.open`, runs at `opens_at`): in one transaction
   1. status → `open`;
-  2. write `round_class_areas` for every active class:
+  2. write `round_class_areas` for every class selected for the term (`term_classes`):
      - building mode: building of the physical room linked to the class on the date of `opens_at`;
      - zone mode: the class's row in `term_class_zones`;
      - a class with no area → listed in the dashboard as "ไม่มีพื้นที่" (blocks finalize);
-  3. write `roster_snapshots` from active students' `home_class_id`;
+  3. write `roster_snapshots` from active students' `home_class_id` (students whose home class is not selected
+     for the term are not snapshotted);
   4. notify committee members with targets (type `round_opened`).
 - **BR-R2 Close** (job `round.close`, at `closes_at`): status → `closed`. Committee can no longer create
   evaluations without a late-entry grant. Owners may still edit within their own self-edit window.
@@ -139,7 +143,7 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 ### 7.1 Applicability — BR-S1
 A component applies to a class in a round if:
 - only components with `enabled = true` exist for scoring, targets, forms, reminders and readiness checks;
-- `unit = class`: always (every active class is a target of every class-unit component);
+- `unit = class`: always (every class selected for the term is a target of every class-unit component);
 - `unit = area`: the class has a row in `round_class_areas` for that round (it inherits that area's evaluation).
 
 ### 7.2 Component value for a class in a round — BR-S2
@@ -175,7 +179,7 @@ averaging percentages: `termScore = mean_i(total_i / max_i) × final_max` (refer
 With equal maxima this is identical to BR-S4. Always implement with `termScoreByRound`.
 
 ### 7.5 Ranking — BR-S5
-- Groups: `classes.rank_group` (ม.1 … ม.6, ปวช., มุตะวัซซิต, ซานาวี — religious classes ranked by level, Q13) and areas (all areas of the term type).
+- Groups: `classes.rank_group` (ม.1 … ม.6, ปวช., ซานาวี — Q13); only classes selected for the term (FR-P7) and areas (all areas of the term type).
 - Order: score descending. Ties share the rank; next rank skips (competition ranking: 14.5, 14.5, 13 → 1, 1, 3).
 - Compare at **thousandths** (not the rounded display value), so 13.333 vs 13.334 are different ranks even though
   both display 13.33. Ties at thousandths share the rank.

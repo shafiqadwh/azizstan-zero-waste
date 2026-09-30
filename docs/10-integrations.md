@@ -46,13 +46,13 @@ neither → `review`.
 | ม.4 | general | Intan, Delima, Nilam, Kristal, Al-Khawarizmi, Ash-Shafi'i, Al-Biruni, Amber, Mutiara, Topaz, Berlian |
 | ม.5 | general | Intan, Delima, Nilam, Kristal, Al-Khawarizmi, Ash-Shafi'i, Al-Biruni, Amber, Mutiara, Topaz |
 | ม.6 | general | Intan, Delima, Nilam, Kristal, Al-Khawarizmi, Ash-Shafi'i, Al-Biruni, Amber, Mutiara, Topaz |
-| มุตะวัซซิต | religious | มุตะวัซซิต ปี 1 Al-Taqwa (1M), มุตะวัซซิต ปี 2 Al-Istiqamah (2M) |
 | ซานาวี | religious | ซานาวี ปี 2 Al-Bukhari (2S), ซานาวี ปี 2 Muslim (2S), ซานาวี ปี 3 Al-Bukhari (3S), ซานาวี ปี 3 Muslim (3S) |
 | ปวช. | vocational | ปวช.1/1, ปวช.2/1, ปวช.2/2, ปวช.3/1, ปวช.3/2 |
 
-Total 79 classes. Room numbers (`roomNo`) follow the order listed. Seed aliases:
-`Usaha(Ijtihad)`→Usaha, `Iklas`→Ikhlas, `At-Takwa`/`Al-Taqwa`/`1M Al-Taqwa`→Al-Taqwa, `Biruni`→Al-Biruni,
-`Al-khawarizmi`→Al-Khawarizmi, `Ash-Shafi’i` (curly)→Ash-Shafi'i, `2M Al-Istiqamah`, `2S Muslim`, `3S Al-bukhari`…
+Total 77 classes (มุตะวัซซิต classes are not part of the system — Q13). Which ซานาวี classes take part is
+chosen per term (FR-P7); the dev seed selects all 77 for its term. Room numbers (`roomNo`) follow the order listed. Seed aliases:
+`Usaha(Ijtihad)`→Usaha, `Iklas`→Ikhlas, `Biruni`→Al-Biruni,
+`Al-khawarizmi`→Al-Khawarizmi, `Ash-Shafi’i` (curly)→Ash-Shafi'i, `2S Muslim`, `3S Al-bukhari`…
 
 ### 1.5 Zones seed (term 1/2569)
 | Code | Area |
