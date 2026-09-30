@@ -1,0 +1,76 @@
+name: azizstan-zero-waste
+
+x-app-env: &app-env
+  env_file: ../.env
+  environment:
+    TZ: Asia/Bangkok
+    DATA_DIR: /data
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Bangkok
+      POSTGRES_DB: zw
+      POSTGRES_USER: zw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./backup:/backup
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zw -d zw"]
+      interval: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    networks: [internal]
+    # No "ports:" — the database is never reachable from the host or LAN.
+
+  app:
+    image: azizstan-zero-waste:${APP_VERSION:-latest}
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["node", "server.js"]
+    restart: unless-stopped
+    <<: *app-env
+    volumes:
+      - app-data:/data
+    depends_on:
+      db: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 768m }
+    networks: [internal]
+    # Expose to LAN only for local testing:  ports: ["127.0.0.1:3000:3000"]
+
+  worker:
+    image: azizstan-zero-waste:${APP_VERSION:-latest}
+    command: ["node", "worker/index.js"]
+    restart: unless-stopped
+    <<: *app-env
+    volumes:
+      - app-data:/data
+    depends_on:
+      db: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    networks: [internal]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    restart: unless-stopped
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set in .env}
+    depends_on: [app]
+    networks: [internal]
+
+volumes:
+  db-data:
+  app-data:
+
+networks:
+  internal:
+    driver: bridge

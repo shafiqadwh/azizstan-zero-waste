@@ -1,0 +1,54 @@
+# 09 — PDF Documents
+
+## 1. Pipeline
+
+```
+approveEvaluation ──► enqueue job pdf.render {evaluationId, version}
+worker: ─► sign token (HMAC, 5 min) ─► Playwright chromium.newPage()
+        ─► goto http://app:3000/internal/pdf/evaluation/{id}?v={version}&t={token}
+        ─► wait for fonts (document.fonts.ready) and all <img> loaded
+        ─► page.pdf({ format: 'A4', printBackground: true, margin: 0, preferCSSPageSize: true })
+        ─► write DATA_DIR/pdf/{yyyy}/{docNumber}-v{n}.pdf ─► insert pdf_documents, supersede previous
+```
+- One Chromium instance kept alive in the worker; concurrency 1; job timeout 60 s; 3 retries with backoff.
+- `evaluations.pdf_status`: set `queued` when the job is enqueued, `ready` on success, `failed` (+ `pdf_error`)
+  after the last retry. The monitor board (08-ux-ui §6.17) shows these and lets an admin re-enqueue.
+- The internal route is excluded from middleware auth but requires a valid token and is blocked for
+  requests not coming from the Docker network (check `x-forwarded-for` absent and remote address private).
+
+## 2. Layout (A4 portrait, 210 × 297 mm, one page always)
+
+```
+┌──────────────────────────────────────────────── 15 mm margins ─┐
+│ [ตราโรงเรียน]  แบบรายงานผลการประเมินความสะอาดห้องเรียน   [โลโก้] │  header, 1.5 pt rule under
+│                โรงเรียนมูลนิธิอาซิซสถาน · โครงการ AZIZSTAN Zero Waste ภาคเรียนที่ 2/2569 │
+├────────────────────────────────────────────────────────────────┤
+│ ห้อง       121 · ม.1 Amanah         รอบที่        1               │  info table 2×3
+│ อาคาร      อาคาร 1 ชั้น 2           วันที่ประเมิน  15 พ.ย. 2569 10:20 น.│
+│ ผู้ประเมิน  {displayName}            ผู้อนุมัติ     {displayName}     │
+├──────────────┬─────────────────────────────────────────────────┤
+│  คะแนนที่ได้   │ คำแนะนำและข้อติชม                                  │
+│     4.5      │ {comment, max 300 chars, 16 pt, line-height 1.6}  │
+│ จากคะแนนเต็ม 5 │                                                 │
+├──────────────┴─────────────────────────────────────────────────┤
+│ ภาพหลักฐาน                                                       │
+│ [site 1] [site 2] [site 3]                                      │  3 × 2 grid, 4:3 cells,
+│ [site 4] [site 5] [ใบลงชื่อนักเรียน]                                │  object-fit: cover (site),
+│                                                                  │  contain (signature)
+├────────────────────────────────────────────────────────────────┤
+│ เอกสารภายใน ห้ามเผยแพร่ · สร้างจากระบบ AZIZSTAN Zero Waste · {generatedAt}   เลขที่เอกสาร ZW-2569-2-R1-0007 · ฉบับที่ 1 │
+└────────────────────────────────────────────────────────────────┘
+          watermark "ฉบับร่าง" 96 pt, 8 % opacity, −30°, while round not finalized (FR-D2)
+```
+- Fewer than 5 site photos: empty cells are omitted and the grid reflows; the signature is always last.
+- Area evaluation PDF: no signature cell (grid shows up to 5 site photos); same layout otherwise, title "แบบรายงานผลการประเมินความสะอาดอาคาร/โซน", info row "พื้นที่"
+  instead of "ห้อง", plus zone description (1 line, truncated with "…").
+- Individual mode (future): page 1 as above with class average; page 2 table of student codes and scores
+  (**codes only, no names**) — requirement to confirm when that mode is used.
+- Fonts: Sarabun 400/600/700 bundled in the image (`/app/fonts`), `@font-face` local files only.
+- Images: pass the 1600 px WebP; the PDF stays < 1.5 MB.
+
+## 3. Blank signature sheet (P2)
+Route `/internal/pdf/signature-sheet/{classId}/{roundId}`: header as above, room + class + round, table with
+40 numbered rows × columns `ลำดับ | ลงชื่อนักเรียน`, footer "โปรดถ่ายรูปแผ่นนี้แนบในระบบ". Generated on demand,
+not stored.
