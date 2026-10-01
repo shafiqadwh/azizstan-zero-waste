@@ -11,7 +11,7 @@
 | `/charts?type=class|area&id=` | public | Development chart | RSC data + client Recharts |
 | `/orders` · `/orders/[id]` | public | Appointment orders PDF viewer | RSC |
 | `/guide` · `/guide/[slug]` | public | How-to | RSC (markdown) |
-| `/calendar` | public (P2) | Scoring calendar | RSC |
+| `/calendar` | public (P2, T31) | Scoring calendar: round cards + month grids from round dates; `/calendar.ics` for phone calendars (24 h reminder before each close) | RSC |
 | `/login` | public | Login | client form |
 | `/account/password` | staff | Change password | client form |
 | `/tasks` | committee | My tasks (tabs: ต้องทำ · รออนุมัติ · เสร็จ · คำขอของฉัน) | RSC + 30 s refresh |
