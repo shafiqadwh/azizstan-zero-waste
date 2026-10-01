@@ -86,3 +86,9 @@ export function bangkokDateString(date: Date): string {
 export function formatTermLabel(termNo: number, academicYear: number): string {
   return `ภาคเรียนที่ ${termNo}/${academicYear}`;
 }
+
+/** Date → `<input type="datetime-local">` value in Bangkok wall-clock time, e.g. `2026-11-15T16:30`. */
+export function bangkokLocalInput(date: Date): string {
+  const p = bangkokParts(date);
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)}T${pad2(p.hour)}:${pad2(p.minute)}`;
+}

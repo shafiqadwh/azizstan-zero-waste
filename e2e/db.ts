@@ -60,3 +60,43 @@ export async function freeTermSlot(parity: 0 | 1) {
     await client.end();
   }
 }
+
+/**
+ * A draft building-mode term of its own (random high year, retried on conflict) with one new building and one
+ * selected class, so coverage assertions never collide with other specs running in parallel.
+ */
+export async function seedCommitteeFixture() {
+  const url = process.env.DATABASE_URL!;
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  const tag = randomBytes(3).toString('hex').toUpperCase();
+  try {
+    let termId: string | undefined;
+    for (let i = 0; !termId && i < 50; i++) {
+      const year = 2650 + Math.floor(Math.random() * 50);
+      const termNo = 1 + Math.floor(Math.random() * 3);
+      const { rows } = await client.query<{ id: string }>(
+        `INSERT INTO terms (id, academic_year, term_no, status, area_type, final_max)
+         VALUES (gen_random_uuid(), $1, $2, 'draft', 'building', 15) ON CONFLICT DO NOTHING RETURNING id`,
+        [year, termNo],
+      );
+      termId = rows[0]?.id;
+    }
+    if (!termId) throw new Error('no free term slot');
+    const building = `อาคาร E2E ${tag}`;
+    await client.query(
+      `INSERT INTO areas (id, type, code, name, sort_order) VALUES (gen_random_uuid(), 'building', $1, $2, 900)`,
+      [`Z${tag}`, building],
+    );
+    const className = `ม.C C${tag}`;
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO classes (id, track, grade_code, grade_label, rank_group, room_no, name, display_name)
+       VALUES (gen_random_uuid(), 'general', 'E2E-C', 'ม.C', 'ม.C', 0, $1, $2) RETURNING id`,
+      [`C${tag}`, className],
+    );
+    await client.query('INSERT INTO term_classes (term_id, class_id) VALUES ($1, $2)', [termId, rows[0]!.id]);
+    return { termId, building, className };
+  } finally {
+    await client.end();
+  }
+}

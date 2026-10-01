@@ -37,6 +37,12 @@ export default async function AdminHomePage() {
           ห้องเรียน อาคาร และหมายเลขห้อง
         </Link>
         <Link
+          href="/admin/settings/committee"
+          className="inline-flex h-11 items-center rounded-md border border-line-strong bg-surface px-4 font-medium hover:bg-surface-muted"
+        >
+          คณะกรรมการ
+        </Link>
+        <Link
           href="/admin/settings/users"
           className="inline-flex h-11 items-center rounded-md border border-line-strong bg-surface px-4 font-medium hover:bg-surface-muted"
         >

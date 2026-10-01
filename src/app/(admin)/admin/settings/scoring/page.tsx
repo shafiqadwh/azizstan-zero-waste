@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { LockedBanner, ReadOnlyBanner } from '@/components/app/settings';
 import { TermPicker } from '@/components/app/TermPicker';
-import { bangkokParts, formatTermLabel } from '@/lib/dates';
+import { bangkokLocalInput, formatTermLabel } from '@/lib/dates';
 import { requirePageUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { can } from '@/server/policies';
@@ -12,12 +12,7 @@ import { ScoringForm } from './ScoringForm';
 
 export const metadata: Metadata = { title: 'ส่วนคะแนนและรอบ · AZIZSTAN ZERO WASTE' };
 
-const pad = (n: number) => String(n).padStart(2, '0');
-/** Date → datetime-local value in Bangkok wall-clock time. */
-const local = (d: Date) => {
-  const p = bangkokParts(d);
-  return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`;
-};
+const local = bangkokLocalInput;
 
 /** 08-ux-ui §6.12 `/admin/settings/scoring`: rounds stepper, components, per-round full marks, term maximum. */
 export default async function ScoringPage({ searchParams }: { searchParams: Promise<{ term?: string }> }) {
