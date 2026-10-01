@@ -49,6 +49,10 @@ worker: ─► sign token (HMAC, 5 min) ─► Playwright chromium.newPage()
 - Images: pass the 1600 px WebP; the PDF stays < 1.5 MB.
 
 ## 3. Blank signature sheet (P2)
-Route `/internal/pdf/signature-sheet/{classId}/{roundId}`: header as above, room + class + round, table with
-40 numbered rows × columns `ลำดับ | ลงชื่อนักเรียน`, footer "โปรดถ่ายรูปแผ่นนี้แนบในระบบ". Generated on demand,
-not stored.
+Route `GET /api/v1/pdf/signature-sheet?classId=&roundId=` (T30; `&format=html` returns the printable page):
+header as above, room + class + round with its dates, building/zone from the round's frozen mapping, table with
+40 numbered rows × columns `ลำดับ | ลงชื่อนักเรียน` (two columns of 20 so each line is tall enough to sign),
+note "โปรดถ่ายรูปแผ่นนี้แนบในระบบ". No student names are printed. Generated on demand in the web process
+(`src/server/pdf/on-demand.ts`: one Chromium, started on first use, closed after a minute idle), not stored.
+Staff, or a committee member with a duty on the class in that term. Linked from the evaluation form's
+"ใบลงชื่อนักเรียน" card and the monitor popover.

@@ -102,6 +102,7 @@ Scores are strings with 2 decimals. Only approved data (FR-W7). No evaluator nam
 | Method | Path | Notes |
 |---|---|---|
 | POST | `/uploads` | multipart; returns evidence id; max 15 MB; rate 30/min/user |
+| GET | `/pdf/signature-sheet?classId=&roundId=` | blank signature sheet PDF, on demand (09-pdf §3); staff or committee on the class |
 | GET | `/files/{evidenceId}` | streams WebP; policy: staff (admin/executive/owner/committee of target) |
 | GET | `/pdf/{pdfId}` | streams PDF; staff |
 | GET | `/dashboard/summary` | polled every 30 s |

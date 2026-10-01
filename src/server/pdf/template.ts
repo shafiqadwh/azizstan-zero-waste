@@ -107,3 +107,70 @@ footer span:last-child { white-space: nowrap; }
 ${d.draft ? '<div class="watermark" aria-hidden="true">ฉบับร่าง</div>' : ''}
 </div></body></html>`;
 }
+
+export interface SignatureSheetData {
+  termLabel: string; // ภาคเรียนที่ 2/2569
+  target: string; // "121 · ม.1 Amanah"
+  place: string | null; // building / zone of the class in this round
+  roundNo: number;
+  roundDates: string; // "16–20 พ.ย. 2569"
+  generatedAt: string;
+}
+
+export const SIGNATURE_ROWS = 40;
+
+/**
+ * Blank signature sheet (09-pdf §3): one A4 page, rows 1–40 as two columns of 20 (`ลำดับ | ลงชื่อนักเรียน`), so
+ * each line is tall enough to sign. No names are printed: students write their own.
+ */
+export function signatureSheetHtml(d: SignatureSheetData, fontCss: string): string {
+  const half = SIGNATURE_ROWS / 2;
+  const column = (from: number) =>
+    `<table class="sign"><thead><tr><th class="no">ลำดับ</th><th>ลงชื่อนักเรียน</th></tr></thead><tbody>${Array.from(
+      { length: half },
+      (_, i) => `<tr><td class="no">${from + i}</td><td></td></tr>`,
+    ).join('')}</tbody></table>`;
+  return `<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><title>ใบลงชื่อ ${esc(d.target)} รอบที่ ${d.roundNo}</title>
+<style>
+${fontCss}
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: 'Sarabun', sans-serif; color: #17201B; font-size: 13pt; line-height: 1.4;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; padding: 14mm 15mm; overflow: hidden; display: flex; flex-direction: column; gap: 4mm; }
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 6mm;
+  border-bottom: 1.5pt solid #1D6A4E; padding-bottom: 3mm; }
+header h1 { font-size: 17pt; font-weight: 700; margin: 0; line-height: 1.3; }
+header p { margin: 1mm 0 0; font-size: 11.5pt; color: #3D4641; }
+.mark { font-weight: 700; color: #1D6A4E; font-size: 12pt; text-align: right; line-height: 1.2; }
+table.info { width: 100%; border-collapse: collapse; font-size: 12.5pt; }
+table.info th { text-align: left; font-weight: 600; color: #3D4641; width: 22mm; white-space: nowrap; padding: .5mm 2mm .5mm 0; }
+table.info td { padding: .5mm 4mm .5mm 0; }
+.columns { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+table.sign { width: 100%; border-collapse: collapse; font-size: 12pt; }
+table.sign th { background: #E7F1EC; font-weight: 600; padding: 1mm 2mm; border: .75pt solid #9AA49E; text-align: left; }
+table.sign td { border: .75pt solid #9AA49E; height: 10.3mm; padding: 0 2mm; }
+.no { width: 14mm; text-align: center !important; color: #3D4641; }
+.note { margin: 0; font-size: 13pt; font-weight: 600; text-align: center; }
+footer { display: flex; justify-content: space-between; gap: 4mm; border-top: .75pt solid #C9CFC8; padding-top: 2mm;
+  font-size: 9pt; color: #3D4641; }
+</style></head>
+<body><div class="page" data-pdf-page>
+<header>
+  <div><h1>ใบลงชื่อนักเรียน · การประเมินความสะอาดห้องเรียน</h1><p>โรงเรียนมูลนิธิอาซิซสถาน · โครงการ AZIZSTAN Zero Waste ${esc(d.termLabel)}</p></div>
+  <div class="mark">AZIZSTAN<br>ZERO WASTE</div>
+</header>
+<table class="info"><tbody>
+  <tr><th>ห้อง</th><td>${esc(d.target)}</td><th>รอบที่</th><td>${d.roundNo} (${esc(d.roundDates)})</td></tr>
+  <tr><th>อาคาร/โซน</th><td colspan="3">${esc(truncate(d.place ?? '–', 80))}</td></tr>
+</tbody></table>
+<div class="columns">${column(1)}${column(half + 1)}</div>
+<p class="note">โปรดถ่ายรูปแผ่นนี้แนบในระบบ</p>
+<footer>
+  <span>เอกสารภายใน ห้ามเผยแพร่ · สร้างจากระบบ AZIZSTAN Zero Waste · ${esc(d.generatedAt)}</span>
+  <span>ใบลงชื่อ รอบที่ ${d.roundNo}</span>
+</footer>
+</div></body></html>`;
+}

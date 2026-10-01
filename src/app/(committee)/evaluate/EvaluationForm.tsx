@@ -245,6 +245,19 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       {ctx.requiresSignature ? (
         <div id="card-signature">
           <Card title="ใบลงชื่อนักเรียน" error={errors.signature} errorId="err-signature">
+            {ctx.target.type === 'class' ? (
+              <p className="mb-2 text-[13px] text-ink-muted">
+                ยังไม่มีใบลงชื่อ?{' '}
+                <a
+                  href={`/api/v1/pdf/signature-sheet?classId=${ctx.target.id}&roundId=${ctx.round.id}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="font-semibold text-brand-ink underline"
+                >
+                  พิมพ์ใบลงชื่อ (PDF)
+                </a>
+              </p>
+            ) : null}
             <PhotoGrid
               inputId="signature-photo"
               items={signature}

@@ -121,6 +121,16 @@ export function TargetPopover({
                   {detail.target.label}
                 </p>
                 {detail.target.subtitle ? <p className="text-ink-muted">{detail.target.subtitle}</p> : null}
+                {type === 'class' ? (
+                  <a
+                    href={`/api/v1/pdf/signature-sheet?classId=${id}&roundId=${roundId}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-[13px] font-semibold text-brand-ink underline"
+                  >
+                    พิมพ์ใบลงชื่อ (PDF)
+                  </a>
+                ) : null}
               </div>
               <div>
                 <p className="text-[13px] font-semibold text-ink-muted">กรรมการผู้รับผิดชอบ</p>
