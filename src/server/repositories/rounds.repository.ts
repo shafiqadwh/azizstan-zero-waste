@@ -72,3 +72,11 @@ export async function countRosterSnapshots(db: DbOrTx, roundId: string) {
     .where(eq(rosterSnapshots.roundId, roundId));
   return row?.n ?? 0;
 }
+
+export async function findRoundClassArea(db: DbOrTx, roundId: string, classId: string) {
+  const [row] = await db
+    .select()
+    .from(roundClassAreas)
+    .where(and(eq(roundClassAreas.roundId, roundId), eq(roundClassAreas.classId, classId)));
+  return row ?? null;
+}
