@@ -144,3 +144,87 @@ export async function seedUploadFixture(username: string) {
     await client.end();
   }
 }
+
+/**
+ * Journey 1 fixture: the active term with a "room" component and an open round 1; a new building, room and
+ * class (frozen in the round) and a committee duty for `username`. Room numbers are random so specs never clash.
+ */
+export async function seedJourneyFixture(username: string) {
+  await ensureActiveTerm();
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  const tag = randomBytes(3).toString('hex').toUpperCase();
+  const roomNumber = `9${parseInt(tag, 16) % 100000}`;
+  try {
+    const termId = (await client.query<{ id: string }>("SELECT id FROM terms WHERE status = 'active'")).rows[0]!.id;
+    await client.query(
+      `INSERT INTO score_components (id, term_id, key, label, unit, source, kind, max_value, enabled, requires_signature, sort_order)
+       VALUES (gen_random_uuid(), $1, 'room', 'คะแนนห้องเรียน', 'class', 'committee', 'score', 5, true, true, 1)
+       ON CONFLICT DO NOTHING`,
+      [termId],
+    );
+    await client.query(
+      `INSERT INTO rounds (id, term_id, round_no, opens_at, closes_at, status)
+       VALUES (gen_random_uuid(), $1, 1, now() - interval '1 day', now() + interval '10 days', 'open')
+       ON CONFLICT (term_id, round_no) DO UPDATE
+         SET status = 'open', opens_at = now() - interval '1 day', closes_at = now() + interval '10 days'`,
+      [termId],
+    );
+    const roundId = (
+      await client.query<{ id: string }>('SELECT id FROM rounds WHERE term_id = $1 AND round_no = 1', [termId])
+    ).rows[0]!.id;
+    const buildingId = (
+      await client.query<{ id: string }>(
+        `INSERT INTO areas (id, type, code, name, sort_order) VALUES (gen_random_uuid(), 'building', $1, $2, 950) RETURNING id`,
+        [`J${tag}`, `อาคาร J${tag}`],
+      )
+    ).rows[0]!.id;
+    const roomId = (
+      await client.query<{ id: string }>(
+        `INSERT INTO physical_rooms (id, building_id, room_number, floor, qr_token)
+         VALUES (gen_random_uuid(), $1, $2, 2, $3) RETURNING id`,
+        [buildingId, roomNumber, `qr-${tag}-${randomBytes(6).toString('hex')}`],
+      )
+    ).rows[0]!.id;
+    const classId = (
+      await client.query<{ id: string }>(
+        `INSERT INTO classes (id, track, grade_code, grade_label, rank_group, room_no, name, display_name)
+         VALUES (gen_random_uuid(), 'general', 'E2E-J', 'ม.J', 'ม.J', 0, $1, $2) RETURNING id`,
+        [`J${tag}`, `ม.J J${tag}`],
+      )
+    ).rows[0]!.id;
+    await client.query(
+      `INSERT INTO class_room_links (id, class_id, physical_room_id, effective_from) VALUES (gen_random_uuid(), $1, $2, '2020-01-01')`,
+      [classId, roomId],
+    );
+    await client.query('INSERT INTO term_classes (term_id, class_id) VALUES ($1, $2)', [termId, classId]);
+    await client.query(
+      'INSERT INTO round_class_areas (round_id, class_id, area_id, physical_room_id) VALUES ($1, $2, $3, $4)',
+      [roundId, classId, buildingId, roomId],
+    );
+    const userId = (await client.query<{ id: string }>('SELECT id FROM users WHERE username = $1', [username])).rows[0]!
+      .id;
+    await client.query(
+      `INSERT INTO duties (id, term_id, user_id, duty, target_type, target_class_id)
+       VALUES (gen_random_uuid(), $1, $2, 'committee', 'class', $3)`,
+      [termId, userId, classId],
+    );
+    return { roomNumber, className: `ม.J J${tag}` };
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Specs share one active term, and the first evaluation locks its config (BR-TM2). Specs that submit
+ * evaluations unlock it again; specs that edit the config unlock right before they do.
+ */
+export async function unlockActiveTerm() {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    await client.query("UPDATE terms SET config_locked_at = NULL WHERE status = 'active'");
+  } finally {
+    await client.end();
+  }
+}

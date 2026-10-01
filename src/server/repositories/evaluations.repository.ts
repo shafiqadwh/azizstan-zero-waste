@@ -1,5 +1,6 @@
 import { and, asc, eq, gt, inArray, isNull, ne, or } from 'drizzle-orm';
 import {
+  auditLogs,
   duties,
   evaluationStudentScores,
   evaluations,
@@ -165,3 +166,34 @@ export async function listAdminIds(db: DbOrTx): Promise<string[]> {
     .where(and(eq(users.isActive, true), inArray(users.role, ['admin', 'super_admin'])));
   return rows.map((r) => r.id);
 }
+
+/** Every live evaluation of a round with its owner's name (task list, monitor). */
+export const listLiveEvaluations = (db: DbOrTx, roundId: string) =>
+  db
+    .select({ evaluation: evaluations, ownerName: users.displayName })
+    .from(evaluations)
+    .innerJoin(users, eq(users.id, evaluations.ownerId))
+    .where(and(eq(evaluations.roundId, roundId), ne(evaluations.status, 'void')));
+
+/** The user's committee duties in force in a term (their targets). */
+export const listMyCommitteeDuties = (db: DbOrTx, termId: string, userId: string, now: Date) =>
+  db
+    .select()
+    .from(duties)
+    .where(
+      and(
+        eq(duties.termId, termId),
+        eq(duties.userId, userId),
+        eq(duties.duty, 'committee'),
+        or(isNull(duties.validUntil), gt(duties.validUntil, now)),
+      ),
+    );
+
+/** Status timeline of one evaluation from the audit log (FR-E10), oldest first, with actor names. */
+export const listEvaluationHistory = (db: DbOrTx, evaluationId: string) =>
+  db
+    .select({ action: auditLogs.action, at: auditLogs.at, actorName: users.displayName })
+    .from(auditLogs)
+    .leftJoin(users, eq(users.id, auditLogs.actorId))
+    .where(and(eq(auditLogs.entity, 'evaluation'), eq(auditLogs.entityId, evaluationId)))
+    .orderBy(asc(auditLogs.at));
