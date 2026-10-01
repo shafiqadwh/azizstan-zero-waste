@@ -25,7 +25,7 @@ export function SignedInHeader({ user }: { user: SessionUser }) {
         <form action={logoutAction}>
           <button
             type="submit"
-            className="flex h-11 items-center gap-2 rounded-md border border-line-strong px-3 text-[14px] font-medium text-ink hover:bg-surface-muted"
+            className="flex h-11 items-center gap-2 rounded-md border border-line-strong px-3 text-[14px] font-medium whitespace-nowrap text-ink hover:bg-surface-muted"
           >
             <LogOut size={18} aria-hidden />
             ออกจากระบบ

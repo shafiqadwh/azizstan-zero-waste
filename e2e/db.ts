@@ -25,3 +25,19 @@ export async function createTestUser(opts: {
   }
   return username;
 }
+
+/** An active term for pages that need one (idempotent; e2e projects run in parallel on one database). */
+export async function ensureActiveTerm() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('e2e needs DATABASE_URL (migrated database)');
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    await client.query(
+      `INSERT INTO terms (id, academic_year, term_no, status, area_type, final_max)
+       VALUES (gen_random_uuid(), 2569, 2, 'active', 'building', 15) ON CONFLICT DO NOTHING`,
+    );
+  } finally {
+    await client.end();
+  }
+}
