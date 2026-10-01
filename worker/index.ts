@@ -5,6 +5,7 @@
 import { PgBoss } from 'pg-boss';
 import { createDb } from '../db/client.ts';
 import { registerEvidenceJobs } from '../src/server/jobs/evidence.job.ts';
+import { registerPdfJobs } from '../src/server/jobs/pdf.job.ts';
 import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_QUEUE, heartbeatJob } from '../src/server/jobs/heartbeat.job.ts';
 import { registerRoundJobs, ROUND_SWEEP_INTERVAL_MS } from '../src/server/jobs/rounds.job.ts';
 
@@ -32,7 +33,13 @@ async function main() {
   // Rounds open and close on their dates (BR-R1, BR-R2); the sweep reads the dates every minute.
   const sweep = await registerRoundJobs(boss, db);
   await sweep();
-  const sweepTimer = setInterval(() => void sweep(), ROUND_SWEEP_INTERVAL_MS);
+  // PDFs of approved evaluations (09-pdf): queued rows become pdf.render jobs
+  const pdf = await registerPdfJobs(boss, db);
+  await pdf.sweep();
+  const sweepTimer = setInterval(() => {
+    void sweep();
+    void pdf.sweep();
+  }, ROUND_SWEEP_INTERVAL_MS);
 
   // Orphan uploads are removed after 24 h (BR-V4).
   await registerEvidenceJobs(boss, db);
@@ -47,6 +54,7 @@ async function main() {
     clearInterval(timer);
     clearInterval(sweepTimer);
     await boss.stop({ graceful: true });
+    await pdf.close();
     await close();
     process.exit(0);
   };

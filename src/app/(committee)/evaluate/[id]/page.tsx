@@ -84,6 +84,23 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
         <p className="text-[14px] text-ink-muted">ประเมินโดย {d.ownerName}</p>
       </section>
 
+      {d.status === 'approved' ? (
+        d.pdfUrl ? (
+          <a
+            href={d.pdfUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-12 items-center justify-center rounded-[12px] border border-line-strong bg-surface font-semibold"
+          >
+            ดู PDF
+          </a>
+        ) : (
+          <p className="text-[14px] text-ink-muted">
+            {d.pdfStatus === 'failed' ? 'สร้าง PDF ไม่สำเร็จ ผู้ดูแลกำลังตรวจสอบ' : 'กำลังสร้าง PDF…'}
+          </p>
+        )
+      ) : null}
+
       {d.photos.length > 0 ? (
         <section className="rounded-[18px] border border-line bg-surface p-4">
           <h2 className="mb-3 text-[16px] font-bold">รูปภาพ</h2>
