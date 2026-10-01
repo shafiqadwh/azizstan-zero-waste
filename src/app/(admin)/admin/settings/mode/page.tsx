@@ -27,6 +27,7 @@ export default async function ModePage({ searchParams }: { searchParams: Promise
     );
   }
   const canConfigure = can(user, 'term.configure');
+  const readOnly = !canConfigure || t.status === 'closed' || t.purgedAt !== null;
   return (
     <main className="mx-auto flex max-w-[1180px] flex-col gap-6 px-5 py-8 lg:px-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -36,10 +37,10 @@ export default async function ModePage({ searchParams }: { searchParams: Promise
         </div>
         <TermPicker terms={terms} selectedId={t.id} />
       </div>
-      {!canConfigure ? <ReadOnlyBanner /> : t.configLockedAt ? <LockedBanner /> : null}
+      {readOnly ? <ReadOnlyBanner /> : t.configLockedAt ? <LockedBanner /> : null}
       <ModeForm
         key={t.id}
-        disabled={!canConfigure || t.configLockedAt !== null}
+        disabled={readOnly || t.configLockedAt !== null}
         values={{
           termId: t.id,
           areaType: t.areaType,

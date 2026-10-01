@@ -301,6 +301,52 @@ describe('scoring and rounds (AC)', () => {
 });
 
 describe('activate (BR-TM4)', () => {
+  test('concurrent activations leave exactly one active term', async () => {
+    const a = await createTerm(db, admin, { academicYear: 2575, termNo: 1 }, meta, now);
+    const b = await createTerm(db, admin, { academicYear: 2575, termNo: 2 }, meta, now);
+    await Promise.all([
+      activateTerm(db, admin, { termId: a }, meta, now),
+      activateTerm(db, admin, { termId: b }, meta, now),
+    ]);
+    const active = await repo.findActiveTerms(db);
+    expect(active).toHaveLength(1);
+    expect([a, b]).toContain(active[0]!.id);
+    const previous = await repo.findTerm(db, active[0]!.id === a ? b : a);
+    expect(previous).toMatchObject({ status: 'closed', purgeAfter: '2027-10-01' });
+  });
+
+  test('BR-D1: closed terms cannot be reactivated or edited, even without an evaluation lock', async () => {
+    const a = await createTerm(db, admin, { academicYear: 2576, termNo: 1 }, meta, now);
+    const b = await createTerm(db, admin, { academicYear: 2576, termNo: 2 }, meta, now);
+    await setRoundCount(db, admin, { termId: a, count: 1 }, meta, now);
+    await activateTerm(db, admin, { termId: a }, meta, now);
+    await activateTerm(db, admin, { termId: b }, meta, now);
+    const before = await getTermSettings(db, admin, a);
+    expect(before.term.configLockedAt).toBeNull();
+    const rejected = { code: 'VALIDATION', field: 'termId' };
+    await expect(activateTerm(db, admin, { termId: a }, meta, now)).rejects.toMatchObject(rejected);
+    await expect(updateTermConfig(db, admin, configOf(a), meta, now)).rejects.toMatchObject(rejected);
+    await expect(setRoundCount(db, admin, { termId: a, count: 2 }, meta, now)).rejects.toMatchObject(rejected);
+    await expect(
+      updateScoring(db, admin, { termId: a, equalMax: true, components: before.components, finalMax: '20' }, meta, now),
+    ).rejects.toMatchObject(rejected);
+    const round = before.rounds[0]!;
+    await expect(
+      updateRoundDates(
+        db,
+        admin,
+        { roundId: round.id, opensAt: round.opensAt, closesAt: new Date(round.closesAt.getTime() + 86_400_000) },
+        meta,
+        now,
+      ),
+    ).rejects.toMatchObject(rejected);
+    expect(await getTermSettings(db, admin, a)).toEqual(before);
+    expect((await repo.findActiveTerms(db)).map((t) => t.id)).toEqual([b]);
+    // History remains usable as a source for a new draft.
+    const copy = await createTerm(db, admin, { academicYear: 2577, termNo: 1, copyFromTermId: a }, meta, now);
+    expect((await getTermSettings(db, admin, copy)).term.status).toBe('draft');
+  });
+
   test('exactly one active term; the previous one closes and its retention clock starts', async () => {
     const a = await createTerm(db, admin, { academicYear: 2574, termNo: 1 }, meta, now);
     const b = await createTerm(db, admin, { academicYear: 2574, termNo: 2 }, meta, now);

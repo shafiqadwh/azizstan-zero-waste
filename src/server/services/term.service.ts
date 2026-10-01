@@ -20,6 +20,8 @@ export const TERM_MSG = {
   exists: 'มีภาคเรียนนี้อยู่แล้ว',
   scoreFormat: 'คะแนนต้องเป็นตัวเลขไม่ติดลบ ทศนิยมไม่เกิน 3 ตำแหน่ง',
   maxPositive: 'คะแนนเต็มต้องมากกว่า 0',
+  maxTooLarge: 'คะแนนเต็มต้องไม่เกิน 999.999',
+  closedTerm: 'ภาคเรียนนี้ปิดแล้ว ดูข้อมูลได้อย่างเดียว',
   photoRange: 'จำนวนรูปขั้นต่ำต้องไม่มากกว่าขั้นสูง (ไม่เกิน 10 รูป)',
   roundCount: 'จำนวนรอบต้องอยู่ระหว่าง 1–10',
   removeStarted: 'ลดจำนวนรอบไม่ได้ เพราะรอบที่จะลบเปิดไปแล้ว',
@@ -39,7 +41,13 @@ const scoreText = z
       return false;
     }
   }, TERM_MSG.scoreFormat);
-const positiveScore = scoreText.refine((s) => /^\d/.test(s) && parseScore(s) > 0, TERM_MSG.maxPositive);
+// A pipe only runs numeric checks after parsing succeeds; malformed input must not throw RangeError.
+const positiveScore = scoreText.pipe(
+  z
+    .string()
+    .refine((s) => parseScore(s) > 0, TERM_MSG.maxPositive)
+    .refine((s) => parseScore(s) <= 999_999, TERM_MSG.maxTooLarge),
+);
 
 export const createTermInput = z.object({
   academicYear: z.number().int().min(2560).max(2700),
@@ -160,8 +168,14 @@ async function audit(
 async function unlockedTerm(tx: Tx, termId: string) {
   const term = await repo.findTerm(tx, termId);
   if (!term) throw notFound();
+  assertTermWritable(term);
   if (term.configLockedAt) throw new AppError('CONFIG_LOCKED');
   return term;
+}
+
+/** BR-D1: closing a term preserves its history, including its retention deadline. */
+function assertTermWritable(term: repo.TermRow) {
+  if (term.status === 'closed' || term.purgedAt) throw validation('termId', TERM_MSG.closedTerm);
 }
 
 // ───────────── reads ─────────────
@@ -273,8 +287,11 @@ export async function activateTerm(db: Db, actor: SessionUser, raw: { termId: st
   assertCan(actor, 'term.configure');
   const { termId } = parseInput(z.object({ termId: z.uuid() }), raw);
   await withTransaction(db, async (tx) => {
+    // Serialize even when there is no active row yet (locking only existing active rows is insufficient).
+    await repo.lockActivation(tx);
     const term = await repo.findTerm(tx, termId);
     if (!term) throw notFound();
+    assertTermWritable(term);
     if (term.status === 'active') throw validation('termId', TERM_MSG.activeTerm);
     for (const previous of await repo.findActiveTerms(tx)) {
       const purgeAfter = new Date(now.getTime() + 365 * 86_400_000).toISOString().slice(0, 10);
@@ -466,6 +483,9 @@ export async function updateRoundDates(
   await withTransaction(db, async (tx) => {
     const round = await repo.findRound(tx, input.roundId);
     if (!round) throw notFound();
+    const term = await repo.findTerm(tx, round.termId);
+    if (!term) throw notFound();
+    assertTermWritable(term);
     const problem = checkRoundDateChange(round, input, now);
     if (problem) throw validation('closesAt', problem);
     await repo.updateRound(tx, round.id, { opensAt: input.opensAt, closesAt: input.closesAt });

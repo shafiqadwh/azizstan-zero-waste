@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { duties, roundComponentMax, rounds, scoreComponents, termClassZones, terms } from '../../../db/schema.ts';
-import type { DbOrTx } from '../transaction.ts';
+import type { DbOrTx, Tx } from '../transaction.ts';
 
 export type TermRow = typeof terms.$inferSelect;
 export type RoundRow = typeof rounds.$inferSelect;
@@ -24,6 +24,11 @@ export async function findTermByYearNo(db: DbOrTx, academicYear: number, termNo:
 
 export async function findActiveTerms(db: DbOrTx) {
   return db.select().from(terms).where(eq(terms.status, 'active'));
+}
+
+/** BR-TM4: transaction-scoped serialization for the single active term transition. */
+export async function lockActivation(tx: Tx) {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('azizstan.term.activate'))`);
 }
 
 export async function insertTerm(db: DbOrTx, row: typeof terms.$inferInsert) {
