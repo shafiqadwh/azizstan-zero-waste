@@ -27,6 +27,7 @@ import {
   type RequestedChange,
 } from './evaluation.service.ts';
 import { send } from './notify.service.ts';
+import { refreezeRound } from './result.service.ts';
 
 export const REQUEST_TYPES = [
   'late_entry',
@@ -326,8 +327,8 @@ const requestTarget = (r: repo.RequestRow) =>
 /**
  * BR-Q2/Q3: approve and apply in one transaction. When the applied result is invalid (off the step grid, a
  * target that is already scored, too few photos …) the error is returned and the request stays waiting.
- * BR-Q5 on a finalized round (super admin only): unfreezing and refreezing results comes with the results
- * engine (T21).
+ * BR-Q5 on a finalized round (super admin only): the change is applied and the round's results are
+ * recomputed and frozen again in the same transaction.
  */
 export async function approveRequest(
   db: Db,
@@ -378,6 +379,9 @@ export async function approveRequest(
         now,
       );
     }
+
+    // BR-Q5: a finalized round is recomputed and frozen again with the change
+    if (round.status === 'finalized' && r.type !== 'late_entry') await refreezeRound(tx, round.id, now);
 
     await repo.updateRequest(tx, r.id, {
       status: 'approved',
