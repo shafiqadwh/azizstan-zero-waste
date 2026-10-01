@@ -49,6 +49,8 @@ test('the 6th attempt after 5 wrong passwords is rate limited', async ({ page })
   for (let i = 0; i < 5; i++) {
     await fillLogin(page, username, `wrong-password-${i}`);
     await expect(formAlert(page)).toHaveText('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    // React resets the form after a failed action; wait for it so the next fill is not wiped by a late reset
+    await expect(page.getByLabel('รหัสผ่าน', { exact: true })).toHaveValue('');
   }
   await fillLogin(page, username, 'right-password');
   await expect(formAlert(page)).toHaveText('ลองใหม่อีกครั้งในอีกสักครู่');
