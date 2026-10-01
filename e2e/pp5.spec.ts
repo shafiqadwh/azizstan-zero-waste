@@ -49,10 +49,21 @@ test('admin creates a key; the ปพ.5 API answers on the school network only, 
   const terms = await api.get('/api/v1/pp5/terms', { headers: auth });
   expect(terms.status()).toBe(200);
   const [active] = await sql<{ id: string }>("SELECT id FROM terms WHERE status = 'active'");
-  const listed = (await terms.json()) as { termId: string; roundsFinalized: number[] }[];
-  expect(listed.map((t) => t.termId)).toContain(active!.id);
+  // the ปพ.5 program gets CSV by default: UTF-8 with BOM, fixed header
+  expect(terms.headers()['content-type']).toContain('text/csv');
+  const termsCsv = await terms.text();
+  expect(termsCsv.startsWith('\uFEFFterm_id,academic_year,term_no,final_max,rounds_finalized,rounds_total\r\n')).toBe(
+    true,
+  );
+  expect(termsCsv).toContain(active!.id);
+  const classesCsv = await api.get(`/api/v1/pp5/terms/${active!.id}/classes`, { headers: auth });
+  expect(classesCsv.headers()['content-disposition']).toMatch(/attachment; filename="pp5-classes-\d+-\d\.csv"/);
+  expect((await classesCsv.text()).split('\r\n')[0]).toBe(
+    '\uFEFFacademic_year,term_no,term_complete,final_max,class_id,track,grade,class_name,display,source_class_key,round_no,class_score,area_score,round_total,term_score',
+  );
 
-  const classes = await api.get(`/api/v1/pp5/terms/${active!.id}/classes`, { headers: auth });
+  // the same data as JSON with ?format=json (05-api §3.3 shape)
+  const classes = await api.get(`/api/v1/pp5/terms/${active!.id}/classes?format=json`, { headers: auth });
   expect(classes.status()).toBe(200);
   const body = await classes.json();
   expect(Object.keys(body).sort()).toEqual(

@@ -24,8 +24,8 @@ export default async function ApiSettingsPage() {
         </Link>
         <h1 className="mt-2 text-[20px] leading-[1.3] font-bold lg:text-[26px]">การเชื่อมต่อ API</h1>
         <p className="mt-1 text-[14px] text-ink-muted">
-          โปรแกรม ปพ.5 ดึงคะแนนได้เฉพาะรอบที่ปิดรอบแล้ว ผ่าน <code>/api/v1/pp5/…</code> พร้อมคีย์
-          และต้องเรียกจากเครือข่ายของโรงเรียน
+          โปรแกรม ปพ.5 ดึงคะแนนได้เฉพาะรอบที่ปิดรอบแล้ว เป็นไฟล์ CSV ผ่าน <code>/api/v1/pp5/…</code> (เติม{' '}
+          <code>?format=json</code> หากต้องการ JSON) พร้อมคีย์ และต้องเรียกจากเครือข่ายของโรงเรียน
         </p>
       </div>
       {!canManage ? <ReadOnlyBanner /> : null}

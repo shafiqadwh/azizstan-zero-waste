@@ -25,6 +25,9 @@ import {
   getPp5Students,
   listApiKeys,
   listPp5Terms,
+  pp5ClassesCsv,
+  pp5StudentsCsv,
+  pp5TermsCsv,
   revokeApiKey,
 } from './pp5.service.ts';
 import { finalizeRound } from './result.service.ts';
@@ -209,6 +212,47 @@ describe('ปพ.5 data (05-api §3.3)', () => {
     const other = await createTerm(db, admin, { academicYear: 2570, termNo: 1 }, meta, now);
     await expect(getPp5Students(db, other, now)).rejects.toMatchObject({ code: 'NOT_AVAILABLE' });
     await expect(getPp5Classes(db, newId(), now)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('CSV for the ปพ.5 program', () => {
+  test('fixed columns, one row per class (or student) per finalized round', async () => {
+    const classes = pp5ClassesCsv(await getPp5Classes(db, termId, now));
+    expect(classes[0]).toEqual([
+      'academic_year',
+      'term_no',
+      'term_complete',
+      'final_max',
+      'class_id',
+      'track',
+      'grade',
+      'class_name',
+      'display',
+      'source_class_key',
+      'round_no',
+      'class_score',
+      'area_score',
+      'round_total',
+      'term_score',
+    ]);
+    expect(classes.slice(1).map((r) => [r[9], r[10], r[11], r[12], r[13]])).toEqual([
+      ['ม.1/1 Amanah', 1, '4.00', '9.00', '13.00'],
+      ['ม.1/1 Amanah', 2, '5.00', '7.00', '12.00'],
+    ]);
+    expect(classes[1]!.slice(0, 3)).toEqual([2569, 2, true]);
+    const st = pp5StudentsCsv(await getPp5Students(db, termId, now));
+    expect(st.slice(1)).toEqual([
+      [2569, 2, true, '65001', 'ม.1/1 Amanah', 1, 'ม.1/1 Amanah', '13.00', expect.any(String)],
+    ]);
+    expect(JSON.stringify(st)).not.toContain('สมมติ');
+    expect(pp5TermsCsv(await listPp5Terms(db)).find((r) => r[0] === termId)).toEqual([
+      termId,
+      2569,
+      2,
+      expect.any(String),
+      '1|2',
+      2,
+    ]);
   });
 });
 

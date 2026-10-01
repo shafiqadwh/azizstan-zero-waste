@@ -7,6 +7,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Db } from '../../../db/client.ts';
 import { newId } from '../../lib/ids.ts';
+import type { Cell } from '../../lib/csv/write.ts';
 import { ipAllowed, parseCidrs } from '../../lib/net/cidr.ts';
 import { termScoreByRound } from '../../lib/scoring/index.ts';
 import { parseScore, toDisplay, type Th } from '../../lib/scoring/decimal.ts';
@@ -266,4 +267,75 @@ export async function getPp5Students(db: Db, termId: string, now: Date): Promise
         };
       }),
   };
+}
+
+// ───────────── CSV (the default format for the ปพ.5 program) ─────────────
+
+/**
+ * Flat, fixed columns so the ปพ.5 program can import without knowing how many rounds a term has: one row per
+ * class (or student) per finalized round; the term score repeats on each row. A class without any finalized
+ * round still gets one row with empty round columns.
+ */
+export function pp5TermsCsv(terms: Pp5Term[]): Cell[][] {
+  return [
+    ['term_id', 'academic_year', 'term_no', 'final_max', 'rounds_finalized', 'rounds_total'],
+    ...terms.map((t) => [t.termId, t.academicYear, t.termNo, t.finalMax, t.roundsFinalized.join('|'), t.roundsTotal]),
+  ];
+}
+
+export function pp5ClassesCsv(d: Pp5Classes): Cell[][] {
+  const head = [d.academicYear, d.termNo, d.termComplete, d.finalMax];
+  return [
+    [
+      'academic_year',
+      'term_no',
+      'term_complete',
+      'final_max',
+      'class_id',
+      'track',
+      'grade',
+      'class_name',
+      'display',
+      'source_class_key',
+      'round_no',
+      'class_score',
+      'area_score',
+      'round_total',
+      'term_score',
+    ],
+    ...d.classes.flatMap((c) => {
+      const cls = [c.classId, c.track, c.grade, c.name, c.display, c.sourceClassKey];
+      const rounds = c.rounds.length ? c.rounds : [null];
+      return rounds.map((r) => [...head, ...cls, r?.roundNo, r?.classScore, r?.areaScore, r?.total, c.termScore]);
+    }),
+  ];
+}
+
+export function pp5StudentsCsv(d: Pp5Students): Cell[][] {
+  return [
+    [
+      'academic_year',
+      'term_no',
+      'term_complete',
+      'student_code',
+      'home_class_key',
+      'round_no',
+      'class_key',
+      'round_total',
+      'term_score',
+    ],
+    ...d.students.flatMap((s) =>
+      s.rounds.map((r) => [
+        d.academicYear,
+        d.termNo,
+        d.termComplete,
+        s.studentCode,
+        s.homeClassKey,
+        r.roundNo,
+        r.classKey,
+        r.total,
+        s.termScore,
+      ]),
+    ),
+  ];
 }

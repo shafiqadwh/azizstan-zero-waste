@@ -115,7 +115,20 @@ Scores are strings with 2 decimals. Only approved data (FR-W7). No evaluator nam
 | GET | `/pp5/terms/{termId}/classes` | per class (group mode) |
 | GET | `/pp5/terms/{termId}/students` | per student (requires student-level data; 404 `NOT_AVAILABLE` otherwise) |
 
-`/pp5/terms/{termId}/classes` response:
+**Format — CSV by default (decided 2026-10-01):** every `/pp5/*` endpoint answers `text/csv; charset=utf-8`
+(UTF-8 with BOM, CRLF, RFC 4180 quoting, `Content-Disposition: attachment`). Add `?format=json` to get the JSON
+shown below instead. Errors are always JSON `{error}` with the HTTP status (401 key, 403 network, 404).
+The CSV has fixed columns — one row per class (or student) per finalized round, the term score repeated:
+
+| Endpoint | Columns |
+|---|---|
+| `/pp5/terms` | `term_id, academic_year, term_no, final_max, rounds_finalized` (e.g. `1\|2`)`, rounds_total` |
+| `/pp5/terms/{termId}/classes` | `academic_year, term_no, term_complete, final_max, class_id, track, grade, class_name, display, source_class_key, round_no, class_score, area_score, round_total, term_score` |
+| `/pp5/terms/{termId}/students` | `academic_year, term_no, term_complete, student_code, home_class_key, round_no, class_key, round_total, term_score` |
+
+A class without any finalized round still has one row, with empty round columns.
+
+JSON (`?format=json`) for `/pp5/terms/{termId}/classes`:
 ```json
 {
   "academicYear": 2569, "termNo": 2, "finalMax": "15.00",
