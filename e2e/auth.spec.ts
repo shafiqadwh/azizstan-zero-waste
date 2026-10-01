@@ -35,7 +35,7 @@ test('first login forces a password change, then lands on the dashboard; logout 
   await page.getByRole('button', { name: 'บันทึกรหัสผ่านใหม่' }).click();
 
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole('heading', { name: 'แดชบอร์ด' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ภาพรวม' })).toBeVisible();
 
   await page.getByRole('button', { name: 'ออกจากระบบ' }).click();
   await expect(page).toHaveURL(/\/login$/);

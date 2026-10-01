@@ -488,7 +488,13 @@ export async function updateRoundDates(
     assertTermWritable(term);
     const problem = checkRoundDateChange(round, input, now);
     if (problem) throw validation('closesAt', problem);
-    await repo.updateRound(tx, round.id, { opensAt: input.opensAt, closesAt: input.closesAt });
+    // extending a closed round's deadline into the future opens it again (the round keeps its frozen areas)
+    const reopen = round.status === 'closed' && input.closesAt > now;
+    await repo.updateRound(tx, round.id, {
+      opensAt: input.opensAt,
+      closesAt: input.closesAt,
+      ...(reopen ? { status: 'open' as const } : {}),
+    });
     await writeAudit(
       tx,
       {
@@ -496,8 +502,8 @@ export async function updateRoundDates(
         action: 'round.update_dates',
         entity: 'round',
         entityId: round.id,
-        before: { opensAt: round.opensAt, closesAt: round.closesAt },
-        after: { opensAt: input.opensAt, closesAt: input.closesAt },
+        before: { opensAt: round.opensAt, closesAt: round.closesAt, status: round.status },
+        after: { opensAt: input.opensAt, closesAt: input.closesAt, status: reopen ? 'open' : round.status },
         ip: meta.ip,
       },
       now,

@@ -9,6 +9,7 @@ import {
   requests,
   rosterSnapshots,
   roundClassAreas,
+  rounds,
   physicalRooms,
   users,
 } from '../../../db/schema.ts';
@@ -206,3 +207,13 @@ export async function supersedePdfs(db: DbOrTx, evaluationId: string, at: Date) 
     .set({ supersededAt: at })
     .where(and(eq(pdfDocuments.evaluationId, evaluationId), isNull(pdfDocuments.supersededAt)));
 }
+
+/** Evaluations waiting for approval in a term, oldest submission first, with the owner's name (§6.11). */
+export const listSubmittedEvaluations = (db: DbOrTx, termId: string) =>
+  db
+    .select({ evaluation: evaluations, ownerName: users.displayName, roundNo: rounds.roundNo })
+    .from(evaluations)
+    .innerJoin(users, eq(users.id, evaluations.ownerId))
+    .innerJoin(rounds, eq(rounds.id, evaluations.roundId))
+    .where(and(eq(rounds.termId, termId), eq(evaluations.status, 'submitted')))
+    .orderBy(asc(evaluations.lastEditedAt), asc(evaluations.id));

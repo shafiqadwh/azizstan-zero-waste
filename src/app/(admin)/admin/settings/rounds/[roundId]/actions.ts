@@ -29,6 +29,7 @@ export async function finalizeRoundAction(prev: MessageState | null, form: FormD
   const r = await toResult(async () => {
     await finalizeRound(getDb(), await requireUser(), { roundId }, await clientMeta(), new Date());
     revalidatePath(`/admin/settings/rounds/${roundId}`);
+    revalidatePath('/admin');
     return { message: 'ปิดรอบแล้ว ผลคะแนนของรอบนี้เป็นผลสุดท้าย' };
   });
   return { ...r, seq: (prev?.seq ?? 0) + 1 };

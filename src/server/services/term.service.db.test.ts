@@ -234,6 +234,20 @@ describe('scoring and rounds (AC)', () => {
     await db.execute(`UPDATE rounds SET status = 'scheduled' WHERE id = '${r2.id}'`);
   });
 
+  test('extending the close date of a closed round into the future opens it again', async () => {
+    const r1 = (await getTermSettings(db, admin, t)).rounds[0]!;
+    const closesAt = new Date(now.getTime() - 3_600_000);
+    await db.execute(
+      `UPDATE rounds SET status = 'closed', opens_at = '${new Date(now.getTime() - 5 * 86_400_000).toISOString()}',
+         closes_at = '${closesAt.toISOString()}' WHERE id = '${r1.id}'`,
+    );
+    const opensAt = (await getTermSettings(db, admin, t)).rounds[0]!.opensAt;
+    const later = new Date(now.getTime() + 2 * 86_400_000);
+    await updateRoundDates(db, admin, { roundId: r1.id, opensAt, closesAt: later }, meta, now);
+    expect((await getTermSettings(db, admin, t)).rounds[0]).toMatchObject({ status: 'open', closesAt: later });
+    await db.execute(`UPDATE rounds SET status = 'scheduled' WHERE id = '${r1.id}'`);
+  });
+
   test('a disabled component never appears in the components in use', async () => {
     const used = await componentsInUseForTerm(db, t);
     expect(used.map((c) => c.key)).toEqual(['room', 'area']); // area_teacher is off by default
