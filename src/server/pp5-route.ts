@@ -1,18 +1,8 @@
 import { toCsv, type Cell } from '../lib/csv/write';
 import { getDb } from './db';
 import { toAppError } from './errors';
+import { assertPublicRate, callerIp } from './http-guards';
 import { authorizePp5 } from './services/pp5.service';
-
-/**
- * The caller's address for the ปพ.5 allow-list. Behind Cloudflare Tunnel, `CF-Connecting-IP` is the internet client;
- * on the school network the app's own server reports the socket address in `X-Forwarded-For`.
- */
-export function callerIp(request: Request): string {
-  const h = request.headers;
-  return (
-    h.get('cf-connecting-ip') ?? h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? h.get('x-real-ip') ?? 'unknown'
-  );
-}
 
 /**
  * Network + API key check, then the handler. The ปพ.5 program gets **CSV** (UTF-8 with BOM); `?format=json`
@@ -24,6 +14,7 @@ export async function pp5Route<T>(
   csv: { rows: (data: T) => Cell[][]; filename: (data: T) => string },
 ): Promise<Response> {
   try {
+    assertPublicRate(request, new Date());
     await authorizePp5(
       getDb(),
       { ip: callerIp(request), authorization: request.headers.get('authorization') },

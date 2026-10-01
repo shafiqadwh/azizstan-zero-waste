@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { plexThai } from './fonts';
 import './globals.css';
@@ -16,7 +17,9 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+/** Every page renders per request: the CSP nonce (src/proxy.ts) must reach Next.js's inline scripts. */
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  await connection();
   return (
     <html lang="th" className={plexThai.variable}>
       <body>{children}</body>

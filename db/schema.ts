@@ -68,6 +68,7 @@ export const sessions = pgTable('sessions', {
   createdAt: ts('created_at').notNull().defaultNow(),
   lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
   expiresAt: ts('expires_at').notNull(),
+  stepUpAt: ts('step_up_at'),                           // password re-entered (login or step-up); 12-security §2.7
   ip: text('ip'),
   userAgent: text('user_agent'),
 }, (t) => [index('sessions_user_idx').on(t.userId)]);

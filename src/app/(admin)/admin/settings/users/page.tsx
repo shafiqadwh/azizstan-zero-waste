@@ -1,6 +1,8 @@
 import { CircleCheck, CircleOff, KeyRound } from 'lucide-react';
 import type { Metadata } from 'next';
+import { StepUpCard } from '@/components/app/StepUp';
 import { requirePageUser } from '@/server/auth/current-user';
+import { stepUpValidUntil } from '@/server/auth/step-up-view';
 import { formatThaiDateTime } from '@/lib/dates';
 import { getDb } from '@/server/db';
 import { can } from '@/server/policies';
@@ -24,6 +26,7 @@ export default async function UsersPage() {
         <p className="mt-1 text-[14px] text-ink-muted">ทั้งหมด {users.length} บัญชี</p>
       </div>
 
+      {canManage ? <StepUpCard validUntil={stepUpValidUntil(user, new Date())} /> : null}
       {canManage ? (
         <CreateUserForm />
       ) : (

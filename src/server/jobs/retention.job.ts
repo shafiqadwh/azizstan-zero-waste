@@ -1,5 +1,6 @@
 import type { PgBoss } from 'pg-boss';
 import type { Db } from '../../../db/client.ts';
+import { log } from '../log.ts';
 import {
   RETENTION_RUN_QUEUE,
   RETENTION_WARN_QUEUE,
@@ -12,17 +13,19 @@ export async function registerRetentionJobs(boss: PgBoss, db: Db) {
   await boss.createQueue(RETENTION_RUN_QUEUE, { policy: 'exclusive', retryLimit: 1 });
   await boss.work(RETENTION_RUN_QUEUE, async () => {
     const out = await runRetention(db, new Date());
-    // counts only
-    console.log(
-      `[worker] retention.run terms=${out.purgedTerms.length} students=${out.students} audit=${out.oldAuditRows} sessions=${out.sessions}`,
-    );
+    log.info('retention.run', {
+      terms: out.purgedTerms.length,
+      students: out.students,
+      auditRows: out.oldAuditRows,
+      sessions: out.sessions,
+    });
   });
   await boss.schedule(RETENTION_RUN_QUEUE, '0 3 * * *', null, { tz: 'Asia/Bangkok' });
 
   await boss.createQueue(RETENTION_WARN_QUEUE, { policy: 'exclusive', retryLimit: 1 });
   await boss.work(RETENTION_WARN_QUEUE, async () => {
     const out = await warnRetention(db, new Date());
-    if (out.warned.length) console.log(`[worker] retention.warn terms=${out.warned.length}`);
+    if (out.warned.length) log.info('retention.warn', { terms: out.warned.length });
   });
   await boss.schedule(RETENTION_WARN_QUEUE, '0 8 * * *', null, { tz: 'Asia/Bangkok' });
 }

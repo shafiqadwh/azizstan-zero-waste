@@ -2,8 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Card } from '@/components/app/settings';
 import { formatTermLabel, formatThaiDate, formatThaiDateTime } from '@/lib/dates';
+import { redirect } from 'next/navigation';
 import { requirePageUser } from '@/server/auth/current-user';
+import { homeFor } from '@/server/auth/redirects';
 import { getDb } from '@/server/db';
+import { isStaffRole } from '@/server/policies';
 import { getRetentionOverview, type RetentionTermView } from '@/server/services/retention.service';
 
 export const metadata: Metadata = { title: 'ข้อมูลและความเป็นส่วนตัว · AZIZSTAN ZERO WASTE' };
@@ -22,6 +25,8 @@ function state(t: RetentionTermView): string {
 /** 08-ux-ui §6.20 "ข้อมูลและความเป็นส่วนตัว": retention per term (BR-D1..D3), archive downloads, last backup. */
 export default async function PrivacyPage() {
   const user = await requirePageUser('/admin/settings/privacy');
+  // layouts and pages render in parallel: repeat the layout's guard so a teacher never reaches the service
+  if (!isStaffRole(user.role)) redirect(homeFor(user.role));
   const o = await getRetentionOverview(getDb(), user, new Date());
   return (
     <main className="mx-auto flex max-w-[1180px] flex-col gap-6 px-5 py-8 lg:px-12">
@@ -89,6 +94,15 @@ export default async function PrivacyPage() {
         <p className="mt-1 text-[13px] text-ink-muted">
           สำรองทุกคืนเวลา 01:30 น. (ฐานข้อมูล รูปหลักฐาน และ PDF) เข้ารหัสแล้วคัดลอกออกนอกเครื่อง ·
           ขั้นตอนกู้คืนอยู่ในเอกสาร 14-deployment §5
+        </p>
+      </Card>
+
+      <Card title="ประวัติการทำรายการ" id="audit-title">
+        <p className="text-[14px]">
+          ทุกการเปลี่ยนแปลงถูกบันทึกไว้และแก้ไขไม่ได้ ·{' '}
+          <Link href="/admin/audit" className="font-semibold text-brand-ink underline">
+            เปิดประวัติการทำรายการ
+          </Link>
         </p>
       </Card>
     </main>

@@ -1,6 +1,7 @@
 import { clientMeta, getCurrentUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { AppError, validation } from '@/server/errors';
+import { assertSameOrigin } from '@/server/http-guards';
 import { IMAGE_MSG, MAX_UPLOAD_BYTES } from '@/server/evidence/image';
 import { toResponse } from '@/server/result';
 import { uploadEvidence } from '@/server/services/evidence.service';
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
     async () => {
       const user = await getCurrentUser();
       if (!user) throw new AppError('UNAUTHENTICATED');
+      assertSameOrigin(request);
       const declared = Number(request.headers.get('content-length') ?? 0);
       if (declared > MAX_UPLOAD_BYTES + ENVELOPE_BYTES) throw validation('file', IMAGE_MSG.tooBig);
       let form: FormData;

@@ -7,7 +7,7 @@ import { runMigrations } from '../../../db/migrate.ts';
 import { ERRORS } from '../errors.ts';
 import { LoginRateLimiter } from '../auth/rate-limit.ts';
 import type { SessionUser } from '../policies/index.ts';
-import { login, validateSession, upsertSuperAdmin } from './auth.service.ts';
+import { confirmPassword, login, validateSession, upsertSuperAdmin } from './auth.service.ts';
 import {
   createUser,
   generateTempPassword,
@@ -216,4 +216,36 @@ describe('roles, activation, password reset', () => {
 
 test('temporary passwords avoid look-alike characters', () => {
   for (let i = 0; i < 200; i++) expect(generateTempPassword()).not.toMatch(/[0O1lIi]/);
+});
+
+describe('step-up: permission changes need the password within 10 minutes (12-security §2 item 7)', () => {
+  test('a session older than 10 minutes must re-enter the password; wrong passwords count toward the limit', async () => {
+    const later = new Date(now.getTime() + 11 * 60_000);
+    const stale = { ...root, stepUpAt: now };
+    const create = (actor: SessionUser, at: Date, username: string) =>
+      createUser(db, actor, { username, displayName: 'x', role: 'teacher' }, meta, at);
+    await expect(create(stale, later, 'late.one')).rejects.toMatchObject({ code: 'STEP_UP_REQUIRED' });
+    // the admin still gets FORBIDDEN first: step-up never reveals more than the permission check
+    await expect(create({ ...anAdmin, stepUpAt: null }, later, 'x')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    const lim = new LoginRateLimiter(2, 15 * 60_000);
+    await expect(confirmPassword(db, stale, { password: 'nope' }, meta, later, { limiter: lim })).rejects.toMatchObject(
+      {
+        code: 'VALIDATION',
+      },
+    );
+    const out = await confirmPassword(db, stale, { password: 'root-password' }, meta, later, { limiter: lim });
+    expect(out.validUntil).toEqual(new Date(later.getTime() + 10 * 60_000));
+    // the session row now carries the step-up, so the next request's user is allowed
+    const fresh = { ...root, stepUpAt: later };
+    await expect(create(fresh, later, 'late.two')).resolves.toMatchObject({ tempPassword: expect.any(String) });
+    await expect(create(fresh, new Date(later.getTime() + 10 * 60_000), 'late.three')).rejects.toMatchObject({
+      code: 'STEP_UP_REQUIRED',
+    });
+    for (let i = 0; i < 2; i++)
+      await confirmPassword(db, stale, { password: 'bad' }, meta, later, { limiter: lim }).catch(() => undefined);
+    await expect(
+      confirmPassword(db, stale, { password: 'root-password' }, meta, later, { limiter: lim }),
+    ).rejects.toMatchObject({ code: 'RATE_LIMITED' });
+  });
 });

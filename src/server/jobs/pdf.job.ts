@@ -2,6 +2,7 @@ import type { PgBoss } from 'pg-boss';
 import type { Db } from '../../../db/client.ts';
 import { createPdfRenderer, type PdfRenderer } from '../pdf/renderer.ts';
 import { PDF_RENDER_QUEUE, renderEvaluationPdf, sweepQueuedPdfs } from '../services/pdf.service.ts';
+import { log } from '../log.ts';
 
 /**
  * `pdf.render` (09-pdf §1, 11-jobs §1): one Chromium kept alive, concurrency 1, 60 s timeout, 3 retries with
@@ -19,13 +20,13 @@ export async function registerPdfJobs(boss: PgBoss, db: Db) {
     if (!job) return;
     renderer ??= await createPdfRenderer();
     const out = await renderEvaluationPdf(db, job.data.evaluationId, new Date(), renderer);
-    if (out) console.log(`[worker] pdf.render ${job.data.evaluationId} v${out.version}`);
+    if (out) log.info('pdf.render', { evaluationId: job.data.evaluationId, version: out.version });
   });
   return {
     sweep: () =>
       sweepQueuedPdfs(db, (evaluationId) =>
         boss.send(PDF_RENDER_QUEUE, { evaluationId }, { singletonKey: evaluationId }),
-      ).catch((err: unknown) => console.error('[worker] pdf sweep failed', err)),
+      ).catch((err: unknown) => log.error('pdf sweep failed', err)),
     close: async () => {
       await renderer?.close();
     },

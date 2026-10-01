@@ -257,7 +257,11 @@ describe('content (orders and guide)', () => {
       code: 'VALIDATION',
     });
     await saveGuidePage(db, admin, { ...page, id, title: 'ดูอันดับ' }, meta, now);
-    expect(await listPublicGuide(db)).toEqual([{ slug: 'how-to', title: 'ดูอันดับ' }]);
+    const listed = await listPublicGuide(db);
+    expect(listed).toContainEqual({ slug: 'how-to', title: 'ดูอันดับ' });
+    expect(listed.map((g) => g.slug)).not.toContain('committee-only');
+    // the default pages from migration 0006 (sort order 10–40) follow the new page (sort order 0)
+    expect(listed.map((g) => g.slug)).toEqual(['how-to', 'how-scores-work', 'committee-guide', 'faq', 'privacy']);
     expect(await getPublicGuidePage(db, 'how-to')).toMatchObject({ bodyMd: '# หัวข้อ\n\nข้อความ' });
     expect(await getPublicGuidePage(db, 'committee-only')).toBeNull();
   });

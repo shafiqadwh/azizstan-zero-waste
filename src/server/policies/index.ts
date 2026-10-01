@@ -3,7 +3,8 @@
  * evaluates a cell. Duty, ownership and approver facts arrive through `ctx`, resolved by the calling service
  * (06-auth §4 rule 2).
  */
-import { forbidden } from '../errors.ts';
+import { hasRecentStepUp } from '../auth/session-policy.ts';
+import { AppError, forbidden } from '../errors.ts';
 import { PERMISSIONS, type Action, type Actor, type Role, type Rule } from './matrix.ts';
 
 export type { Action, Role } from './matrix.ts';
@@ -16,6 +17,8 @@ export interface SessionUser {
   authSource: 'local' | 'school';
   mustChangePassword: boolean;
   sessionId: string;
+  /** When this session last entered the password (login or step-up), 12-security §2 item 7. */
+  stepUpAt?: Date | null;
 }
 
 export interface PolicyContext {
@@ -56,3 +59,8 @@ export function assertCan(user: SessionUser | null, action: Action, ctx?: Policy
 const STAFF: readonly Role[] = ['super_admin', 'admin', 'executive'];
 /** May open the admin area (06-auth §4 rule 3; executives read-only). */
 export const isStaffRole = (role: Role) => STAFF.includes(role);
+
+/** Permission changes need the password entered within the last 10 minutes (12-security §2 item 7). */
+export function assertStepUp(user: SessionUser, now: Date): void {
+  if (!hasRecentStepUp(user.stepUpAt, now)) throw new AppError('STEP_UP_REQUIRED');
+}

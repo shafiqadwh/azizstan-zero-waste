@@ -226,7 +226,10 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
 
       <div id="card-sitePhotos">
         <Card title="รูปสถานที่" aside={counter(doneSite.length)} error={errors.sitePhotos} errorId="err-sitePhotos">
-          <p className="mb-2 text-[13px] text-ink-muted">ถ่ายรูปหรือเลือกจากคลังรูป ระบบประทับวันเวลาลงรูปอัตโนมัติ</p>
+          <p className="mb-2 text-[13px] text-ink-muted">
+            ถ่ายเฉพาะพื้นที่ หลีกเลี่ยงการถ่ายใบหน้านักเรียน · ถ่ายรูปหรือเลือกจากคลังรูป
+            ระบบประทับวันเวลาลงรูปอัตโนมัติ
+          </p>
           <PhotoGrid
             inputId="site-photos"
             items={site}

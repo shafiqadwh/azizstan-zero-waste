@@ -1,6 +1,7 @@
 import type { PgBoss } from 'pg-boss';
 import type { Db } from '../../../db/client.ts';
 import { httpFetcher, runStudentSync, STUDENT_SYNC_QUEUE, takeSyncRequest } from '../services/student.service.ts';
+import { log } from '../log.ts';
 
 /**
  * `students.sync` daily at 02:00 Bangkok and on the admin's "sync ตอนนี้" (11-jobs §1, BR-Y). Failures are
@@ -16,7 +17,7 @@ export async function registerStudentJobs(boss: PgBoss, db: Db) {
       triggeredBy: job?.data?.triggeredBy ?? null,
     });
     // counts only — never codes, names or the request URL
-    console.log(`[worker] students.sync ${out.status}`, JSON.stringify(out.counts));
+    log.info('students.sync', { status: out.status, counts: out.counts });
   });
   await boss.schedule(STUDENT_SYNC_QUEUE, '0 2 * * *', {}, { tz: 'Asia/Bangkok' });
   return async () => {
@@ -24,7 +25,7 @@ export async function registerStudentJobs(boss: PgBoss, db: Db) {
       const req = await takeSyncRequest(db);
       if (req) await boss.send(STUDENT_SYNC_QUEUE, { triggeredBy: req.by }, { singletonKey: 'students.sync' });
     } catch (err) {
-      console.error('[worker] students.sync request sweep failed', err);
+      log.error('students.sync request sweep failed', err);
     }
   };
 }
