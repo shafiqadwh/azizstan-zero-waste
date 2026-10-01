@@ -207,3 +207,8 @@ export const upcomingLinks = (db: DbOrTx, date: string) =>
     .from(classRoomLinks)
     .where(gt(classRoomLinks.effectiveFrom, date))
     .orderBy(asc(classRoomLinks.effectiveFrom));
+
+export async function findRoomByQrToken(db: DbOrTx, qrToken: string) {
+  const [row] = await db.select().from(physicalRooms).where(eq(physicalRooms.qrToken, qrToken));
+  return row ?? null;
+}

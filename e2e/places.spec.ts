@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
-import { createTestUser, ensureActiveTerm } from './db';
+import { createTestUser, ensureActiveTerm, unlockActiveTerm } from './db';
 
 async function signIn(page: Page, username: string, password: string) {
   await page.goto('/login');
@@ -40,6 +40,7 @@ async function move(page: Page, className: string, room: string, date: string) {
 }
 
 test('admin registers rooms and classes, moves a class, and gets Thai overlap errors', async ({ page }) => {
+  test.setTimeout(60_000);
   await ensureActiveTerm();
   const admin = await createTestUser({ role: 'admin', password: 'admin-password' });
   await signIn(page, admin, 'admin-password');
@@ -74,11 +75,16 @@ test('admin registers rooms and classes, moves a class, and gets Thai overlap er
   row = await move(page, c2, roomA, '2026-11-20');
   await expect(row.getByRole('alert')).toContainText(`ห้อง ${roomA} มี ม.E ${c1} ใช้อยู่ในวันที่นั้น`);
 
-  // the term selection card saves (FR-P7)
+  // the term selection card saves (FR-P7). Other specs submit evaluations in the shared active term, which
+  // locks its config (BR-TM2), so unlock and retry until this save lands between them.
   const card = page.getByRole('region', { name: /ห้องเรียนที่ใช้ใน/ });
-  await card.getByLabel(`ม.E ${c1}`).check();
-  await card.getByRole('button', { name: 'บันทึกห้องเรียนที่ใช้' }).click();
-  await expect(card.getByRole('status')).toContainText('บันทึกแล้ว');
+  await expect(async () => {
+    await unlockActiveTerm();
+    await page.reload();
+    await card.getByLabel(`ม.E ${c1}`).check({ timeout: 2000 });
+    await card.getByRole('button', { name: 'บันทึกห้องเรียนที่ใช้' }).click();
+    await expect(card.getByRole('status')).toContainText('บันทึกแล้ว', { timeout: 3000 });
+  }).toPass({ timeout: 30_000 });
 
   // rooms.xlsx template downloads for admins
   const tpl = await page.request.get('/api/v1/templates/rooms.xlsx');
