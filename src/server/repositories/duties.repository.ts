@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import { duties, terms } from '../../../db/schema.ts';
+import { duties, terms, users } from '../../../db/schema.ts';
 import type { DbOrTx } from '../transaction.ts';
 
 /** Any non-expired duty in the active term (gate for the committee area, 06-auth §4 rule 3). */
@@ -67,4 +67,14 @@ export async function countUserDuties(db: DbOrTx, termId: string, userId: string
     .from(duties)
     .where(and(eq(duties.termId, termId), eq(duties.userId, userId), eq(duties.duty, duty), dutyInForce(now)));
   return row?.n ?? 0;
+}
+
+/** Active users holding a committee duty in force in the term (recipients of `round_opened`). */
+export async function listCommitteeUserIds(db: DbOrTx, termId: string, now: Date): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ id: duties.userId })
+    .from(duties)
+    .innerJoin(users, eq(users.id, duties.userId))
+    .where(and(eq(duties.termId, termId), eq(duties.duty, 'committee'), eq(users.isActive, true), dutyInForce(now)));
+  return rows.map((r) => r.id);
 }

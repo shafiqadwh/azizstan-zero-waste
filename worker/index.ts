@@ -5,6 +5,7 @@
 import { PgBoss } from 'pg-boss';
 import { createDb } from '../db/client.ts';
 import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_QUEUE, heartbeatJob } from '../src/server/jobs/heartbeat.job.ts';
+import { registerRoundJobs, ROUND_SWEEP_INTERVAL_MS } from '../src/server/jobs/rounds.job.ts';
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -27,6 +28,11 @@ async function main() {
   await beat();
   const timer = setInterval(beat, HEARTBEAT_INTERVAL_MS);
 
+  // Rounds open and close on their dates (BR-R1, BR-R2); the sweep reads the dates every minute.
+  const sweep = await registerRoundJobs(boss, db);
+  await sweep();
+  const sweepTimer = setInterval(() => void sweep(), ROUND_SWEEP_INTERVAL_MS);
+
   console.log('[worker] started');
 
   let stopping = false;
@@ -35,6 +41,7 @@ async function main() {
     stopping = true;
     console.log(`[worker] ${signal}, stopping`);
     clearInterval(timer);
+    clearInterval(sweepTimer);
     await boss.stop({ graceful: true });
     await close();
     process.exit(0);

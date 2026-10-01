@@ -100,3 +100,19 @@ export async function seedCommitteeFixture() {
     await client.end();
   }
 }
+
+/** An open round in the fixture's term (status set directly; round_class_areas left empty → "ไม่มีพื้นที่"). */
+export async function seedOpenRound(termId: string) {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO rounds (id, term_id, round_no, opens_at, closes_at, status)
+       VALUES (gen_random_uuid(), $1, 1, now() - interval '1 day', now() + interval '3 days', 'open') RETURNING id`,
+      [termId],
+    );
+    return rows[0]!.id;
+  } finally {
+    await client.end();
+  }
+}
