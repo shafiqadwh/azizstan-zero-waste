@@ -2,7 +2,7 @@
 
 import { useActionState } from 'react';
 import { ActionMessage, buttonCls, inputCls, primaryCls, type MessageState } from '@/components/app/settings';
-import { activateTermAction, createTermAction } from './actions';
+import { activateTermAction, closeTermAction, createTermAction } from './actions';
 
 export function CreateTermForm({
   terms,
@@ -82,6 +82,31 @@ export function ActivateButton({ termId, label }: { termId: string; label: strin
       <input type="hidden" name="termId" value={termId} />
       <button type="submit" disabled={pending} className={buttonCls} aria-label={`เปิดใช้${label}`}>
         เปิดใช้ภาคเรียนนี้
+      </button>
+      <ActionMessage state={state} />
+    </form>
+  );
+}
+
+/** BR-D1: closing is final for the term (read-only, off the public site, deleted one year later). */
+export function CloseTermButton({ termId, label }: { termId: string; label: string }) {
+  const [state, action, pending] = useActionState<MessageState | null, FormData>(closeTermAction, null);
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        if (
+          !window.confirm(
+            `ปิด${label}?\nภาคเรียนจะดูได้อย่างเดียว ไม่แสดงบนหน้าสาธารณะ และข้อมูลทั้งหมดจะถูกลบเมื่อครบ 1 ปี`,
+          )
+        )
+          e.preventDefault();
+      }}
+      className="flex flex-col items-start gap-1"
+    >
+      <input type="hidden" name="termId" value={termId} />
+      <button type="submit" disabled={pending} className={buttonCls} aria-label={`ปิด${label}`}>
+        ปิดภาคเรียน
       </button>
       <ActionMessage state={state} />
     </form>

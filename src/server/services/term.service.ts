@@ -15,6 +15,7 @@ import { withTransaction, type Tx } from '../transaction.ts';
 import { writeAudit } from './audit.service.ts';
 import type { ClientMeta } from './auth.service.ts';
 import { classSelectionToCopy } from './place.service.ts';
+import { purgeAfterFor } from './retention.service.ts';
 
 export const TERM_MSG = {
   exists: 'มีภาคเรียนนี้อยู่แล้ว',
@@ -28,6 +29,8 @@ export const TERM_MSG = {
   keyTaken: 'รหัสส่วนคะแนนซ้ำกัน',
   activeTerm: 'ภาคเรียนนี้เปิดใช้อยู่แล้ว',
   noComponents: 'ต้องเปิดใช้ส่วนคะแนนอย่างน้อย 1 ส่วน',
+  closeNotActive: 'ปิดได้เฉพาะภาคเรียนที่ใช้งานอยู่',
+  closeOpenRound: 'ปิดภาคเรียนไม่ได้ เพราะยังมีรอบที่เปิดรับคะแนนอยู่',
 } as const;
 
 const scoreText = z
@@ -294,7 +297,7 @@ export async function activateTerm(db: Db, actor: SessionUser, raw: { termId: st
     assertTermWritable(term);
     if (term.status === 'active') throw validation('termId', TERM_MSG.activeTerm);
     for (const previous of await repo.findActiveTerms(tx)) {
-      const purgeAfter = new Date(now.getTime() + 365 * 86_400_000).toISOString().slice(0, 10);
+      const purgeAfter = purgeAfterFor(now);
       await repo.updateTerm(tx, previous.id, { status: 'closed', closedAt: now, purgeAfter });
       await audit(
         tx,
@@ -309,6 +312,27 @@ export async function activateTerm(db: Db, actor: SessionUser, raw: { termId: st
     }
     await repo.updateTerm(tx, term.id, { status: 'active', closedAt: null, purgeAfter: null });
     await audit(tx, actor, meta, now, 'term.activate', term.id, { status: term.status }, { status: 'active' });
+  });
+}
+
+/**
+ * BR-D1: "ปิดภาคเรียน" without opening the next one. The term becomes read-only, leaves the public site and its
+ * data is kept until `purge_after` (one year). A round still taking scores must close first.
+ */
+export async function closeTerm(db: Db, actor: SessionUser, raw: { termId: string }, meta: ClientMeta, now: Date) {
+  assertCan(actor, 'term.configure');
+  const { termId } = parseInput(z.object({ termId: z.uuid() }), raw);
+  return withTransaction(db, async (tx) => {
+    await repo.lockActivation(tx);
+    const term = await repo.findTerm(tx, termId);
+    if (!term) throw notFound();
+    if (term.status !== 'active') throw validation('termId', TERM_MSG.closeNotActive);
+    if ((await repo.listRounds(tx, termId)).some((r) => r.status === 'open'))
+      throw validation('termId', TERM_MSG.closeOpenRound);
+    const purgeAfter = purgeAfterFor(now);
+    await repo.updateTerm(tx, termId, { status: 'closed', closedAt: now, purgeAfter });
+    await audit(tx, actor, meta, now, 'term.close', termId, { status: term.status }, { status: 'closed', purgeAfter });
+    return { purgeAfter };
   });
 }
 

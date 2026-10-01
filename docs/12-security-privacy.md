@@ -24,7 +24,8 @@
 6. Logs: structured JSON (pino); redact `authorization`, `cookie`, `token`, `password`, query strings of the student
    API; never log CSV content or student names.
 7. Admin actions that change permissions or data after finalize require re-entering the password (step-up, 10 min).
-8. Audit log is append-only (DB trigger in `RAW_SQL` rejects UPDATE/DELETE) and visible to admins/executives at
+8. Audit log is append-only (DB trigger in `RAW_SQL` rejects UPDATE/DELETE; since migration 0004 only
+   `retention.run` may DELETE, in a transaction that sets `zw.retention = 'on'`) and visible to admins/executives at
    `/admin/audit`.
 9. Backups encrypted (age / restic) with the key stored off the machine.
 10. Old Moodle on the same PC: not exposed to the internet, or on a separate Docker network; the app DB port is

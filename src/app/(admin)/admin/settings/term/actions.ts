@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { clientMeta, requireUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { toResult } from '@/server/result';
-import { activateTerm, createTerm } from '@/server/services/term.service';
+import { activateTerm, closeTerm, createTerm } from '@/server/services/term.service';
 import type { MessageState } from '@/components/app/settings';
 
 const done = async (prev: MessageState | null, fn: () => Promise<string>): Promise<MessageState> => {
@@ -48,5 +48,18 @@ export async function activateTermAction(prev: MessageState | null, form: FormDa
       new Date(),
     );
     return 'เปิดใช้ภาคเรียนแล้ว ภาคเรียนเดิมถูกปิด';
+  });
+}
+
+export async function closeTermAction(prev: MessageState | null, form: FormData) {
+  return done(prev, async () => {
+    await closeTerm(
+      getDb(),
+      await requireUser(),
+      { termId: String(form.get('termId')) },
+      await clientMeta(),
+      new Date(),
+    );
+    return 'ปิดภาคเรียนแล้ว ข้อมูลจะเก็บไว้ 1 ปีแล้วลบตามกำหนด';
   });
 }

@@ -55,6 +55,30 @@ docker compose -f deploy/docker-compose.yml build
 docker compose -f deploy/docker-compose.yml run --rm app node scripts/migrate.js
 docker compose -f deploy/docker-compose.yml up -d
 ```
+The backup also writes `backup.last` into `app_settings` after the off-site copy succeeds; the time shows on
+`/admin/settings/privacy` ("สำรองข้อมูลล่าสุด"). No entry for more than a day means the nightly backup failed.
+
+## 6. Restore rehearsal checklist (before go-live, then once per term)
+Rehearse on a **spare machine or a throw-away directory**, never on the live database. Write the date, the
+backup file name and who did it in the school's IT log.
+
+1. [ ] Pick last night's file from the off-site copy (`rclone ls zw-backup:azizstan-zero-waste/`), not the local one
+       — this proves the off-site copy works.
+2. [ ] Fetch the private key (`backup.key`) from where it is kept off the machine; confirm the file decrypts:
+       `age -d -i backup.key zw-….tar.age | tar -t` lists `./db.dump` and `./files.tgz`.
+3. [ ] On the spare machine: clone the repo at the same version tag, copy `.env` (new secrets are fine), start only
+       `db`, then run the §5 commands.
+4. [ ] `docker compose … run --rm app node scripts/migrate.js` reports nothing to apply (the dump has the schema).
+5. [ ] Start the stack; `GET /api/v1/health` returns `ok` within 2 minutes (worker heartbeat included).
+6. [ ] Log in as an admin. `/admin` shows the current term and round; the counts match the live system.
+7. [ ] Open three evaluations from different rounds: photos load (thumbnails and full size) and the PDF opens.
+8. [ ] `/admin/settings/privacy` lists the terms with the same delete dates as the live system.
+9. [ ] The ปพ.5 API answers with the CSV header on the spare machine (`curl -H "Authorization: Bearer …"`).
+10. [ ] Note how long steps 2–5 took (target: under 1 hour). Destroy the spare copy (`docker compose down -v`,
+        delete `/tmp/restore`) — it holds real data.
+
+Retention runs inside the restored copy too: a restore of an old backup re-creates data that `retention.run`
+already deleted, and the next 03:00 run deletes it again (BR-D3), so an old backup never extends retention.
 Migrations are forward-only; take a backup first (`sh deploy/backup.sh`).
 
 ## 4. Monitoring
@@ -70,3 +94,27 @@ docker compose -f deploy/docker-compose.yml exec -T db pg_restore -U zw -d zw --
 docker run --rm -v azizstan-zero-waste_app-data:/data -v /tmp/restore:/in alpine tar -C /data -xzf /in/files.tgz
 docker compose -f deploy/docker-compose.yml up -d
 ```
+The backup also writes `backup.last` into `app_settings` after the off-site copy succeeds; the time shows on
+`/admin/settings/privacy` ("สำรองข้อมูลล่าสุด"). No entry for more than a day means the nightly backup failed.
+
+## 6. Restore rehearsal checklist (before go-live, then once per term)
+Rehearse on a **spare machine or a throw-away directory**, never on the live database. Write the date, the
+backup file name and who did it in the school's IT log.
+
+1. [ ] Pick last night's file from the off-site copy (`rclone ls zw-backup:azizstan-zero-waste/`), not the local one
+       — this proves the off-site copy works.
+2. [ ] Fetch the private key (`backup.key`) from where it is kept off the machine; confirm the file decrypts:
+       `age -d -i backup.key zw-….tar.age | tar -t` lists `./db.dump` and `./files.tgz`.
+3. [ ] On the spare machine: clone the repo at the same version tag, copy `.env` (new secrets are fine), start only
+       `db`, then run the §5 commands.
+4. [ ] `docker compose … run --rm app node scripts/migrate.js` reports nothing to apply (the dump has the schema).
+5. [ ] Start the stack; `GET /api/v1/health` returns `ok` within 2 minutes (worker heartbeat included).
+6. [ ] Log in as an admin. `/admin` shows the current term and round; the counts match the live system.
+7. [ ] Open three evaluations from different rounds: photos load (thumbnails and full size) and the PDF opens.
+8. [ ] `/admin/settings/privacy` lists the terms with the same delete dates as the live system.
+9. [ ] The ปพ.5 API answers with the CSV header on the spare machine (`curl -H "Authorization: Bearer …"`).
+10. [ ] Note how long steps 2–5 took (target: under 1 hour). Destroy the spare copy (`docker compose down -v`,
+        delete `/tmp/restore`) — it holds real data.
+
+Retention runs inside the restored copy too: a restore of an old backup re-creates data that `retention.run`
+already deleted, and the next 03:00 run deletes it again (BR-D3), so an old backup never extends retention.
