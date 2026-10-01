@@ -16,6 +16,7 @@ import * as roundsRepo from '../repositories/rounds.repository.ts';
 import * as termsRepo from '../repositories/terms.repository.ts';
 import * as usersRepo from '../repositories/users.repository.ts';
 import { evidenceUrl } from './evidence.service.ts';
+import { currentPdfId } from './pdf.service.ts';
 import { listEvaluationRequests, type RequestCard } from './request.service.ts';
 
 export type TaskStatus = 'not_evaluated' | 'submitted' | 'returned' | 'approved';
@@ -316,6 +317,9 @@ export interface EvaluationDetail {
   /** move_target choices for the owner: their other targets of the same unit with no live evaluation */
   moveOptions: { type: 'class' | 'area'; id: string; label: string }[];
   requests: RequestCard[];
+  /** current PDF version (approved evaluations, 09-pdf) */
+  pdfUrl: string | null;
+  pdfStatus: string;
   photos: PhotoView[];
   history: { action: string; at: Date; actorName: string | null }[];
 }
@@ -396,6 +400,8 @@ export async function getEvaluationDetail(
     canRequest,
     moveOptions,
     requests: await listEvaluationRequests(db, e.id),
+    pdfUrl: await currentPdfId(db, e.id).then((id) => (id ? `/api/v1/pdf/${id}` : null)),
+    pdfStatus: e.pdfStatus,
     step: scoreStepFor(term),
     scoreFormat: term.scoreFormat,
     photoMax: term.photoMax,
