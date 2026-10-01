@@ -60,7 +60,7 @@ export default async function TermsPage() {
                   >
                     ส่วนคะแนนและรอบ
                   </a>
-                  {canConfigure && t.status !== 'active' ? (
+                  {canConfigure && t.status === 'draft' && !t.purgedAt ? (
                     <ActivateButton termId={t.id} label={formatTermLabel(t.termNo, t.academicYear)} />
                   ) : null}
                 </div>

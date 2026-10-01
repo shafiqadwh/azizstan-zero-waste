@@ -33,6 +33,7 @@ export default async function ScoringPage({ searchParams }: { searchParams: Prom
   }
   const s = await getTermSettings(getDb(), user, selected.id);
   const canConfigure = can(user, 'term.configure');
+  const closed = s.term.status === 'closed' || s.term.purgedAt !== null;
   const locked = s.term.configLockedAt !== null;
   const keyById = new Map(s.components.map((c) => [c.id, c.key]));
   const roundNoById = new Map(s.rounds.map((r) => [r.id, r.roundNo]));
@@ -46,12 +47,12 @@ export default async function ScoringPage({ searchParams }: { searchParams: Prom
         </div>
         <TermPicker terms={terms} selectedId={s.term.id} />
       </div>
-      {!canConfigure ? <ReadOnlyBanner /> : locked ? <LockedBanner /> : null}
+      {!canConfigure || closed ? <ReadOnlyBanner /> : locked ? <LockedBanner /> : null}
 
       <RoundsCard
         termId={s.term.id}
-        canManage={can(user, 'round.manage')}
-        countLocked={!canConfigure || locked}
+        canManage={can(user, 'round.manage') && !closed}
+        countLocked={!canConfigure || locked || closed}
         rounds={s.rounds.map((r) => ({
           id: r.id,
           roundNo: r.roundNo,
@@ -65,7 +66,7 @@ export default async function ScoringPage({ searchParams }: { searchParams: Prom
         key={`${s.term.id}-${s.rounds.length}`}
         termId={s.term.id}
         areaLabel={s.term.areaType === 'zone' ? 'โซน' : 'อาคาร'}
-        disabled={!canConfigure || locked}
+        disabled={!canConfigure || locked || closed}
         initial={s.components.map((c) => ({
           id: c.id,
           key: c.key,

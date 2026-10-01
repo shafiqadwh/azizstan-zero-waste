@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import pg from 'pg';
 import { createTestUser, freeTermSlot } from './db';
 
 async function signIn(page: Page, username: string, password: string) {
@@ -66,4 +67,44 @@ test('an executive sees term settings read-only', async ({ page }) => {
   await page.goto('/admin/settings/term');
   await expect(page.getByRole('note')).toContainText('โหมดดูอย่างเดียว');
   await expect(page.getByRole('button', { name: 'สร้างภาคเรียน' })).toHaveCount(0);
+});
+
+test('closed term settings are read-only for an admin even without an evaluation lock', async ({ page }, info) => {
+  const admin = await createTestUser({ role: 'admin', password: 'admin-password' });
+  const slot = await freeTermSlot(info.project.name.includes('mobile') ? 1 : 0);
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  let termId: string;
+  try {
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO terms (id, academic_year, term_no, status, area_type, final_max, closed_at, purge_after)
+       VALUES (gen_random_uuid(), $1, $2, 'closed', 'building', 15, now(), current_date + 365) RETURNING id`,
+      [slot.academicYear, slot.termNo],
+    );
+    termId = rows[0]!.id;
+    await client.query(
+      `INSERT INTO rounds (id, term_id, round_no, opens_at, closes_at)
+       VALUES (gen_random_uuid(), $1, 1, now() + interval '1 day', now() + interval '5 days')`,
+      [termId],
+    );
+  } finally {
+    await client.end();
+  }
+  await signIn(page, admin, 'admin-password');
+  await page.goto('/admin/settings/term');
+  const row = page.getByTestId(`term-${slot.termNo}-${slot.academicYear}`);
+  await expect(row).toContainText('ปิดแล้ว');
+  await expect(row.getByRole('button')).toHaveCount(0);
+  await page.goto(`/admin/settings/mode?term=${termId}`);
+  await expect(page.getByRole('note')).toContainText('โหมดดูอย่างเดียว');
+  await expect(page.getByLabel(/^จำนวนเต็ม/)).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'บันทึกการตั้งค่า' })).toHaveCount(0);
+  await page.goto(`/admin/settings/scoring?term=${termId}`);
+  await expect(page.getByRole('note')).toContainText('โหมดดูอย่างเดียว');
+  await expect(page.getByRole('button', { name: 'เพิ่มจำนวนรอบ' })).toBeDisabled();
+  await expect(page.getByLabel('เปิดลงคะแนน', { exact: true })).toBeDisabled();
+  await expect(page.getByLabel('ปิดรับคะแนน', { exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'บันทึกวันที่' })).toHaveCount(0);
+  await expect(page.getByLabel('คะแนนเต็มปลายภาคเรียน')).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 });
