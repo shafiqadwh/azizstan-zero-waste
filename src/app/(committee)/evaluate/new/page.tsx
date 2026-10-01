@@ -6,7 +6,9 @@ import { requirePageUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { getEvaluationForm, type EvaluationForm as FormContext } from '@/server/services/task.service';
+import { TargetHeader } from '@/components/app/TargetHeader';
 import { EvaluationForm } from '../EvaluationForm';
+import { LateEntryRequest } from './LateEntryRequest';
 
 export const metadata: Metadata = { title: 'ประเมินห้องเรียน · AZIZSTAN ZERO WASTE' };
 
@@ -62,9 +64,33 @@ export default async function NewEvaluationPage({
       ) : ctx.canEnter ? (
         <EvaluationForm ctx={ctx} />
       ) : (
-        <p role="alert" className="rounded-lg bg-danger-soft px-4 py-4 text-danger-ink">
-          {ctx.round.status === 'scheduled' ? 'รอบนี้ยังไม่เปิดลงคะแนน' : 'เลยกำหนดใส่คะแนนแล้ว กด "ขออนุมัติใส่คะแนน"'}
-        </p>
+        <>
+          <TargetHeader
+            roomNumber={ctx.target.roomNumber}
+            label={ctx.target.label}
+            subtitle={ctx.target.subtitle}
+            roundNo={ctx.round.roundNo}
+          />
+          <p role="alert" className="rounded-lg bg-danger-soft px-4 py-4 text-danger-ink">
+            {ctx.round.status === 'scheduled' || ctx.round.status === 'finalized'
+              ? ctx.round.status === 'scheduled'
+                ? 'รอบนี้ยังไม่เปิดลงคะแนน'
+                : 'รอบนี้ปิดรอบแล้ว'
+              : 'เลยกำหนดใส่คะแนนแล้ว กด "ขออนุมัติใส่คะแนน"'}
+          </p>
+          {ctx.lateRequestWaiting ? (
+            <p role="status" className="rounded-lg bg-warn-soft px-4 py-3 text-warn-ink">
+              รอพิจารณาคำขอ · ส่งคำขอใส่คะแนนแล้ว รอผู้ดูแลอนุมัติ
+            </p>
+          ) : ctx.canRequestLate ? (
+            <LateEntryRequest
+              roundId={ctx.round.id}
+              componentId={ctx.componentId}
+              target={{ type: ctx.target.type, id: ctx.target.id }}
+              defaultHours={ctx.lateEntryDefaultHours}
+            />
+          ) : null}
+        </>
       )}
     </main>
   );

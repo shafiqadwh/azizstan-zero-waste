@@ -11,10 +11,12 @@ import { assertCan, can, type SessionUser } from '../policies/index.ts';
 import * as dutiesRepo from '../repositories/duties.repository.ts';
 import * as repo from '../repositories/evaluations.repository.ts';
 import * as places from '../repositories/places.repository.ts';
+import * as requestsRepo from '../repositories/requests.repository.ts';
 import * as roundsRepo from '../repositories/rounds.repository.ts';
 import * as termsRepo from '../repositories/terms.repository.ts';
 import * as usersRepo from '../repositories/users.repository.ts';
 import { evidenceUrl } from './evidence.service.ts';
+import { listEvaluationRequests, type RequestCard } from './request.service.ts';
 
 export type TaskStatus = 'not_evaluated' | 'submitted' | 'returned' | 'approved';
 
@@ -210,6 +212,10 @@ export interface EvaluationForm {
   canEnter: boolean;
   /** Someone already scored it (BR-P3): the form is replaced by the detail. */
   existingId: string | null;
+  /** Entry closed: a late-entry request may be sent (BR-P2), unless one is already waiting. */
+  canRequestLate: boolean;
+  lateRequestWaiting: boolean;
+  lateEntryDefaultHours: number;
 }
 
 export async function getEvaluationForm(
@@ -263,6 +269,15 @@ export async function getEvaluationForm(
     individual: component.unit === 'class' && term.roomMode === 'individual',
     canEnter: open || granted,
     existingId: live?.evaluation.id ?? null,
+    canRequestLate: !open && !granted && (round.status === 'open' || round.status === 'closed'),
+    lateRequestWaiting: !!(await requestsRepo.findWaitingLateEntry(db, {
+      requesterId: actor.id,
+      roundId: round.id,
+      componentId: component.id,
+      targetClassId: q.target.type === 'class' ? q.target.id : null,
+      targetAreaId: q.target.type === 'area' ? q.target.id : null,
+    })),
+    lateEntryDefaultHours: term.lateEntryDefaultHours,
   };
 }
 
@@ -293,6 +308,14 @@ export interface EvaluationDetail {
   selfEditUntil: Date;
   returnedReason: string | null;
   version: number;
+  step: Th;
+  scoreFormat: 'integer' | 'decimal';
+  photoMax: number;
+  /** "ขออนุมัติแก้ไข" is offered (owner after the window or once approved; any committee member of the target). */
+  canRequest: boolean;
+  /** move_target choices for the owner: their other targets of the same unit with no live evaluation */
+  moveOptions: { type: 'class' | 'area'; id: string; label: string }[];
+  requests: RequestCard[];
   photos: PhotoView[];
   history: { action: string; at: Date; actorName: string | null }[];
 }
@@ -322,6 +345,33 @@ export async function getEvaluationDetail(
     ));
   if (!can(actor, 'staff.read', { ownTarget })) throw new AppError('FORBIDDEN');
   const component = (await termsRepo.listComponents(db, round.termId)).find((c) => c.id === e.componentId)!;
+  const term = (await places.findTerm(db, round.termId))!;
+  const canEdit = isOwner && (e.status === 'submitted' || e.status === 'returned') && now < e.selfEditUntil;
+  const roundOpenForRequests = round.status !== 'finalized' || actor.role === 'super_admin';
+  const canRequest = ownTarget && e.status !== 'void' && !canEdit && roundOpenForRequests;
+  let moveOptions: EvaluationDetail['moveOptions'] = [];
+  if (isOwner && canRequest) {
+    const mine = await repo.listMyCommitteeDuties(db, round.termId, actor.id, now);
+    const live = await repo.listLiveEvaluations(db, round.id);
+    const taken = new Set(
+      live
+        .filter((l) => l.evaluation.componentId === e.componentId)
+        .map((l) => l.evaluation.targetClassId ?? l.evaluation.targetAreaId),
+    );
+    const selected = new Set(await places.listTermClassIds(db, round.termId));
+    const options = mine
+      .map((d) =>
+        d.targetClassId
+          ? { type: 'class' as const, id: d.targetClassId }
+          : { type: 'area' as const, id: d.targetAreaId! },
+      )
+      .filter((o) => o.type === component.unit && !taken.has(o.id) && (o.type === 'area' || selected.has(o.id)));
+    const views = await describeTargets(db, round.id, options, now);
+    moveOptions = options.map((o) => {
+      const v = views.get(targetRef(o))!;
+      return { ...o, label: v.roomNumber ? `${v.roomNumber} · ${v.label}` : v.label };
+    });
+  }
   const override = (await termsRepo.listRoundMax(db, [round.id])).find((m) => m.componentId === component.id);
   const [view, photos, history, owner] = await Promise.all([
     describeTargets(db, round.id, [t], now),
@@ -342,7 +392,13 @@ export async function getEvaluationDetail(
     comment: e.comment,
     ownerName: owner?.displayName ?? '–',
     isOwner,
-    canEdit: isOwner && (e.status === 'submitted' || e.status === 'returned') && now < e.selfEditUntil,
+    canEdit,
+    canRequest,
+    moveOptions,
+    requests: await listEvaluationRequests(db, e.id),
+    step: scoreStepFor(term),
+    scoreFormat: term.scoreFormat,
+    photoMax: term.photoMax,
     selfEditUntil: e.selfEditUntil,
     returnedReason: e.status === 'returned' ? e.returnedReason : null,
     version: e.version,

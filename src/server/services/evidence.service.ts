@@ -148,6 +148,16 @@ export interface EvidenceFile {
   etag: string;
 }
 
+/** A row whose file is gone (restored backup, manual cleanup) is a 404, not a crash. */
+async function readStored(relative: string, root: string): Promise<Buffer> {
+  try {
+    return await readFile(resolveData(relative, root));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') throw notFound();
+    throw err;
+  }
+}
+
 /** GET /files/{id}?w= — the stored WebP, or a cached smaller copy for w ∈ THUMB_WIDTHS. */
 export async function readEvidenceFile(
   db: Db,
@@ -165,12 +175,12 @@ export async function readEvidenceFile(
   if (!(await mayRead(db, actor, row, now))) throw forbidden();
   const root = opts.root ?? dataDir();
   const w = THUMB_WIDTHS.find((t) => t === width);
-  if (!w) return { data: await readFile(resolveData(row.filePath, root)), etag: row.sha256 };
+  if (!w) return { data: await readStored(row.filePath, root), etag: row.sha256 };
   const thumbPath = row.filePath.replace(/\.webp$/, `_w${w}.webp`);
   if (await dataFileExists(thumbPath, root)) {
     return { data: await readFile(resolveData(thumbPath, root)), etag: `${row.sha256}-w${w}` };
   }
-  const thumb = await resizeWebp(await readFile(resolveData(row.filePath, root)), w);
+  const thumb = await resizeWebp(await readStored(row.filePath, root), w);
   await writeDataFile(thumbPath, thumb, root);
   return { data: thumb, etag: `${row.sha256}-w${w}` };
 }
