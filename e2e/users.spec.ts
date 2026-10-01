@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import pg from 'pg';
 import { createTestUser } from './db';
 
 async function signIn(page: Page, username: string, password: string) {
@@ -42,4 +43,43 @@ test('an admin sees a read-only list without management controls', async ({ page
   await expect(page.getByRole('region', { name: 'เพิ่มผู้ใช้' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'บันทึกสิทธิ์' })).toHaveCount(0);
   await expect(page.getByTestId(`user-${adminUser}`)).toBeVisible();
+});
+
+test('after 10 minutes the super admin re-enters the password before changing users (step-up)', async ({ page }) => {
+  const root = await createTestUser({ role: 'super_admin', password: 'root-password' });
+  await signIn(page, root, 'root-password');
+  await page.goto('/admin/settings/users');
+  await expect(page.getByTestId('step-up-ok')).toBeVisible(); // the login itself counts
+  // age this session's password entry by 11 minutes
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  await client.query(
+    `UPDATE sessions SET step_up_at = now() - interval '11 minutes'
+      WHERE user_id = (SELECT id FROM users WHERE username = $1)`,
+    [root],
+  );
+  await client.end();
+  await page.reload();
+  const stepUp = page.getByTestId('step-up');
+  await expect(stepUp).toBeVisible();
+
+  const form = page.getByRole('region', { name: 'เพิ่มผู้ใช้' });
+  const name = `s${Date.now().toString(36)}`;
+  await form.getByLabel('ชื่อผู้ใช้').fill(name);
+  await form.getByLabel('ชื่อที่แสดง').fill('ครูขั้นยืนยัน');
+  await form.getByLabel('สิทธิ์').selectOption('teacher');
+  await form.getByRole('button', { name: 'เพิ่มผู้ใช้' }).click();
+  await expect(form.getByRole('alert')).toContainText('กรุณายืนยันรหัสผ่านอีกครั้ง');
+
+  await stepUp.getByLabel(/ยืนยันรหัสผ่านของคุณ/).fill('wrong-password');
+  await stepUp.getByRole('button', { name: 'ยืนยันรหัสผ่าน' }).click();
+  await expect(stepUp.getByRole('alert')).toContainText('ไม่ถูกต้อง');
+  await stepUp.getByLabel(/ยืนยันรหัสผ่านของคุณ/).fill('root-password');
+  await stepUp.getByRole('button', { name: 'ยืนยันรหัสผ่าน' }).click();
+  await expect(page.getByTestId('step-up-ok')).toBeVisible();
+  await form.getByLabel('ชื่อผู้ใช้').fill(name); // a submitted form resets its fields
+  await form.getByLabel('ชื่อที่แสดง').fill('ครูขั้นยืนยัน');
+  await form.getByLabel('สิทธิ์').selectOption('teacher');
+  await form.getByRole('button', { name: 'เพิ่มผู้ใช้' }).click();
+  await expect(page.getByTestId(`user-${name}`)).toContainText('ครูขั้นยืนยัน');
 });

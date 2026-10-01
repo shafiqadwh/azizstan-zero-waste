@@ -1,8 +1,12 @@
 import type { NextConfig } from 'next';
+import { STATIC_SECURITY_HEADERS } from './src/server/security-headers';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  async headers() {
+    return [{ source: '/:path*', headers: STATIC_SECURITY_HEADERS }];
+  },
 };
 
 export default nextConfig;

@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { AppError, validation } from '@/server/errors';
+import { assertSameOrigin } from '@/server/http-guards';
 import { toResponse } from '@/server/result';
 import { subscribePush, unsubscribePush } from '@/server/services/push.service';
 
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     async () => {
       const user = await getCurrentUser();
       if (!user) throw new AppError('UNAUTHENTICATED');
+      assertSameOrigin(request);
       const sub = await body(request);
       await subscribePush(
         getDb(),
@@ -39,6 +41,7 @@ export async function DELETE(request: Request) {
   return toResponse(async () => {
     const user = await getCurrentUser();
     if (!user) throw new AppError('UNAUTHENTICATED');
+    assertSameOrigin(request);
     await unsubscribePush(getDb(), user, String((await body(request)).endpoint ?? ''));
     return { ok: true };
   });

@@ -22,13 +22,17 @@ test('committee uploads a GPS-tagged photo; the stored WebP has no EXIF; thumbna
     .jpeg()
     .withExif({ IFD3: { GPSLatitudeRef: 'N', GPSLatitude: '6/1 52/1 0/1' } })
     .toBuffer();
-  const res = await page.request.post('/api/v1/uploads', {
-    multipart: {
-      file: { name: 'IMG_0001.jpg', mimeType: 'image/jpeg', buffer: photo },
-      kind: 'site',
-      targetRef: `class:${classId}`,
-    },
-  });
+  // a browser always sends Origin on a POST; Playwright's request API does not, so the tests set it
+  const sameOrigin = { Origin: new URL(page.url()).origin };
+  const upload = {
+    file: { name: 'IMG_0001.jpg', mimeType: 'image/jpeg', buffer: photo },
+    kind: 'site',
+    targetRef: `class:${classId}`,
+  };
+  // CSRF (12-security §2 item 2): another site's page, or no Origin at all, is refused even with the cookie
+  for (const headers of [{ Origin: 'https://evil.example' }, {}] as Record<string, string>[])
+    expect((await page.request.post('/api/v1/uploads', { headers, multipart: upload })).status()).toBe(403);
+  const res = await page.request.post('/api/v1/uploads', { headers: sameOrigin, multipart: upload });
   expect(res.status()).toBe(201);
   const body = (await res.json()) as { evidenceId: string; url: string; capturedAt: string };
   expect(body.url).toBe(`/api/v1/files/${body.evidenceId}`);
@@ -43,6 +47,7 @@ test('committee uploads a GPS-tagged photo; the stored WebP has no EXIF; thumbna
 
   // wrong target → 403 with the Thai message; non-image → 422
   const denied = await page.request.post('/api/v1/uploads', {
+    headers: sameOrigin,
     multipart: {
       file: { name: 'a.jpg', mimeType: 'image/jpeg', buffer: photo },
       kind: 'site',
@@ -52,6 +57,7 @@ test('committee uploads a GPS-tagged photo; the stored WebP has no EXIF; thumbna
   expect(denied.status()).toBe(403);
   expect(await denied.json()).toMatchObject({ error: { code: 'FORBIDDEN', message: 'คุณไม่มีสิทธิ์ทำรายการนี้' } });
   const notImage = await page.request.post('/api/v1/uploads', {
+    headers: sameOrigin,
     multipart: {
       file: { name: 'a.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') },
       kind: 'site',

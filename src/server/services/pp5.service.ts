@@ -12,7 +12,7 @@ import { ipAllowed, parseCidrs } from '../../lib/net/cidr.ts';
 import { termScoreByRound } from '../../lib/scoring/index.ts';
 import { parseScore, toDisplay, type Th } from '../../lib/scoring/decimal.ts';
 import { AppError, notFound, parseInput } from '../errors.ts';
-import { assertCan, type SessionUser } from '../policies/index.ts';
+import { assertCan, assertStepUp, type SessionUser } from '../policies/index.ts';
 import * as places from '../repositories/places.repository.ts';
 import * as repo from '../repositories/pp5.repository.ts';
 import * as termsRepo from '../repositories/terms.repository.ts';
@@ -37,6 +37,7 @@ export async function createApiKey(
   now: Date,
 ): Promise<{ id: string; key: string }> {
   assertCan(actor, 'apikey.manage');
+  assertStepUp(actor, now);
   const { name } = parseInput(apiKeyInput, raw);
   const key = `zw_pp5_${randomBytes(24).toString('base64url')}`;
   const id = newId();

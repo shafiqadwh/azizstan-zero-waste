@@ -18,3 +18,10 @@ export function checkSession(s: SessionTimes, now: Date): SessionCheck {
   if (idle >= IDLE_TIMEOUT_MS) return { valid: false };
   return { valid: true, touch: idle >= TOUCH_INTERVAL_MS };
 }
+
+/** 12-security §2 item 7: a password entry (login or step-up) unlocks permission changes for 10 minutes. */
+export const STEP_UP_MS = 10 * 60 * 1000;
+
+export function hasRecentStepUp(stepUpAt: Date | null | undefined, now: Date): boolean {
+  return !!stepUpAt && now.getTime() - stepUpAt.getTime() < STEP_UP_MS && stepUpAt.getTime() <= now.getTime() + 60_000;
+}

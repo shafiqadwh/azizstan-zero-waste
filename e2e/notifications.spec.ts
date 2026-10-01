@@ -45,13 +45,26 @@ test('push subscription API: https only, stored for the user, removable', async 
   const teacher = await createTestUser({ role: 'teacher', password: 'teacher-password' });
   await signIn(page, teacher, 'teacher-password');
   const endpoint = `https://push.example.test/${teacher}`;
+  const headers = { Origin: new URL(page.url()).origin };
   const keys = { p256dh: 'BPcMbnWQL5GOYX-fake-p256dh-key', auth: 'fake-auth-secret' };
   expect(
-    (await page.request.post('/api/v1/push/subscription', { data: { endpoint: 'http://x.test/1', keys } })).status(),
+    (
+      await page.request.post('/api/v1/push/subscription', { headers, data: { endpoint: 'http://x.test/1', keys } })
+    ).status(),
   ).toBe(422);
-  expect((await page.request.post('/api/v1/push/subscription', { data: { endpoint, keys } })).status()).toBe(201);
+  expect(
+    (
+      await page.request.post('/api/v1/push/subscription', {
+        headers: { Origin: 'https://evil.example' },
+        data: { endpoint, keys },
+      })
+    ).status(),
+  ).toBe(403);
+  expect((await page.request.post('/api/v1/push/subscription', { headers, data: { endpoint, keys } })).status()).toBe(
+    201,
+  );
   expect(await sql('SELECT 1 FROM push_subscriptions WHERE endpoint = $1', [endpoint])).toHaveLength(1);
-  expect((await page.request.delete('/api/v1/push/subscription', { data: { endpoint } })).status()).toBe(200);
+  expect((await page.request.delete('/api/v1/push/subscription', { headers, data: { endpoint } })).status()).toBe(200);
   expect(await sql('SELECT 1 FROM push_subscriptions WHERE endpoint = $1', [endpoint])).toHaveLength(0);
   const anon = await page.context().browser()!.newContext();
   expect(

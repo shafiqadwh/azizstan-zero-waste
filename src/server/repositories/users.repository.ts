@@ -51,6 +51,10 @@ export async function touchSession(db: DbOrTx, sessionId: string, at: Date): Pro
   await db.update(sessions).set({ lastSeenAt: at }).where(eq(sessions.id, sessionId));
 }
 
+export async function setStepUp(db: DbOrTx, sessionId: string, at: Date): Promise<void> {
+  await db.update(sessions).set({ stepUpAt: at }).where(eq(sessions.id, sessionId));
+}
+
 export async function deleteSession(db: DbOrTx, sessionId: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.id, sessionId));
 }

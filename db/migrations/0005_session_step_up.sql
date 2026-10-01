@@ -1,0 +1,1 @@
+ALTER TABLE "sessions" ADD COLUMN "step_up_at" timestamp with time zone;

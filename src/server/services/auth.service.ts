@@ -9,7 +9,7 @@ import { externalAuth, type ExternalAuthProvider } from '../auth/external.ts';
 import { hashPassword, PASSWORD_MIN_LENGTH, verifyAgainstDummy, verifyPassword } from '../auth/password.ts';
 import { loginLimiter, type LoginRateLimiter } from '../auth/rate-limit.ts';
 import { afterLogin } from '../auth/redirects.ts';
-import { ABSOLUTE_LIFETIME_MS, checkSession } from '../auth/session-policy.ts';
+import { ABSOLUTE_LIFETIME_MS, checkSession, STEP_UP_MS } from '../auth/session-policy.ts';
 import { newSessionToken, sessionIdFromToken } from '../auth/tokens.ts';
 import { AppError, parseInput, validation } from '../errors.ts';
 import type { SessionUser } from '../policies/index.ts';
@@ -52,7 +52,7 @@ export interface AuthDeps {
   external?: ExternalAuthProvider;
 }
 
-function toSessionUser(u: repo.UserRow, sessionId: string): SessionUser {
+function toSessionUser(u: repo.UserRow, sessionId: string, stepUpAt: Date | null): SessionUser {
   return {
     id: u.id,
     username: u.username,
@@ -61,6 +61,7 @@ function toSessionUser(u: repo.UserRow, sessionId: string): SessionUser {
     authSource: u.authSource,
     mustChangePassword: u.mustChangePassword,
     sessionId,
+    stepUpAt,
   };
 }
 
@@ -108,6 +109,7 @@ export async function login(
       createdAt: now,
       lastSeenAt: now,
       expiresAt,
+      stepUpAt: now, // the password was just entered
       ip: meta.ip,
       userAgent: meta.userAgent,
     });
@@ -119,7 +121,7 @@ export async function login(
     );
   });
 
-  return { token, expiresAt, user: toSessionUser(user, sessionId), redirectTo: afterLogin(user, input.next) };
+  return { token, expiresAt, user: toSessionUser(user, sessionId, now), redirectTo: afterLogin(user, input.next) };
 }
 
 /** Resolve a cookie token to its user; deletes expired sessions and slides `last_seen_at` at most every 5 min. */
@@ -133,7 +135,48 @@ export async function validateSession(db: Db, token: string, now: Date): Promise
     return null;
   }
   if (check.touch) await repo.touchSession(db, sessionId, now);
-  return toSessionUser(row.user, sessionId);
+  return toSessionUser(row.user, sessionId, row.session.stepUpAt);
+}
+
+export const confirmPasswordInput = z.object({ password: z.string().min(1, 'กรุณากรอกรหัสผ่าน').max(200) });
+
+/**
+ * Step-up (12-security §2 item 7): re-entering the password unlocks permission changes for STEP_UP_MS on this
+ * session. Wrong passwords count toward the login rate limit, so step-up cannot be used to guess.
+ */
+export async function confirmPassword(
+  db: Db,
+  actor: SessionUser,
+  raw: z.input<typeof confirmPasswordInput>,
+  meta: ClientMeta,
+  now: Date,
+  deps: AuthDeps = {},
+): Promise<{ validUntil: Date }> {
+  const input = parseInput(confirmPasswordInput, raw);
+  const limiter = deps.limiter ?? loginLimiter();
+  if (limiter.isBlocked(meta.ip, actor.username, now)) throw new AppError('RATE_LIMITED');
+  const user = await repo.findUserById(db, actor.id);
+  if (!user || !user.isActive) throw new AppError('UNAUTHENTICATED');
+  const okPassword =
+    user.authSource === 'school'
+      ? (await (deps.external ?? externalAuth).verify(user.username, input.password)).ok
+      : user.passwordHash
+        ? await verifyPassword(user.passwordHash, input.password)
+        : false;
+  if (!okPassword) {
+    limiter.recordFailure(meta.ip, actor.username, now);
+    throw validation('password', MSG.invalidCredentials);
+  }
+  limiter.reset(meta.ip, actor.username);
+  await withTransaction(db, async (tx) => {
+    await repo.setStepUp(tx, actor.sessionId, now);
+    await writeAudit(
+      tx,
+      { actorId: user.id, action: 'user.step_up', entity: 'user', entityId: user.id, ip: meta.ip },
+      now,
+    );
+  });
+  return { validUntil: new Date(now.getTime() + STEP_UP_MS) };
 }
 
 export async function logout(db: Db, user: SessionUser, meta: ClientMeta, now: Date): Promise<void> {

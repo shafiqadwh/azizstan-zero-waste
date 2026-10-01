@@ -1,6 +1,7 @@
 import type { PgBoss } from 'pg-boss';
 import type { Db } from '../../../db/client.ts';
 import { closeRound, openRound, ROUND_CLOSE_QUEUE, ROUND_OPEN_QUEUE, sweepRounds } from '../services/round.service.ts';
+import { log } from '../log.ts';
 
 export const ROUND_SWEEP_INTERVAL_MS = 60_000;
 
@@ -19,17 +20,17 @@ export async function registerRoundJobs(boss: PgBoss, db: Db) {
   await boss.work<RoundJob>(ROUND_OPEN_QUEUE, async (jobs) => {
     for (const job of jobs) {
       const out = await openRound(db, job.data.roundId, new Date());
-      if (out.changed) console.log(`[worker] round.open ${job.data.roundId}`, out);
+      if (out.changed) log.info('round.open', { roundId: job.data.roundId, out });
     }
   });
   await boss.work<RoundJob>(ROUND_CLOSE_QUEUE, async (jobs) => {
     for (const job of jobs) {
       const out = await closeRound(db, job.data.roundId, new Date());
-      if (out.changed) console.log(`[worker] round.close ${job.data.roundId}`);
+      if (out.changed) log.info('round.close', { roundId: job.data.roundId });
     }
   });
   return () =>
     sweepRounds(db, new Date(), (queue, roundId) => boss.send(queue, { roundId }, { singletonKey: roundId })).catch(
-      (err: unknown) => console.error('[worker] round sweep failed', err),
+      (err: unknown) => log.error('round sweep failed', err),
     );
 }

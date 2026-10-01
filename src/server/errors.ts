@@ -13,6 +13,7 @@ export const ERRORS = {
   ROUND_NOT_COMPLETE: { http: 409, message: 'ยังปิดรอบไม่ได้ เหลือ {n} รายการ' },
   CONFLICT: { http: 409, message: 'มีคนแก้ไขข้อมูลนี้ก่อนหน้า กรุณาโหลดใหม่' },
   RATE_LIMITED: { http: 429, message: 'ลองใหม่อีกครั้งในอีกสักครู่' },
+  STEP_UP_REQUIRED: { http: 403, message: 'กรุณายืนยันรหัสผ่านอีกครั้งก่อนทำรายการนี้' },
   NOT_AVAILABLE: { http: 404, message: 'ยังไม่มีข้อมูลรายนักเรียนในภาคเรียนนี้' },
 } as const satisfies Record<string, { http: number; message: string }>;
 

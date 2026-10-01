@@ -8,7 +8,7 @@ import type { Db } from '../../../db/client.ts';
 import { newId } from '../../lib/ids.ts';
 import { hashPassword } from '../auth/password.ts';
 import { AppError, notFound, parseInput, validation } from '../errors.ts';
-import { assertCan, type Role, type SessionUser } from '../policies/index.ts';
+import { assertCan, assertStepUp, type Role, type SessionUser } from '../policies/index.ts';
 import * as repo from '../repositories/users.repository.ts';
 import { withTransaction, type DbOrTx } from '../transaction.ts';
 import { writeAudit } from './audit.service.ts';
@@ -76,6 +76,7 @@ export async function createUser(
   now: Date,
 ): Promise<{ userId: string; tempPassword: string | null }> {
   assertCan(actor, 'user.create');
+  assertStepUp(actor, now);
   const input = parseInput(createUserInput, raw);
   if (await repo.findUserByUsername(db, input.username)) throw validation('username', USER_MSG.usernameTaken);
 
@@ -123,6 +124,7 @@ export async function setUserRole(
   now: Date,
 ): Promise<void> {
   assertCan(actor, 'user.setRole');
+  assertStepUp(actor, now);
   const input = parseInput(setRoleInput, raw);
   if (input.userId === actor.id) throw new AppError('VALIDATION', { field: 'role', message: USER_MSG.notSelf });
   await withTransaction(db, async (tx) => {
@@ -156,6 +158,7 @@ export async function setUserActive(
   now: Date,
 ): Promise<void> {
   assertCan(actor, 'user.manage');
+  assertStepUp(actor, now);
   const input = parseInput(setActiveInput, raw);
   if (input.userId === actor.id) throw new AppError('VALIDATION', { field: 'active', message: USER_MSG.notSelf });
   await withTransaction(db, async (tx) => {
@@ -190,6 +193,7 @@ export async function resetUserPassword(
   now: Date,
 ): Promise<{ tempPassword: string }> {
   assertCan(actor, 'user.manage');
+  assertStepUp(actor, now);
   const input = parseInput(resetPasswordInput, raw);
   const target = await loadTarget(db, input.userId);
   if (target.authSource !== 'local')

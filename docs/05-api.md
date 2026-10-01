@@ -22,7 +22,11 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: { code: ErrorCode; 
 | `CONFIG_LOCKED` | 409 | BR-TM2 | เทอมนี้มีผลประเมินแล้ว แก้การตั้งค่าไม่ได้ |
 | `ROUND_NOT_COMPLETE` | 409 | BR-R3 | ยังปิดรอบไม่ได้ เหลือ {n} รายการ |
 | `CONFLICT` | 409 | optimistic lock (`version` mismatch) | มีคนแก้ไขข้อมูลนี้ก่อนหน้า กรุณาโหลดใหม่ |
-| `RATE_LIMITED` | 429 | login, uploads | ลองใหม่อีกครั้งในอีกสักครู่ |
+| `RATE_LIMITED` | 429 | login, uploads, public API (60/min/IP: `/orders/{id}`, `/pp5/*`) | ลองใหม่อีกครั้งในอีกสักครู่ |
+| `STEP_UP_REQUIRED` | 403 | user and API-key changes without a password entry in the last 10 min (12-security §2.7) | กรุณายืนยันรหัสผ่านอีกครั้งก่อนทำรายการนี้ |
+
+REST mutations (`POST`/`PUT`/`PATCH`/`DELETE` under `/api/v1`) that rely on the session cookie also require an
+`Origin` header equal to `APP_URL` or to the host the request was sent to; otherwise 403 (CSRF, 12-security §2.2).
 
 Every mutating input carries `expectedVersion` where the entity has a `version`.
 

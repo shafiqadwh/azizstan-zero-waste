@@ -36,6 +36,20 @@
       "when": 1790890388249,
       "tag": "0004_retention_audit_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790893820141,
+      "tag": "0005_session_step_up",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790894227240,
+      "tag": "0006_default_guide_pages",
+      "breakpoints": true
     }
   ]
 }

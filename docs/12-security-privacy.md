@@ -21,7 +21,7 @@
    outside the web root, served through a permission-checked route.
 4. SQL only through Drizzle parameterized queries.
 5. Rate limits: login, uploads, public API (60 req/min/IP).
-6. Logs: structured JSON (pino); redact `authorization`, `cookie`, `token`, `password`, query strings of the student
+6. Logs: structured JSON (`src/server/log.ts`, dependency-free); redact `authorization`, `cookie`, `token`, `password`, query strings of the student
    API; never log CSV content or student names.
 7. Admin actions that change permissions or data after finalize require re-entering the password (step-up, 10 min).
 8. Audit log is append-only (DB trigger in `RAW_SQL` rejects UPDATE/DELETE; since migration 0004 only
@@ -38,6 +38,26 @@
     deleted with the term data 1 year after the term closes (BR-D3).
 13. Offline drafts (IndexedDB) are deleted immediately after a successful submit and on logout; drafts older than
     7 days are purged. Downloaded PDFs are the user's responsibility — the PDF footer says "เอกสารภายใน ห้ามเผยแพร่".
+
+## 2a. Sign-off (T29, 2026-10-01)
+Status of each control in §2. "Code" items are verified by the named test on every CI run; "On site" items are
+checked by the person installing the school PC (14-deployment §2) and ticked in the school's IT log.
+
+| # | Control | Status | Where / how verified |
+|---|---|---|---|
+| 1 | HTTPS, HSTS, nosniff, Referrer-Policy, CSP | Code ✓ · On site: tunnel | `src/server/security-headers.ts`, `src/proxy.ts` (per-request nonce, `'strict-dynamic'`); `e2e/security.spec.ts` checks the headers and that pages hydrate with no CSP violation. HTTPS itself is the Cloudflare Tunnel. |
+| 2 | CSRF | Code ✓ | Server Actions: Next.js origin check. REST mutations (uploads, orders, push): `assertSameOrigin` (`src/server/http-guards.ts`); `http-guards.test.ts`, `e2e/uploads.spec.ts`, `e2e/notifications.spec.ts` (foreign or missing Origin → 403). |
+| 3 | Uploads | Code ✓ | sharp decode + WebP re-encode, 15 MB limit, permission-checked `/api/v1/files` (`e2e/uploads.spec.ts`, T17). |
+| 4 | SQL parameterized | Code ✓ | Drizzle only; no `sql.raw` in the code base. |
+| 5 | Rate limits | Code ✓ | Login 5/15 min (`e2e/auth.spec.ts`), uploads 30/min/user, public API (`/api/v1/orders/*`, `/api/v1/pp5/*`) 60/min/IP (`http-guards.test.ts`). |
+| 6 | Log redaction | Code ✓ | `src/server/log.ts`; `log.test.ts` (keys, URL query strings, 13-digit runs). Worker jobs log counts only; `src/instrumentation.ts` logs request errors without headers or query strings. |
+| 7 | Step-up | Code ✓ | User create / role / activate / reset password and API key creation need a password entry within 10 min (login counts); `user.service.db.test.ts`, `e2e/users.spec.ts`. No admin action changes data after finalize (finalized rounds are read-only), so that half of the rule has nothing to guard yet. |
+| 8 | Audit log | Code ✓ | Append-only trigger (+ retention exception, migration 0004); `/admin/audit` read-only for super admin, admins, executives (`e2e/audit.spec.ts`). |
+| 9 | Encrypted backups | Code ✓ · On site | `deploy/backup.sh` (age + rclone). On site: key kept off the machine, restore rehearsal done (14-deployment §6). |
+| 10 | Moodle / DB port | Code ✓ · On site | `deploy/docker-compose.yml` publishes no DB port. On site: Moodle not exposed through the tunnel. |
+| 11 | NAS development | Owner | Owner's written permission on file; delete after handover. |
+| 12 | Evidence photos | Code ✓ | Form hint "ถ่ายเฉพาะพื้นที่ หลีกเลี่ยงการถ่ายใบหน้านักเรียน"; signature photos staff-only; deleted by `retention.run`. |
+| 13 | Offline drafts | Not applicable yet | Offline drafts (07-frontend §5) are not built; the rule applies when they are. PDF footer "เอกสารภายใน ห้ามเผยแพร่" is in place. |
 
 ## 3. Retention summary
 | Data | Kept | Deleted by |

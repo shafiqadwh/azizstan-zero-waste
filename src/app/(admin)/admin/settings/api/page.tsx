@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Card, ReadOnlyBanner } from '@/components/app/settings';
 import { formatTermLabel, formatThaiDateTime } from '@/lib/dates';
+import { StepUpCard } from '@/components/app/StepUp';
 import { requirePageUser } from '@/server/auth/current-user';
+import { stepUpValidUntil } from '@/server/auth/step-up-view';
 import { getDb } from '@/server/db';
 import { can } from '@/server/policies';
 import { listApiKeys, listPp5Terms, pp5Cidrs } from '@/server/services/pp5.service';
@@ -31,6 +33,7 @@ export default async function ApiSettingsPage() {
       {!canManage ? <ReadOnlyBanner /> : null}
 
       <Card title="คีย์สำหรับ ปพ.5" id="keys-title">
+        {canManage ? <StepUpCard validUntil={stepUpValidUntil(user, new Date())} /> : null}
         {canManage ? <CreateKeyForm /> : null}
         {keys.length === 0 ? (
           <p className="mt-3 text-[14px] text-ink-muted">ยังไม่มีคีย์</p>

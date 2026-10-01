@@ -11,6 +11,7 @@ import { registerRoundJobs, ROUND_SWEEP_INTERVAL_MS } from '../src/server/jobs/r
 import { notificationSweeps } from '../src/server/jobs/notify.job.ts';
 import { registerRetentionJobs } from '../src/server/jobs/retention.job.ts';
 import { registerStudentJobs } from '../src/server/jobs/students.job.ts';
+import { log } from '../src/server/log.ts';
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -18,7 +19,7 @@ async function main() {
 
   const { db, close } = createDb(url);
   const boss = new PgBoss(url);
-  boss.on('error', (err) => console.error('[worker] pg-boss error', err));
+  boss.on('error', (err) => log.error('pg-boss error', err));
   await boss.start();
 
   // The heartbeat goes through the queue on purpose: a fresh heartbeat proves jobs are actually consumed.
@@ -28,7 +29,7 @@ async function main() {
   });
   const beat = () =>
     boss.send(HEARTBEAT_QUEUE, {}, { retryLimit: 0 }).catch((err: unknown) => {
-      console.error('[worker] heartbeat enqueue failed', err);
+      log.error('heartbeat enqueue failed', err);
     });
   await beat();
   const timer = setInterval(beat, HEARTBEAT_INTERVAL_MS);
@@ -57,13 +58,13 @@ async function main() {
   // Term data one year after closing, expired students, old audit rows, sessions (BR-D1..D4)
   await registerRetentionJobs(boss, db);
 
-  console.log('[worker] started');
+  log.info('worker started');
 
   let stopping = false;
   const shutdown = async (signal: string) => {
     if (stopping) return;
     stopping = true;
-    console.log(`[worker] ${signal}, stopping`);
+    log.info('worker stopping', { signal });
     clearInterval(timer);
     clearInterval(sweepTimer);
     await boss.stop({ graceful: true });
@@ -76,6 +77,6 @@ async function main() {
 }
 
 main().catch((err: unknown) => {
-  console.error('[worker] fatal', err);
+  log.error('worker fatal', err);
   process.exit(1);
 });
