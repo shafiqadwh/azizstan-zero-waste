@@ -70,7 +70,10 @@ const entryOpen = (r: { status: string; opensAt: Date; closesAt: Date }, now: Da
   r.status === 'open' && r.opensAt <= now && now < r.closesAt;
 
 /** The round committees work on: the open one, else the latest that has opened, else the next scheduled. */
-function currentRound<R extends { status: string; opensAt: Date; roundNo: number }>(rounds: R[], now: Date): R | null {
+export function currentRound<R extends { status: string; opensAt: Date; roundNo: number }>(
+  rounds: R[],
+  now: Date,
+): R | null {
   return (
     rounds.find((r) => r.status === 'open') ??
     [...rounds].reverse().find((r) => r.status !== 'scheduled' && r.opensAt <= now) ??
@@ -79,7 +82,7 @@ function currentRound<R extends { status: string; opensAt: Date; roundNo: number
   );
 }
 
-async function describeTargets(
+export async function describeTargets(
   db: Db,
   roundId: string | null,
   targets: { type: 'class' | 'area'; id: string }[],

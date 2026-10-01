@@ -1,6 +1,6 @@
-import { eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../../db/client.ts';
-import { appSettings } from '../../../db/schema.ts';
+import { appSettings, syncRuns } from '../../../db/schema.ts';
 
 /** app_settings key written by the worker's heartbeat job; read by /api/v1/health. Not a school setting. */
 export const WORKER_HEARTBEAT_KEY = 'system.workerHeartbeat';
@@ -24,4 +24,10 @@ export async function readWorkerHeartbeat(db: Db): Promise<Date | null> {
     .where(eq(appSettings.key, WORKER_HEARTBEAT_KEY));
   const at = (row?.value as { at?: string } | undefined)?.at;
   return at ? new Date(at) : null;
+}
+
+/** The latest student sync run (dashboard sidebar card); none until T25 runs one. */
+export async function findLatestSyncRun(db: Db) {
+  const [row] = await db.select().from(syncRuns).orderBy(desc(syncRuns.startedAt)).limit(1);
+  return row ?? null;
 }
