@@ -1,4 +1,4 @@
-import { and, asc, eq, ne, sql } from 'drizzle-orm';
+import { inArray, and, asc, eq, ne, sql } from 'drizzle-orm';
 import { sessions, users } from '../../../db/schema.ts';
 import type { DbOrTx } from '../transaction.ts';
 
@@ -95,4 +95,12 @@ export async function countActiveSuperAdmins(db: DbOrTx): Promise<number> {
 
 export async function deleteUserSessions(db: DbOrTx, userId: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.userId, userId));
+}
+
+export async function listActiveUserIdsByRole(db: DbOrTx, roles: UserRow['role'][]): Promise<string[]> {
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.isActive, true), inArray(users.role, roles)));
+  return rows.map((r) => r.id);
 }

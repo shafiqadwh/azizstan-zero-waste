@@ -28,6 +28,11 @@ test('admin gives a class with no building its building for the round (BR-R4)', 
   await page.reload();
   await expect(row.getByLabel(`พื้นที่ของ ${className}`)).toHaveValue(/.+/);
   await expect(page.getByText(/ไม่มีพื้นที่ \d+ ห้องเรียน/)).toHaveCount(0);
+
+  // live results: no approved score yet → รอผล; the round is still open, so ปิดรอบ is disabled with the reason
+  await expect(page.getByTestId(`result-${className}`)).toContainText('รอผล');
+  await expect(page.getByRole('button', { name: 'ปิดรอบ', exact: true })).toBeDisabled();
+  await expect(page.getByText('ปิดรอบได้เมื่อรอบปิดรับคะแนนแล้ว')).toBeVisible();
 });
 
 test('executive sees the round areas read-only', async ({ page }) => {

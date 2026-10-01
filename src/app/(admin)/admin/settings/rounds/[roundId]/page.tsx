@@ -7,7 +7,11 @@ import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { can } from '@/server/policies';
 import { getRoundAreas, type RoundAreasView } from '@/server/services/round.service';
+import { toDisplay } from '@/lib/scoring/decimal';
+import { trimScore } from '@/lib/term/config';
+import { getRoundResults } from '@/server/services/result.service';
 import { AreaRow } from './AreaRow';
+import { FinalizeRound } from './FinalizeRound';
 
 export const metadata: Metadata = { title: 'พื้นที่ของห้องเรียนในรอบ · AZIZSTAN ZERO WASTE' };
 
@@ -30,6 +34,17 @@ export default async function RoundAreasPage({ params }: { params: Promise<{ rou
     throw err;
   }
   const { round, term, rows, areas } = view;
+  const results = round.status === 'scheduled' ? null : await getRoundResults(getDb(), round.id);
+  const show = (n: number | null) => (n === null ? 'รอผล' : trimScore(toDisplay(n)));
+  const resultOf = new Map((results?.classes ?? []).map((c) => [c.classId, c]));
+  const blocker =
+    round.status === 'finalized' || round.status === 'scheduled'
+      ? null
+      : round.status === 'open'
+        ? 'ปิดรอบได้เมื่อรอบปิดรับคะแนนแล้ว'
+        : results && results.missing.length > 0
+          ? `ปุ่มปิดรอบจะกดได้เมื่อทุกห้องและทุกอาคารมีคะแนนครบ (เหลือ ${results.missing.length} รายการ)`
+          : null;
   const groups = [...new Set(rows.map((r) => r.rankGroup))];
   const areaWord = term.areaType === 'building' ? 'อาคาร' : 'โซน';
 
@@ -86,6 +101,39 @@ export default async function RoundAreasPage({ params }: { params: Promise<{ rou
           </ul>
         </section>
       ))}
+      {results ? (
+        <section aria-labelledby="results" className="rounded-xl border border-line bg-surface p-5">
+          <h2 id="results" className="mb-1 text-[17px] font-bold">
+            ผลคะแนนรอบนี้ {results.frozen ? '(ผลสุดท้าย)' : '(ตามผลที่อนุมัติแล้ว)'}
+          </h2>
+          <table className="mt-2 w-full text-[14px]">
+            <thead>
+              <tr className="text-left text-ink-muted">
+                <th className="py-1 font-semibold">ห้องเรียน</th>
+                <th className="py-1 text-right font-semibold">รวม</th>
+                <th className="py-1 text-right font-semibold">อันดับในกลุ่ม</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const res = resultOf.get(r.classId);
+                return (
+                  <tr key={r.classId} className="border-t border-line" data-testid={`result-${r.displayName}`}>
+                    <td className="py-1.5">{r.displayName}</td>
+                    <td className="py-1.5 text-right font-semibold">{show(res?.total ?? null)}</td>
+                    <td className="py-1.5 text-right">{res?.rank ?? '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {round.status !== 'finalized' && can(user, 'round.finalize') ? (
+            <div className="mt-4">
+              <FinalizeRound roundId={round.id} blocker={blocker} />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
     </main>
   );
 }
