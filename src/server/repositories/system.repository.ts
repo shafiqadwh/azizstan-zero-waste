@@ -31,3 +31,19 @@ export async function findLatestSyncRun(db: Db) {
   const [row] = await db.select().from(syncRuns).orderBy(desc(syncRuns.startedAt)).limit(1);
   return row ?? null;
 }
+
+export async function readSetting(db: Db, key: string): Promise<unknown> {
+  const [row] = await db.select({ value: appSettings.value }).from(appSettings).where(eq(appSettings.key, key));
+  return row?.value ?? null;
+}
+
+export async function writeSetting(db: Db, key: string, value: unknown, at: Date, by: string | null = null) {
+  await db
+    .insert(appSettings)
+    .values({ key, value, updatedAt: at, updatedBy: by })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: at, updatedBy: by } });
+}
+
+export async function deleteSetting(db: Db, key: string) {
+  await db.delete(appSettings).where(eq(appSettings.key, key));
+}
