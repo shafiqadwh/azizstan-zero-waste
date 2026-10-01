@@ -17,6 +17,8 @@ import { FinalizeRound } from './settings/rounds/[roundId]/FinalizeRound';
 export const metadata: Metadata = { title: 'ภาพรวม · AZIZSTAN ZERO WASTE' };
 
 const SETTINGS = [
+  ['/monitor', 'ติดตามสถานะ'],
+  ['/admin/requests', 'บันทึกคำขอ'],
   ['/admin/settings/term', 'ภาคเรียน'],
   ['/admin/settings/mode', 'รูปแบบการประเมิน'],
   ['/admin/settings/scoring', 'ส่วนคะแนนและรอบ'],

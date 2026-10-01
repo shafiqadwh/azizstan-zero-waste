@@ -9,7 +9,9 @@ import { approveRequest, rejectRequest } from '@/server/services/request.service
 
 const refresh = (evaluationId: string | null) => {
   revalidatePath('/admin/approvals');
+  revalidatePath('/admin/requests');
   revalidatePath('/admin');
+  revalidatePath('/monitor');
   revalidatePath('/tasks');
   if (evaluationId) revalidatePath(`/evaluate/${evaluationId}`);
 };

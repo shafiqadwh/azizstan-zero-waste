@@ -17,6 +17,7 @@ import * as evalRepo from '../repositories/evaluations.repository.ts';
 import * as places from '../repositories/places.repository.ts';
 import * as repo from '../repositories/requests.repository.ts';
 import * as termsRepo from '../repositories/terms.repository.ts';
+import * as usersRepo from '../repositories/users.repository.ts';
 import { withTransaction, type Tx } from '../transaction.ts';
 import { writeAudit } from './audit.service.ts';
 import type { ClientMeta } from './auth.service.ts';
@@ -481,6 +482,8 @@ export interface RequestCard {
   addedPhotos: string[];
   removedPhotos: string[];
   decisionNote: string | null;
+  decidedAt: Date | null;
+  decidedBy: string | null;
   grantUntil: Date | null;
 }
 
@@ -522,6 +525,8 @@ async function toCard(db: Db | Tx, r: repo.RequestRow, requesterName: string): P
     addedPhotos: r.type === 'edit_photos' ? ((p.add as string[]) ?? []).map(thumb) : [],
     removedPhotos: r.type === 'edit_photos' ? ((p.remove as string[]) ?? []).map(thumb) : [],
     decisionNote: r.decisionNote,
+    decidedAt: r.decidedAt,
+    decidedBy: r.decidedBy,
     grantUntil: r.grantUntil,
   };
 }
@@ -537,4 +542,84 @@ export async function listWaitingRequests(db: Db, actor: SessionUser): Promise<R
 export async function listEvaluationRequests(db: Db, evaluationId: string): Promise<RequestCard[]> {
   const rows = await repo.listRequests(db, { evaluationId });
   return Promise.all(rows.map((r) => toCard(db, r.request, r.requesterName)));
+}
+
+export const REQUEST_STATUS_LABEL: Record<repo.RequestRow['status'], string> = {
+  waiting: 'รอพิจารณา',
+  approved: 'อนุมัติแล้ว',
+  rejected: 'ปฏิเสธ',
+  expired: 'หมดอายุ',
+  cancelled: 'ยกเลิก',
+};
+
+export interface RequestLogFilters {
+  status?: repo.RequestRow['status'];
+  type?: RequestType;
+  requester?: string;
+  round?: string;
+}
+
+export interface RequestLog {
+  cards: (RequestCard & { decidedByName: string | null })[];
+  rounds: { id: string; roundNo: number }[];
+  requesters: { id: string; name: string }[];
+}
+
+/** 08-ux-ui §6.18 `/admin/requests`: every request of the active term, newest first, with filters (staff). */
+export async function listRequestLog(db: Db, actor: SessionUser, f: RequestLogFilters): Promise<RequestLog> {
+  assertCan(actor, 'staff.read');
+  const term = await places.findActiveTerm(db);
+  if (!term) return { cards: [], rounds: [], requesters: [] };
+  const rounds = await termsRepo.listRounds(db, term.id);
+  const all = await repo.listRequests(db, { roundIds: rounds.map((r) => r.id) });
+  const rows = all.filter(
+    (r) =>
+      (!f.status || r.request.status === f.status) &&
+      (!f.type || r.request.type === f.type) &&
+      (!f.requester || r.request.requesterId === f.requester) &&
+      (!f.round || r.request.roundId === f.round),
+  );
+  const names = new Map((await usersRepo.listUsers(db)).map((u) => [u.id, u.displayName]));
+  const cards = [];
+  for (const r of rows) {
+    const card = await toCard(db, r.request, r.requesterName);
+    cards.push({ ...card, decidedByName: card.decidedBy ? (names.get(card.decidedBy) ?? null) : null });
+  }
+  return {
+    cards,
+    rounds: rounds.map((r) => ({ id: r.id, roundNo: r.roundNo })),
+    requesters: [...new Map(all.map((r) => [r.request.requesterId, r.requesterName])).entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'th')),
+  };
+}
+
+export interface MyRequest extends RequestCard {
+  /** approved late entry still open: hours left and the form to open */
+  lateEntry: { hoursLeft: number; href: string } | null;
+}
+
+/** 08-ux-ui §6.19 "คำขอของฉัน": the user's own requests in the active term, newest first. */
+export async function listMyRequests(db: Db, actor: SessionUser, now: Date): Promise<MyRequest[]> {
+  const term = await places.findActiveTerm(db);
+  if (!term) return [];
+  const rounds = await termsRepo.listRounds(db, term.id);
+  const rows = await repo.listRequests(db, { roundIds: rounds.map((r) => r.id), requesterId: actor.id });
+  const out: MyRequest[] = [];
+  for (const r of rows) {
+    const card = await toCard(db, r.request, r.requesterName);
+    const q = r.request;
+    const open = q.type === 'late_entry' && q.status === 'approved' && q.grantUntil && q.grantUntil > now;
+    const target = q.targetClassId ? `class:${q.targetClassId}` : `area:${q.targetAreaId}`;
+    out.push({
+      ...card,
+      lateEntry: open
+        ? {
+            hoursLeft: Math.max(1, Math.ceil((q.grantUntil!.getTime() - now.getTime()) / 3_600_000)),
+            href: `/evaluate/new?round=${q.roundId}&component=${q.componentId}&target=${target}`,
+          }
+        : null,
+    });
+  }
+  return out;
 }
