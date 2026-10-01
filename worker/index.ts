@@ -8,6 +8,7 @@ import { registerEvidenceJobs } from '../src/server/jobs/evidence.job.ts';
 import { registerPdfJobs } from '../src/server/jobs/pdf.job.ts';
 import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_QUEUE, heartbeatJob } from '../src/server/jobs/heartbeat.job.ts';
 import { registerRoundJobs, ROUND_SWEEP_INTERVAL_MS } from '../src/server/jobs/rounds.job.ts';
+import { notificationSweeps } from '../src/server/jobs/notify.job.ts';
 import { registerStudentJobs } from '../src/server/jobs/students.job.ts';
 
 async function main() {
@@ -40,10 +41,14 @@ async function main() {
   // Student sync (BR-Y): nightly cron, plus the admin's manual request picked up by the sweep
   const studentSweep = await registerStudentJobs(boss, db);
   await studentSweep();
+  // Reminders before/after the close and web push fan-out with batching (11-jobs §1–3)
+  const notifySweep = notificationSweeps(db);
+  await notifySweep();
   const sweepTimer = setInterval(() => {
     void sweep();
     void pdf.sweep();
     void studentSweep();
+    void notifySweep();
   }, ROUND_SWEEP_INTERVAL_MS);
 
   // Orphan uploads are removed after 24 h (BR-V4).

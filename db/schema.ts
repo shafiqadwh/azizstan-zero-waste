@@ -436,7 +436,11 @@ export const notifications = pgTable('notifications', {
   link: text('link'),
   readAt: ts('read_at'),
   createdAt: ts('created_at').notNull().defaultNow(),
-}, (t) => [index('notifications_user_idx').on(t.userId, t.readAt)]);
+  pushedAt: ts('pushed_at'),                            // push.send handled it (sent, batched or no subscription)
+}, (t) => [
+  index('notifications_user_idx').on(t.userId, t.readAt),
+  index('notifications_push_idx').on(t.pushedAt, t.createdAt),
+]);
 
 export const pushSubscriptions = pgTable('push_subscriptions', {
   id: uuid('id').primaryKey(),
