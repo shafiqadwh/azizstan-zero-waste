@@ -116,3 +116,31 @@ export async function seedOpenRound(termId: string) {
     await client.end();
   }
 }
+
+/** A class selected in the active term with a committee duty for `username` (for evidence uploads). */
+export async function seedUploadFixture(username: string) {
+  await ensureActiveTerm();
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  const tag = randomBytes(3).toString('hex').toUpperCase();
+  try {
+    const term = await client.query<{ id: string }>("SELECT id FROM terms WHERE status = 'active'");
+    const user = await client.query<{ id: string }>('SELECT id FROM users WHERE username = $1', [username]);
+    const cls = await client.query<{ id: string }>(
+      `INSERT INTO classes (id, track, grade_code, grade_label, rank_group, room_no, name, display_name)
+       VALUES (gen_random_uuid(), 'general', 'E2E-U', 'ม.U', 'ม.U', 0, $1, $2) RETURNING id`,
+      [`U${tag}`, `ม.U U${tag}`],
+    );
+    const termId = term.rows[0]!.id;
+    const classId = cls.rows[0]!.id;
+    await client.query('INSERT INTO term_classes (term_id, class_id) VALUES ($1, $2)', [termId, classId]);
+    await client.query(
+      `INSERT INTO duties (id, term_id, user_id, duty, target_type, target_class_id)
+       VALUES (gen_random_uuid(), $1, $2, 'committee', 'class', $3)`,
+      [termId, user.rows[0]!.id, classId],
+    );
+    return { classId };
+  } finally {
+    await client.end();
+  }
+}

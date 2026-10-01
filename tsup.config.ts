@@ -10,9 +10,9 @@ const shared: Options = {
   format: ['esm'],
   platform: 'node',
   target: 'node22',
-  noExternal: [/^(?!@node-rs\/argon2)/],
-  // Native addon: resolved at runtime from /app/node_modules (Next standalone output traces it for the app).
-  external: ['pg-native', '@node-rs/argon2'],
+  noExternal: [/^(?!@node-rs\/argon2|sharp)/],
+  // Native addons: resolved at runtime from /app/node_modules (Next standalone output traces it for the app).
+  external: ['pg-native', '@node-rs/argon2', 'sharp'],
   // Bundled CommonJS dependencies (pg) call require(); give the ESM bundle one.
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
   sourcemap: true,

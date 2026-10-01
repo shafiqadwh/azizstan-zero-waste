@@ -4,6 +4,7 @@
  */
 import { PgBoss } from 'pg-boss';
 import { createDb } from '../db/client.ts';
+import { registerEvidenceJobs } from '../src/server/jobs/evidence.job.ts';
 import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_QUEUE, heartbeatJob } from '../src/server/jobs/heartbeat.job.ts';
 import { registerRoundJobs, ROUND_SWEEP_INTERVAL_MS } from '../src/server/jobs/rounds.job.ts';
 
@@ -32,6 +33,9 @@ async function main() {
   const sweep = await registerRoundJobs(boss, db);
   await sweep();
   const sweepTimer = setInterval(() => void sweep(), ROUND_SWEEP_INTERVAL_MS);
+
+  // Orphan uploads are removed after 24 h (BR-V4).
+  await registerEvidenceJobs(boss, db);
 
   console.log('[worker] started');
 

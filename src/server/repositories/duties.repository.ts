@@ -78,3 +78,26 @@ export async function listCommitteeUserIds(db: DbOrTx, termId: string, now: Date
     .where(and(eq(duties.termId, termId), eq(duties.duty, 'committee'), eq(users.isActive, true), dutyInForce(now)));
   return rows.map((r) => r.id);
 }
+
+/** BR-P1: the user holds a committee duty in force in the term for exactly this target. */
+export async function hasCommitteeDutyFor(
+  db: DbOrTx,
+  termId: string,
+  userId: string,
+  target: { classId?: string | null; areaId?: string | null },
+  now: Date,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(duties)
+    .where(
+      and(
+        eq(duties.termId, termId),
+        eq(duties.userId, userId),
+        eq(duties.duty, 'committee'),
+        target.classId ? eq(duties.targetClassId, target.classId) : eq(duties.targetAreaId, target.areaId!),
+        dutyInForce(now),
+      ),
+    );
+  return (row?.n ?? 0) > 0;
+}
