@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
  */
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn('text-brand font-bold tracking-tight', className)}>
+    <span className={cn('font-bold tracking-tight text-brand', className)}>
       AZIZSTAN <span className="whitespace-nowrap">ZERO WASTE</span>
     </span>
   );

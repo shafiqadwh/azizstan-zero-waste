@@ -31,7 +31,7 @@ export function LoginForm({ next }: { next: string }) {
         message={error && error.field !== 'username' && error.field !== 'password' ? error.message : undefined}
       />
       <SubmitButton pendingLabel="กำลังเข้าสู่ระบบ…">เข้าสู่ระบบ</SubmitButton>
-      <p className="text-ink-muted text-[13px]">ใช้บัญชีเดียวกับระบบของโรงเรียน</p>
+      <p className="text-[13px] text-ink-muted">ใช้บัญชีเดียวกับระบบของโรงเรียน</p>
     </form>
   );
 }

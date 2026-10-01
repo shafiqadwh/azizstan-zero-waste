@@ -19,7 +19,7 @@ export default async function CommitteeLayout({ children }: { children: ReactNod
         children
       ) : (
         <main className="mx-auto max-w-[720px] px-5 py-10">
-          <p className="border-line bg-surface text-ink rounded-lg border px-5 py-6 text-center">
+          <p className="rounded-lg border border-line bg-surface px-5 py-6 text-center text-ink">
             คุณยังไม่ได้รับมอบหมายให้ประเมินในเทอมนี้
           </p>
         </main>
