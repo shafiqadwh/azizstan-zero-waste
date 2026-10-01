@@ -41,3 +41,22 @@ export async function ensureActiveTerm() {
     await client.end();
   }
 }
+
+/** A (year, term) pair not used yet. Parity keeps the two viewport projects (run in parallel) apart. */
+export async function freeTermSlot(parity: 0 | 1) {
+  const url = process.env.DATABASE_URL!;
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ academic_year: number; term_no: number }>(
+      'SELECT academic_year, term_no FROM terms',
+    );
+    const used = new Set(rows.map((r) => `${r.academic_year}/${r.term_no}`));
+    for (let year = 2600 + parity; year <= 2700; year += 2) {
+      for (const termNo of [1, 2, 3]) if (!used.has(`${year}/${termNo}`)) return { academicYear: year, termNo };
+    }
+    throw new Error('no free term slot');
+  } finally {
+    await client.end();
+  }
+}

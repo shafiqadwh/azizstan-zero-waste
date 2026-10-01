@@ -7,6 +7,15 @@ const config = [
   ...nextCoreWebVitals,
   ...nextTypescript,
   prettier,
+  {
+    rules: {
+      // `_name` marks a value that is destructured away on purpose
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
+    },
+  },
 ];
 
 export default config;
