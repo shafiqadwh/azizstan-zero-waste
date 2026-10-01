@@ -155,7 +155,8 @@ describe('student sync (BR-Y)', () => {
       );
       for (const col of cols) {
         const { rows } = await c.query(
-          `SELECT 1 FROM "${col.table_name}" WHERE "${col.column_name}"::text ~ '[0-9]{13}' LIMIT 1`,
+          // a national ID is a standalone 13-digit number; hex digests (session ids, sha256) contain digit runs
+          `SELECT 1 FROM "${col.table_name}" WHERE "${col.column_name}"::text ~ '(^|[^0-9A-Za-z])[0-9]{13}($|[^0-9A-Za-z])' LIMIT 1`,
         );
         expect(rows, `${col.table_name}.${col.column_name}`).toEqual([]);
       }

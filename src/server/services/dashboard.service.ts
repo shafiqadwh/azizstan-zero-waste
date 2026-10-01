@@ -137,7 +137,7 @@ export async function listWaitingResults(db: Db, actor: SessionUser, now: Date):
 }
 
 /** Targets of the round still without an approved score, late ones first, then by room number. */
-async function missingRows(db: Db, termId: string, round: termsRepo.RoundRow, now: Date) {
+export async function missingRows(db: Db, termId: string, round: termsRepo.RoundRow, now: Date) {
   const results = await computeRoundResults(db, round.id);
   const components = componentsInUse(await termsRepo.listComponents(db, termId));
   const items = results.missing.filter((m) => m.componentId !== null);

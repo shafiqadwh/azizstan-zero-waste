@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { DeadlineBanner } from '@/components/app/DeadlineBanner';
+import { InstallPrompt } from '@/components/app/InstallPrompt';
+import { PushControls } from '@/components/app/PushControls';
 import { formatTermLabel } from '@/lib/dates';
 import { requirePageUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
@@ -41,6 +43,8 @@ export default async function TasksPage({
           <p className="text-[14px] text-ink-muted">{formatTermLabel(termLabel.termNo, termLabel.academicYear)}</p>
         ) : null}
       </div>
+      <InstallPrompt />
+      {process.env.VAPID_PUBLIC_KEY ? <PushControls vapidKey={process.env.VAPID_PUBLIC_KEY} /> : null}
       <nav aria-label="มุมมอง" className="flex rounded-[14px] bg-[#E9E7DF] p-1">
         <Link href="/tasks" aria-current={view === 'tasks' ? 'page' : undefined} className={tabCls(view === 'tasks')}>
           งานประเมิน

@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AutoRefresh } from '@/components/app/AutoRefresh';
+import { InstallPrompt } from '@/components/app/InstallPrompt';
+import { PushControls } from '@/components/app/PushControls';
 import { ReadOnlyBanner } from '@/components/app/settings';
 import { StatusPill } from '@/components/app/StatusPill';
 import { TargetBadge } from '@/components/app/TargetBadge';
@@ -74,6 +76,8 @@ export default async function AdminHomePage() {
         ) : null}
       </div>
       {!d.canAct ? <ReadOnlyBanner /> : null}
+      <InstallPrompt />
+      {process.env.VAPID_PUBLIC_KEY ? <PushControls vapidKey={process.env.VAPID_PUBLIC_KEY} /> : null}
 
       <section aria-label="ตัวชี้วัด" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="ห้องที่มีคะแนนแล้ว" value={`${d.kpi.classesDone}/${d.kpi.classesTotal}`} />

@@ -6,6 +6,8 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'AZIZSTAN ZERO WASTE',
   description: 'ระบบประเมินความสะอาดห้องเรียนและพื้นที่ โรงเรียนมูลนิธิอาซิซสถาน',
+  icons: { icon: '/icons/icon-192.png', apple: '/icons/apple-touch-icon.png' },
+  appleWebApp: { capable: true, title: 'ZERO WASTE', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
