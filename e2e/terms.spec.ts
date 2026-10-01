@@ -26,8 +26,12 @@ test('admin creates a term, sets the score format, rounds and per-round full mar
 
   // integer score format
   await row.getByRole('link', { name: 'รูปแบบการประเมิน' }).click();
-  await page.getByLabel(/^จำนวนเต็ม/).check();
-  await expect(page.getByLabel('ให้คะแนนทีละ')).toHaveCount(0); // step only for decimals
+  await page.waitForURL(/\/admin\/settings\/mode/);
+  // a click that lands before hydration is lost, so repeat until React has seen it
+  await expect(async () => {
+    await page.getByLabel(/^จำนวนเต็ม/).check();
+    await expect(page.getByLabel('ให้คะแนนทีละ')).toHaveCount(0, { timeout: 1000 }); // step only for decimals
+  }).toPass();
   await page.getByRole('button', { name: 'บันทึกการตั้งค่า' }).click();
   await expect(page.getByRole('status')).toContainText('บันทึกการตั้งค่าแล้ว');
 

@@ -33,6 +33,9 @@ function RoundRow({ round, canManage }: { round: RoundValue; canManage: boolean 
         <div className="w-[120px]">
           <p className="font-semibold">รอบที่ {round.roundNo}</p>
           <p className="text-[13px] text-ink-muted">{STATUS[round.status]}</p>
+          <a href={`/admin/settings/rounds/${round.id}`} className="text-[13px] text-brand-ink underline">
+            พื้นที่ของห้องเรียน
+          </a>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={`open-${round.id}`} className="text-[13px] font-semibold">
