@@ -25,6 +25,7 @@ const SETTINGS = [
   ['/admin/settings/classes', 'ห้องเรียน อาคาร และหมายเลขห้อง'],
   ['/admin/settings/committee', 'คณะกรรมการ'],
   ['/admin/settings/users', 'ผู้ใช้และสิทธิ์'],
+  ['/admin/settings/content', 'หน้าสาธารณะ'],
 ] as const;
 
 const SYNC_STATUS: Record<string, string> = { success: 'สำเร็จ', aborted: 'หยุดอัตโนมัติ', failed: 'ล้มเหลว' };

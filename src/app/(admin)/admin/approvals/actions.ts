@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { clientMeta, requireUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
+import { refreshPublic } from '@/server/public-cache';
 import { toResult, type Result } from '@/server/result';
 import { approveEvaluation, returnEvaluation } from '@/server/services/evaluation.service';
 import { approveRequest, rejectRequest } from '@/server/services/request.service';
@@ -23,6 +24,7 @@ export async function approveRequestAction(
 ): Promise<Result<null>> {
   return toResult(async () => {
     await approveRequest(getDb(), await requireUser(), { id, ...opts }, await clientMeta(), new Date());
+    refreshPublic();
     refresh(evaluationId);
     return null;
   });
@@ -44,6 +46,7 @@ export async function rejectRequestAction(
 export async function approveEvaluationAction(id: string, expectedVersion: number): Promise<Result<null>> {
   return toResult(async () => {
     await approveEvaluation(getDb(), await requireUser(), { id, expectedVersion }, await clientMeta(), new Date());
+    refreshPublic();
     refresh(id);
     return null;
   });
