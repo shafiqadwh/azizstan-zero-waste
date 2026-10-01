@@ -44,3 +44,11 @@ export async function countPdfs(db: DbOrTx, evaluationId: string) {
   const [row] = await db.select({ n: count() }).from(pdfDocuments).where(eq(pdfDocuments.evaluationId, evaluationId));
   return row?.n ?? 0;
 }
+
+/** The current (not superseded) PDF of every evaluation of a round (monitor board). */
+export const listCurrentPdfsInRound = (db: DbOrTx, roundId: string) =>
+  db
+    .select({ id: pdfDocuments.id, evaluationId: pdfDocuments.evaluationId })
+    .from(pdfDocuments)
+    .innerJoin(evaluations, eq(evaluations.id, pdfDocuments.evaluationId))
+    .where(and(eq(evaluations.roundId, roundId), isNull(pdfDocuments.supersededAt)));

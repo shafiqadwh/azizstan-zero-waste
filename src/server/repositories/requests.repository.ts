@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { requests, users } from '../../../db/schema.ts';
 import type { DbOrTx } from '../transaction.ts';
 
@@ -46,7 +46,14 @@ export async function findWaitingLateEntry(
 /** Requests with the requester's name, newest first (approvals page, evaluation detail). */
 export const listRequests = (
   db: DbOrTx,
-  where: { statuses?: RequestRow['status'][]; evaluationId?: string; roundId?: string },
+  where: {
+    statuses?: RequestRow['status'][];
+    evaluationId?: string;
+    roundId?: string;
+    roundIds?: string[];
+    types?: RequestRow['type'][];
+    requesterId?: string;
+  },
 ) =>
   db
     .select({ request: requests, requesterName: users.displayName })
@@ -57,6 +64,9 @@ export const listRequests = (
         where.statuses ? inArray(requests.status, where.statuses) : undefined,
         where.evaluationId ? eq(requests.evaluationId, where.evaluationId) : undefined,
         where.roundId ? eq(requests.roundId, where.roundId) : undefined,
+        where.roundIds ? (where.roundIds.length ? inArray(requests.roundId, where.roundIds) : sql`false`) : undefined,
+        where.types ? inArray(requests.type, where.types) : undefined,
+        where.requesterId ? eq(requests.requesterId, where.requesterId) : undefined,
       ),
     )
     .orderBy(where.statuses?.includes('waiting') ? asc(requests.createdAt) : desc(requests.createdAt));
