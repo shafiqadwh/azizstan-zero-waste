@@ -17,7 +17,7 @@ import * as dutiesRepo from '../repositories/duties.repository.ts';
 import * as repo from '../repositories/evaluations.repository.ts';
 import * as places from '../repositories/places.repository.ts';
 import * as termsRepo from '../repositories/terms.repository.ts';
-import { withTransaction, type Tx } from '../transaction.ts';
+import { withTransaction, type DbOrTx, type Tx } from '../transaction.ts';
 import { writeAudit } from './audit.service.ts';
 import type { ClientMeta } from './auth.service.ts';
 import { send } from './notify.service.ts';
@@ -32,6 +32,7 @@ export const EVALUATION_MSG = {
   notReturned: 'แก้แล้วส่งใหม่ได้เฉพาะผลประเมินที่ถูกส่งกลับ',
   notWaiting: 'อนุมัติหรือส่งกลับได้เฉพาะผลประเมินที่รออนุมัติ',
   reasonRequired: 'กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร',
+  ownerNotAssigned: 'ผู้ประเมินไม่ได้รับมอบหมายให้ประเมินห้องนี้',
 } as const;
 
 const scoreValue = z.union([z.string(), z.number()]).nullable().optional();
@@ -106,7 +107,7 @@ async function loadContext(tx: Tx, roundId: string, componentId: string): Promis
   };
 }
 
-async function targetLabel(tx: Tx, t: repo.TargetKey): Promise<string> {
+async function targetLabel(tx: DbOrTx, t: repo.TargetKey): Promise<string> {
   if (t.type === 'class') return (await places.findClass(tx, t.id))?.displayName ?? '–';
   return (await places.findArea(tx, t.id))?.name ?? '–';
 }
@@ -130,7 +131,7 @@ async function validateContent(
   tx: Tx,
   ctx: Context,
   t: repo.TargetKey,
-  actor: SessionUser,
+  uploaderId: string,
   content: NewContent,
   evaluationId: string | null,
 ) {
@@ -160,7 +161,7 @@ async function validateContent(
   const usable = (id: string, kind: 'site' | 'signature') => {
     const e = byId.get(id);
     if (!e || e.kind !== kind || e.removedAt) return false;
-    return e.evaluationId === null ? e.uploadedBy === actor.id : e.evaluationId === evaluationId;
+    return e.evaluationId === null ? e.uploadedBy === uploaderId : e.evaluationId === evaluationId;
   };
   if (
     new Set(content.siteIds).size !== content.siteIds.length ||
@@ -280,7 +281,7 @@ export async function submitEvaluation(
         signatureId: input.signatureEvidenceId ?? null,
         comment: (input.comment ?? '').trim(),
       };
-      await validateContent(tx, ctx, t, actor, content, null);
+      await validateContent(tx, ctx, t, actor.id, content, null);
 
       const id = newId();
       const selfEditUntil = new Date(now.getTime() + ctx.term.selfEditHours * 3600_000);
@@ -428,7 +429,7 @@ async function applyOwnerChange(
     const t = targetOf(e);
     const before = await currentContent(tx, e);
     const after = merge(ctx, before, input);
-    await validateContent(tx, ctx, t, actor, after, e.id);
+    await validateContent(tx, ctx, t, actor.id, after, e.id);
     await writeContent(tx, e.id, ctx, after, now);
     await repo.updateEvaluation(tx, e.id, {
       score: after.score === null ? null : toDb(after.score),
@@ -624,3 +625,120 @@ export async function returnEvaluation(
     return toDTO(tx, e.id);
   });
 }
+
+// ───────────── approved requests (BR-Q3, BR-E9) ─────────────
+
+export type RequestedChange =
+  | {
+      type: 'edit_score';
+      score?: string | number | null;
+      studentScores?: { studentId: string; score?: string | number | null }[];
+    }
+  | { type: 'edit_photos'; add: string[]; remove: string[] }
+  | { type: 'edit_comment'; comment: string }
+  | { type: 'move_target'; target: repo.TargetKey }
+  | { type: 'delete' };
+
+export interface AppliedChange {
+  /** "คะแนน 4.5 → 3" etc. for notices and the audit row */
+  what: string;
+  before: unknown;
+  after: unknown;
+}
+
+/**
+ * Apply an approved request to a locked evaluation inside the approver's transaction (BR-Q3): the result is
+ * re-validated as if it were a submit, so an invalid change makes the whole approval fail. An approved
+ * evaluation stays approved, gets version + 1 and a new PDF (old versions superseded, BR-E9).
+ */
+export async function applyRequestedChange(
+  tx: Tx,
+  e: repo.EvaluationRow,
+  change: RequestedChange,
+  requesterId: string,
+  now: Date,
+): Promise<AppliedChange> {
+  if (e.status === 'void') throw new AppError('VALIDATION', { message: EVALUATION_MSG.voided });
+  const ctx = await loadContext(tx, e.roundId, e.componentId);
+  const bump = {
+    lastEditedAt: now,
+    version: e.version + 1,
+    ...(e.status === 'approved' ? { pdfStatus: 'queued', pdfError: null } : {}),
+  };
+  const finish = async (what: string, before: unknown, after: unknown) => {
+    if (e.status === 'approved') await repo.supersedePdfs(tx, e.id, now);
+    return { what, before, after };
+  };
+
+  if (change.type === 'delete') {
+    await repo.updateEvaluation(tx, e.id, { ...bump, status: 'void', pdfStatus: e.pdfStatus });
+    return finish('ลบผลประเมิน', { status: e.status }, { status: 'void' });
+  }
+
+  if (change.type === 'move_target') {
+    const to = change.target;
+    if (to.type !== ctx.component.unit)
+      throw new AppError('VALIDATION', { field: 'target', message: EVALUATION_MSG.wrongTarget });
+    if (to.type === 'class' && !(await places.listTermClassIds(tx, ctx.term.id)).includes(to.id))
+      throw new AppError('VALIDATION', { field: 'target', message: EVALUATION_MSG.targetNotInTerm });
+    // the owner must be assigned to the new target too (§6 move_target)
+    const ownerHasDuty = await dutiesRepo.hasCommitteeDutyFor(
+      tx,
+      ctx.term.id,
+      e.ownerId,
+      to.type === 'class' ? { classId: to.id } : { areaId: to.id },
+      now,
+    );
+    if (!ownerHasDuty) throw new AppError('VALIDATION', { field: 'target', message: EVALUATION_MSG.ownerNotAssigned });
+    const live = await repo.findLiveEvaluation(tx, e.roundId, e.componentId, to);
+    if (live) throw alreadyEvaluated(live.ownerName, live.evaluation.firstSubmittedAt);
+    const from = targetOf(e);
+    await repo.updateEvaluation(tx, e.id, {
+      ...bump,
+      targetClassId: to.type === 'class' ? to.id : null,
+      targetAreaId: to.type === 'area' ? to.id : null,
+      roomNumberAtEval: to.type === 'class' ? await repo.frozenRoomNumber(tx, e.roundId, to.id) : null,
+    });
+    return finish(
+      `ย้ายไป ${await targetLabel(tx, to)}`,
+      { target: from, label: await targetLabel(tx, from) },
+      { target: to, label: await targetLabel(tx, to) },
+    );
+  }
+
+  const before = await currentContent(tx, e);
+  const after: NewContent = { ...before, studentScores: new Map(before.studentScores) };
+  if (change.type === 'edit_score') {
+    if (ctx.individual) after.studentScores = studentScoreMap(change.studentScores);
+    else after.score = toTh(change.score, 'score');
+  } else if (change.type === 'edit_comment') {
+    after.comment = change.comment.trim();
+  } else {
+    const removed = new Set(change.remove);
+    const added = await repo.listEvidenceByIds(tx, change.add);
+    const kindOf = new Map(added.map((a) => [a.id, a.kind]));
+    after.siteIds = [
+      ...before.siteIds.filter((id) => !removed.has(id)),
+      ...change.add.filter((id) => kindOf.get(id) === 'site'),
+    ];
+    const newSignature = change.add.find((id) => kindOf.get(id) === 'signature');
+    after.signatureId =
+      newSignature ?? (before.signatureId && !removed.has(before.signatureId) ? before.signatureId : null);
+    if (change.add.some((id) => !kindOf.has(id)))
+      throw new AppError('VALIDATION', { field: 'sitePhotos', message: EVALUATION_MSG.badEvidence });
+  }
+  await validateContent(tx, ctx, targetOf(e), requesterId, after, e.id);
+  await writeContent(tx, e.id, ctx, after, now);
+  await repo.updateEvaluation(tx, e.id, {
+    ...bump,
+    score: after.score === null ? null : toDb(after.score),
+    comment: after.comment || null,
+  });
+  return finish(
+    describeChange(before, after, ctx),
+    { score: headline(ctx, before), photos: before.siteIds.length, comment: before.comment, version: e.version },
+    { score: headline(ctx, after), photos: after.siteIds.length, comment: after.comment, version: e.version + 1 },
+  );
+}
+
+export { targetLabel as evaluationTargetLabel, targetOf as evaluationTarget };

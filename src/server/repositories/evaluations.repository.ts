@@ -5,6 +5,7 @@ import {
   evaluationStudentScores,
   evaluations,
   evidence,
+  pdfDocuments,
   requests,
   rosterSnapshots,
   roundClassAreas,
@@ -197,3 +198,11 @@ export const listEvaluationHistory = (db: DbOrTx, evaluationId: string) =>
     .leftJoin(users, eq(users.id, auditLogs.actorId))
     .where(and(eq(auditLogs.entity, 'evaluation'), eq(auditLogs.entityId, evaluationId)))
     .orderBy(asc(auditLogs.at));
+
+/** BR-E9 / T-Q3: a changed approved evaluation gets a new PDF version; earlier ones are marked superseded. */
+export async function supersedePdfs(db: DbOrTx, evaluationId: string, at: Date) {
+  await db
+    .update(pdfDocuments)
+    .set({ supersededAt: at })
+    .where(and(eq(pdfDocuments.evaluationId, evaluationId), isNull(pdfDocuments.supersededAt)));
+}

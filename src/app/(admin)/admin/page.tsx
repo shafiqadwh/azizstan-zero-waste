@@ -13,6 +13,12 @@ export default async function AdminHomePage() {
       <p className="mt-2 text-ink-muted">สวัสดี {user?.displayName} · หน้าแดชบอร์ดจะเปิดใช้เร็ว ๆ นี้</p>
       <nav aria-label="ตั้งค่า" className="mt-6 flex flex-wrap gap-2">
         <Link
+          href="/admin/approvals?tab=requests"
+          className="inline-flex h-11 items-center rounded-md border border-line-strong bg-surface px-4 font-medium hover:bg-surface-muted"
+        >
+          รออนุมัติ
+        </Link>
+        <Link
           href="/admin/settings/term"
           className="inline-flex h-11 items-center rounded-md border border-line-strong bg-surface px-4 font-medium hover:bg-surface-muted"
         >

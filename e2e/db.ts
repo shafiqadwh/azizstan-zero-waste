@@ -149,7 +149,8 @@ export async function seedUploadFixture(username: string) {
  * Journey 1 fixture: the active term with a "room" component and an open round 1; a new building, room and
  * class (frozen in the round) and a committee duty for `username`. Room numbers are random so specs never clash.
  */
-export async function seedJourneyFixture(username: string) {
+export async function seedJourneyFixture(username: string, opts: { closedRound?: boolean } = {}) {
+  const roundNo = opts.closedRound ? 2 : 1;
   await ensureActiveTerm();
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
   await client.connect();
@@ -163,15 +164,21 @@ export async function seedJourneyFixture(username: string) {
        ON CONFLICT DO NOTHING`,
       [termId],
     );
+    // round 1 is open (journeys 1 and 4); round 2 has closed already ("time travel" for journey 3)
+    const [opens, closes, status] = opts.closedRound
+      ? ["now() - interval '5 days'", "now() - interval '1 day'", 'closed']
+      : ["now() - interval '1 day'", "now() + interval '10 days'", 'open'];
     await client.query(
       `INSERT INTO rounds (id, term_id, round_no, opens_at, closes_at, status)
-       VALUES (gen_random_uuid(), $1, 1, now() - interval '1 day', now() + interval '10 days', 'open')
-       ON CONFLICT (term_id, round_no) DO UPDATE
-         SET status = 'open', opens_at = now() - interval '1 day', closes_at = now() + interval '10 days'`,
-      [termId],
+       VALUES (gen_random_uuid(), $1, $2, ${opens}, ${closes}, '${status}')
+       ON CONFLICT (term_id, round_no) DO UPDATE SET status = '${status}', opens_at = ${opens}, closes_at = ${closes}`,
+      [termId, roundNo],
     );
     const roundId = (
-      await client.query<{ id: string }>('SELECT id FROM rounds WHERE term_id = $1 AND round_no = 1', [termId])
+      await client.query<{ id: string }>('SELECT id FROM rounds WHERE term_id = $1 AND round_no = $2', [
+        termId,
+        roundNo,
+      ])
     ).rows[0]!.id;
     const buildingId = (
       await client.query<{ id: string }>(
@@ -209,7 +216,12 @@ export async function seedJourneyFixture(username: string) {
        VALUES (gen_random_uuid(), $1, $2, 'committee', 'class', $3)`,
       [termId, userId, classId],
     );
-    return { roomNumber, className: `ม.J J${tag}` };
+    const componentId = (
+      await client.query<{ id: string }>("SELECT id FROM score_components WHERE term_id = $1 AND key = 'room'", [
+        termId,
+      ])
+    ).rows[0]!.id;
+    return { roomNumber, className: `ม.J J${tag}`, roundId, componentId, classId, userId };
   } finally {
     await client.end();
   }
@@ -224,6 +236,43 @@ export async function unlockActiveTerm() {
   await client.connect();
   try {
     await client.query("UPDATE terms SET config_locked_at = NULL WHERE status = 'active'");
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Journey 4: an evaluation (4.5) by `userId` on the fixture's class whose 24 h self-edit window has already
+ * passed ("time travel"), with 3 site photos and a signature sheet.
+ */
+export async function seedOldEvaluation(f: {
+  roundId: string;
+  componentId: string;
+  classId: string;
+  userId: string;
+  roomNumber: string;
+}) {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    const id = (
+      await client.query<{ id: string }>(
+        `INSERT INTO evaluations (id, round_id, component_id, target_type, target_class_id, owner_id, score, comment,
+           room_number_at_eval, status, first_submitted_at, self_edit_until, last_edited_at, version)
+         VALUES (gen_random_uuid(), $1, $2, 'class', $3, $4, 4.5, 'เดิม', $5, 'submitted',
+           now() - interval '30 hours', now() - interval '6 hours', now() - interval '30 hours', 1)
+         RETURNING id`,
+        [f.roundId, f.componentId, f.classId, f.userId, f.roomNumber],
+      )
+    ).rows[0]!.id;
+    for (const [i, kind] of ['site', 'site', 'site', 'signature'].entries()) {
+      await client.query(
+        `INSERT INTO evidence (id, evaluation_id, uploaded_by, kind, file_path, sha256, width, height, bytes, captured_at, sort_order)
+         VALUES (gen_random_uuid(), $1, $2, $3, 'uploads/00/missing.webp', 'missing', 10, 10, 10, now(), $4)`,
+        [id, f.userId, kind, i],
+      );
+    }
+    return id;
   } finally {
     await client.end();
   }

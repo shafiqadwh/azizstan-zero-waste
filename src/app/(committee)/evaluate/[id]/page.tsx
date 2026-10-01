@@ -12,8 +12,17 @@ import { getDb } from '@/server/db';
 import { AppError } from '@/server/errors';
 import { getEvaluationDetail, type EvaluationDetail } from '@/server/services/task.service';
 import { DeleteEvaluation } from './DeleteEvaluation';
+import { RequestSheet } from './RequestSheet';
 
 export const metadata: Metadata = { title: 'ผลประเมิน · AZIZSTAN ZERO WASTE' };
+
+const REQUEST_STATUS = {
+  waiting: 'รอพิจารณาคำขอ',
+  approved: 'อนุมัติแล้ว',
+  rejected: 'ถูกปฏิเสธ',
+  cancelled: 'ยกเลิกแล้ว',
+  expired: 'หมดอายุ',
+} as const;
 
 const ACTION_LABEL: Record<string, string> = {
   'evaluation.submit': 'ส่งผลประเมิน',
@@ -129,16 +138,46 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
             <DeleteEvaluation id={d.id} version={d.version} />
           </div>
         </section>
-      ) : d.status !== 'void' ? (
-        <section className="flex flex-col gap-1">
-          <button
-            type="button"
-            disabled
-            className="h-12 rounded-[12px] border border-line-strong bg-surface-muted font-semibold text-ink-muted"
-          >
-            ขออนุมัติแก้ไข
-          </button>
-          <p className="text-[13px] text-ink-muted">คำขออนุมัติจะเปิดใช้เร็ว ๆ นี้</p>
+      ) : d.canRequest ? (
+        <RequestSheet
+          evaluationId={d.id}
+          target={`${d.target.type}:${d.target.id}`}
+          isOwner={d.isOwner}
+          score={d.score === null ? null : parseScore(d.score)}
+          max={d.max}
+          step={d.step}
+          comment={d.comment ?? ''}
+          photos={d.photos}
+          photoMax={d.photoMax}
+          moveOptions={d.moveOptions}
+        />
+      ) : null}
+
+      {d.requests.length > 0 ? (
+        <section className="rounded-[18px] border border-line bg-surface p-4">
+          <h2 className="mb-2 text-[16px] font-bold">คำขออนุมัติ</h2>
+          <ul className="flex flex-col gap-2 text-[14px]">
+            {d.requests.map((r) => (
+              <li key={r.id} className="flex flex-col gap-0.5 border-b border-line pb-2 last:border-0">
+                <span className="font-semibold">
+                  {r.typeLabel} · {REQUEST_STATUS[r.status]}
+                </span>
+                <span>
+                  {r.oldValue !== null ? (
+                    <>
+                      <s className="text-ink-muted">{r.oldValue}</s> → <b>{r.newValue}</b>
+                    </>
+                  ) : (
+                    r.newValue
+                  )}
+                </span>
+                <span className="text-ink-muted">
+                  {r.requesterName} · {formatThaiDateTime(r.createdAt)} · {r.reason}
+                </span>
+                {r.decisionNote ? <span className="text-ink-muted">หมายเหตุ: {r.decisionNote}</span> : null}
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
     </main>

@@ -232,6 +232,17 @@ describe('read (/files/{id}?w=)', () => {
   });
 });
 
+describe('missing file', () => {
+  test('a row whose file is gone is a 404, not a crash', async () => {
+    const { evidenceId } = await upload(committee);
+    const [row] = await db.select().from(evidence).where(eq(evidence.id, evidenceId));
+    await rm(path.join(root, row!.filePath));
+    await expect(readEvidenceFile(db, admin, evidenceId, null, now, { root })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+});
+
 describe('evidence.gc (BR-V4)', () => {
   test('orphans older than 24 h are deleted with their files; younger ones stay', async () => {
     const old = await upload(committee, {}, new Date(now.getTime() - 25 * 3600_000));
