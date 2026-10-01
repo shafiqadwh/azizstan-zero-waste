@@ -29,6 +29,13 @@
       "when": 1790855179313,
       "tag": "0003_notification_push",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790890388249,
+      "tag": "0004_retention_audit_delete",
+      "breakpoints": true
     }
   ]
 }

@@ -30,6 +30,7 @@ const SETTINGS = [
   ['/admin/settings/students', 'นักเรียน'],
   ['/admin/settings/content', 'หน้าสาธารณะ'],
   ['/admin/settings/api', 'การเชื่อมต่อ API'],
+  ['/admin/settings/privacy', 'ข้อมูลและความเป็นส่วนตัว'],
 ] as const;
 
 const SYNC_STATUS: Record<string, string> = { success: 'สำเร็จ', aborted: 'หยุดอัตโนมัติ', failed: 'ล้มเหลว' };

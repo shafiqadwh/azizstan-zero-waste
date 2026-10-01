@@ -9,6 +9,7 @@ import { registerPdfJobs } from '../src/server/jobs/pdf.job.ts';
 import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_QUEUE, heartbeatJob } from '../src/server/jobs/heartbeat.job.ts';
 import { registerRoundJobs, ROUND_SWEEP_INTERVAL_MS } from '../src/server/jobs/rounds.job.ts';
 import { notificationSweeps } from '../src/server/jobs/notify.job.ts';
+import { registerRetentionJobs } from '../src/server/jobs/retention.job.ts';
 import { registerStudentJobs } from '../src/server/jobs/students.job.ts';
 
 async function main() {
@@ -53,6 +54,8 @@ async function main() {
 
   // Orphan uploads are removed after 24 h (BR-V4).
   await registerEvidenceJobs(boss, db);
+  // Term data one year after closing, expired students, old audit rows, sessions (BR-D1..D4)
+  await registerRetentionJobs(boss, db);
 
   console.log('[worker] started');
 

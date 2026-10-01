@@ -5,7 +5,7 @@ import { requirePageUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { can } from '@/server/policies';
 import { listTerms } from '@/server/services/term.service';
-import { ActivateButton, CreateTermForm } from './TermForms';
+import { ActivateButton, CloseTermButton, CreateTermForm } from './TermForms';
 
 export const metadata: Metadata = { title: 'ภาคเรียน · AZIZSTAN ZERO WASTE' };
 
@@ -44,7 +44,11 @@ export default async function TermsPage() {
                   <p className="text-[13px] text-ink-muted">
                     {STATUS[t.status]}
                     {t.configLockedAt ? ' · ล็อกการตั้งค่าแล้ว' : ''}
-                    {t.purgeAfter ? ` · ลบข้อมูลตามกำหนด ${formatThaiDate(new Date(`${t.purgeAfter}T05:00:00Z`))}` : ''}
+                    {t.purgedAt
+                      ? ' · ข้อมูลถูกลบตามกำหนดแล้ว'
+                      : t.purgeAfter
+                        ? ` · ลบข้อมูลตามกำหนด ${formatThaiDate(new Date(`${t.purgeAfter}T05:00:00Z`))}`
+                        : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-start gap-2">
@@ -62,6 +66,9 @@ export default async function TermsPage() {
                   </a>
                   {canConfigure && t.status === 'draft' && !t.purgedAt ? (
                     <ActivateButton termId={t.id} label={formatTermLabel(t.termNo, t.academicYear)} />
+                  ) : null}
+                  {canConfigure && t.status === 'active' ? (
+                    <CloseTermButton termId={t.id} label={formatTermLabel(t.termNo, t.academicYear)} />
                   ) : null}
                 </div>
               </li>
