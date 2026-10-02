@@ -62,7 +62,8 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
               <span>
                 <span className="font-semibold">{g.title}</span>
                 <span className="ml-2 text-[13px] text-ink-muted">
-                  /guide/{g.slug} · {AUDIENCE[g.audience] ?? g.audience}
+                  {g.audience === 'public' ? '/guide/' : '/help/'}
+                  {g.slug} · {AUDIENCE[g.audience] ?? g.audience}
                 </span>
               </span>
               {canManage ? (
