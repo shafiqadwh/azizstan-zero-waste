@@ -30,8 +30,9 @@ export interface Draft {
   submitRequested: boolean;
 }
 
-export const draftKey = (roundId: string, componentId: string, target: string) =>
-  `draft:${roundId}:${componentId}:${target}`;
+/** Keyed by the signed-in user too: on a shared phone one teacher never gets another's draft. */
+export const draftKey = (userId: string, roundId: string, componentId: string, target: string) =>
+  `draft:${userId}:${roundId}:${componentId}:${target}`;
 
 export const isExpired = (d: Pick<Draft, 'updatedAt'>, now: number) => now - d.updatedAt > DRAFT_TTL_MS;
 

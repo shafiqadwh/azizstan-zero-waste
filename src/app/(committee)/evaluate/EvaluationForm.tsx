@@ -82,7 +82,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
   const online = useOnline();
   const target = `${ctx.target.type}:${ctx.target.id}`;
   // 07-frontend §3.5: new evaluations keep a local draft; an edit starts from the saved evaluation instead.
-  const key = initial ? null : draftKey(ctx.round.id, ctx.componentId, target);
+  const key = initial ? null : draftKey(ctx.viewerId, ctx.round.id, ctx.componentId, target);
   const [score, setScore] = useState<Th | null>(initial?.score ?? null);
   const [site, setSite] = useState<FormPhoto[]>(
     initial?.site.map((p) => ({ key: p.evidenceId, src: p.src, status: 'done', evidenceId: p.evidenceId })) ?? [],

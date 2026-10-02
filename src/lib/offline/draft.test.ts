@@ -13,8 +13,9 @@ const blob = new Blob(['x']);
 const empty = { score: null, comment: '', site: [], signature: [] };
 
 describe('offline drafts (07-frontend §3.5)', () => {
-  it('keys a draft by round, component and target', () => {
-    expect(draftKey('r1', 'c1', 'class:k1')).toBe('draft:r1:c1:class:k1');
+  it('keys a draft by user, round, component and target', () => {
+    expect(draftKey('u1', 'r1', 'c1', 'class:k1')).toBe('draft:u1:r1:c1:class:k1');
+    expect(draftKey('u2', 'r1', 'c1', 'class:k1')).not.toBe(draftKey('u1', 'r1', 'c1', 'class:k1'));
   });
 
   it('clears drafts older than 7 days', () => {
