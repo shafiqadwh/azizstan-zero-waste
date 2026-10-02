@@ -62,9 +62,9 @@ time sync (`timedatectl set-ntp true`, timezone Asia/Bangkok).
     (from a checkout: `pnpm preflight`, which reads `.env`). It refuses (exit 1, `✗`) on: an `APP_URL` that is not
     https or still localhost (QR sheets print it), example secrets or `change-me` passwords, a missing or example
     student API token, an empty or malformed `PP5_ALLOWED_CIDRS`, half a VAPID key pair, `COMPOSE_PROFILES=tunnel` without a
-    tunnel token, a data directory that is not writable, pending migrations, no super admin. It warns (`!`) on: the student token (confirm it is the
+    tunnel token, a data directory that is not writable, pending migrations, no super admin, a disk at 95 % or more. It warns (`!`) on: the student token (confirm it is the
     **rotated** one, Q14), the example private ranges in `PP5_ALLOWED_CIDRS` (narrow to the ปพ.5 machine), no push
-    keys, no tunnel token (or a token without `COMPOSE_PROFILES=tunnel`), no active term, and no successful backup in the last day. It also prints whether
+    keys, no tunnel token (or a token without `COMPOSE_PROFILES=tunnel`), no active term, a disk at 80 % or more, and no successful backup in the last day. It also prints whether
     "อนุมัติอัตโนมัติ" is on for the active term.
 
 ## 3. Updates
@@ -80,7 +80,9 @@ The backup also writes `backup.last` into `app_settings` after the off-site copy
 ## 4. Monitoring
 - `GET /api/v1/health` every 5 min from an external uptime monitor (e.g. Cloudflare health check).
 - Worker heartbeat older than 3 min → health returns `degraded`.
-- Disk usage alert at 80 % (simple cron + `df` + notify admins via the app's `sync_problem`-style notification).
+- Disk space: the worker's `disk.check` job measures the filesystem under `DATA_DIR` every hour (:15). At 80 %
+  used every admin gets a `disk_space` inbox notice (and push), once per day while it stays full. The last reading
+  shows on `/admin/settings/privacy` ("พื้นที่ดิสก์"); preflight warns at 80 % and refuses at 95 %.
 
 ## 5. Restore (tested procedure)
 ```sh

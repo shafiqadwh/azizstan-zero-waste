@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { sql } from 'drizzle-orm';
 import { createDb } from '../db/client.ts';
 import { checkEnv, hasErrors, type Finding } from '../src/server/preflight.ts';
+import { DISK_ALERT_RATIO, formatGb, formatPercent, measureDisk } from '../src/server/services/disk.service.ts';
 
 const ICON = { ok: '✓', warn: '!', error: '✗' } as const;
 
@@ -24,6 +25,13 @@ async function runtimeChecks(env: NodeJS.ProcessEnv, now: Date): Promise<Finding
     try {
       await access(dataDir, constants.W_OK);
       out.push({ level: 'ok', key: 'DATA_DIR', message: `${dataDir} เขียนได้` });
+      const disk = await measureDisk(dataDir);
+      const msg = `ใช้ไป ${formatPercent(disk.usedRatio)} · เหลือ ${formatGb(disk.freeBytes)}`;
+      out.push({
+        level: disk.usedRatio >= 0.95 ? 'error' : disk.usedRatio >= DISK_ALERT_RATIO ? 'warn' : 'ok',
+        key: 'disk',
+        message: msg,
+      });
     } catch {
       out.push({ level: 'error', key: 'DATA_DIR', message: `${dataDir} ไม่มีหรือเขียนไม่ได้` });
     }
