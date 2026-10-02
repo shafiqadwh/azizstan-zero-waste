@@ -23,7 +23,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node db/migrate.ts",
     "db:seed": "node db/seed.ts",
-    "user:super-admin": "node scripts/create-super-admin.ts"
+    "user:super-admin": "node scripts/create-super-admin.ts",
+    "preflight": "node --env-file-if-exists=.env scripts/preflight.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
