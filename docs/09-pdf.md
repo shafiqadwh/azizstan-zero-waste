@@ -56,3 +56,11 @@ note "โปรดถ่ายรูปแผ่นนี้แนบในร�
 (`src/server/pdf/on-demand.ts`: one Chromium, started on first use, closed after a minute idle), not stored.
 Staff, or a committee member with a duty on the class in that term. Linked from the evaluation form's
 "ใบลงชื่อนักเรียน" card and the monitor popover.
+
+## 4. Room QR sheet (P2, T34)
+Route `GET /api/v1/pdf/room-qr[?buildingId=|roomId=]` (`&format=html` for the printable page); admins
+(`place.manage`). A4 portrait, **12 cards per page** (3 × 4, dashed cut lines), active rooms ordered by building,
+floor and number. Each card: QR of the door URL `{APP_URL}/r/{qrToken}` (error correction M), the room number
+large, building and floor, the class using the room today (or "–"), and "สแกนเพื่อใส่คะแนน". Rendered on demand like
+the signature sheet (`src/server/pdf/on-demand.ts`), not stored. Linked from `/admin/settings/classes`:
+"พิมพ์ QR ทุกห้อง", "พิมพ์ QR อาคารนี้", and "QR" on each room.
