@@ -57,6 +57,13 @@
       "when": 1790909096709,
       "tag": "0007_auto_approve",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790911367705,
+      "tag": "0008_help_manuals",
+      "breakpoints": true
     }
   ]
 }

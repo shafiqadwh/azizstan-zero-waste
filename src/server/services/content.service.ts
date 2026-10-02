@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { Db } from '../../../db/client.ts';
 import { newId } from '../../lib/ids.ts';
 import { AppError, notFound, parseInput, validation } from '../errors.ts';
-import { assertCan, type SessionUser } from '../policies/index.ts';
+import { assertCan, isStaffRole, type SessionUser } from '../policies/index.ts';
 import * as repo from '../repositories/content.repository.ts';
 import * as places from '../repositories/places.repository.ts';
 import { dataDir, removeDataFile, resolveData, writeDataFile } from '../storage.ts';
@@ -204,4 +204,30 @@ export async function listOrdersForAdmin(db: Db, actor: SessionUser) {
   assertCan(actor, 'staff.read');
   const term = await places.findActiveTerm(db);
   return term ? repo.listOrders(db, term.id) : [];
+}
+
+// ───────────── in-app manuals (/help) ─────────────
+
+export interface HelpPage {
+  slug: string;
+  title: string;
+  bodyMd: string;
+  audience: 'committee' | 'admin';
+}
+
+/** Audiences a signed-in user may read at /help: committee manuals for everyone, admin manuals for staff. */
+const helpAudiences = (actor: SessionUser) => (isStaffRole(actor.role) ? ['committee', 'admin'] : ['committee']);
+
+export async function listHelpPages(db: Db, actor: SessionUser): Promise<Omit<HelpPage, 'bodyMd'>[]> {
+  return (await repo.listGuidePages(db, helpAudiences(actor))).map((g) => ({
+    slug: g.slug,
+    title: g.title,
+    audience: g.audience as HelpPage['audience'],
+  }));
+}
+
+export async function getHelpPage(db: Db, actor: SessionUser, slug: string): Promise<HelpPage | null> {
+  const g = await repo.findGuidePage(db, slug);
+  if (!g || !helpAudiences(actor).includes(g.audience)) return null;
+  return { slug: g.slug, title: g.title, bodyMd: g.bodyMd, audience: g.audience as HelpPage['audience'] };
 }

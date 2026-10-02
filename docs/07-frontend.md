@@ -20,6 +20,7 @@
 | `/evaluate/[id]` | committee/staff | Evaluation detail / edit / request | RSC + client |
 | `/requests/new?…` | committee | Request form (sheet) | client |
 | `/inbox` | staff | Notifications | RSC |
+| `/help`, `/help/[slug]` | signed in | In-app manuals: guide pages with audience `committee` for everyone signed in, `admin` for staff (edited at ตั้งค่า › เนื้อหา); header button "คู่มือ" | server |
 | `/admin` | admin/executive | Dashboard | RSC + 30 s poll |
 | `/admin/approvals?tab=results|requests` | admin (executive read-only) | Approval queue | RSC + client |
 | `/monitor?round=&status=&group=&mine=` | super admin/admin/executive: all targets · committee: own targets only | Monitor board (every target × status, incl. PDF) | RSC + 30 s poll |
