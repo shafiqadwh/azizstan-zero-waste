@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { OfflineBanner } from '@/components/app/OfflineBanner';
 import { SignedInHeader } from '@/components/app/SignedInHeader';
 import { requirePageUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
@@ -15,6 +16,7 @@ export default async function CommitteeLayout({ children }: { children: ReactNod
   return (
     <>
       <SignedInHeader user={user} />
+      <OfflineBanner />
       {allowed ? (
         children
       ) : (
