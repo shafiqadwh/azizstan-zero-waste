@@ -39,10 +39,10 @@ sudo apt-get update && sudo apt-get install -y git age rclone
 ## 2. ดึงโค้ดลงเครื่อง
 
 ```sh
-git clone https://github.com/shafiqadwh/azizstan-zero-waste.git /opt/azizstan-zero-waste
+git clone --branch v1.0.0 https://github.com/shafiqadwh/azizstan-zero-waste.git /opt/azizstan-zero-waste
 cd /opt/azizstan-zero-waste
 ```
-ถ้ามีการออกเวอร์ชัน (tag เช่น `v1.0.0`) ให้ใช้เวอร์ชันนั้น: `git checkout v1.0.0`
+ติดตั้งจากเวอร์ชันที่ออกแล้ว (tag) เสมอ ไม่ใช่ `main` · สิ่งที่มีในแต่ละเวอร์ชันอยู่ใน `docs/releases/`
 
 **จากนี้ไปทุกคำสั่งให้พิมพ์ในโฟลเดอร์ `/opt/azizstan-zero-waste`**
 
@@ -171,7 +171,7 @@ sh deploy/zw.sh up -d
 
 ```sh
 cd /opt/azizstan-zero-waste
-git pull                      # หรือ git fetch --tags && git checkout vX.Y.Z
+git fetch --tags && git checkout vX.Y.Z   # เวอร์ชันใหม่ อ่าน docs/releases/vX.Y.Z.md ก่อน
 sh deploy/zw.sh build
 sh deploy/zw.sh run --rm app node scripts/migrate.js
 sh deploy/zw.sh up -d
