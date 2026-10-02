@@ -164,3 +164,7 @@ T25 (student sync), T26 (push; in-app inbox first), T27 (ปพ.5 — needed onl
 - **T40** Individual mode end to end (per-student scores UI with codes only, student-level results, ปพ.5 students). *Built:* area-unit components stay group-scored (areas have no students).
 - **T41** Area-teacher deductions (FR-E12) with limits and PDFs. *Built (Q4 answered):* `area_teacher` duty on areas, deductions per class per round with photo + reason, admin approval, PDF "แบบบันทึกการหักคะแนนความสะอาด".
 - **T42** Zone head, zone teacher teams (FR-P4) and teacher-as-committee terms (priority rule Q2).
+  *Parked 2026-10-02: not used in 2569.* Decisions kept for when it is built: a zone head (a new per-term duty on a
+  zone) may (1) see the status and results of the classes and places in their zone (read-only monitor scope),
+  (2) approve evaluations in their zone (like a target-scoped `approver`), and (3) assign and remove the area teachers
+  of their zone (the `area_teacher` duty from T41). Q2: committee value only.
