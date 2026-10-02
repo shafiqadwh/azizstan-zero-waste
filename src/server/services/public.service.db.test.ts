@@ -27,6 +27,7 @@ import {
   getPublicGuidePage,
   getPublicSummary,
   getRankings,
+  getSeries,
   listPublicAreas,
   listPublicClasses,
   listPublicGuide,
@@ -207,6 +208,19 @@ describe('public read models (05-api §3.1)', () => {
       ['อาคาร 1', [{ roundNo: 1, score: '8' }], ['ม.1 Amanah', 'ม.1 Berdikari']],
       ['อาคาร 2', [{ roundNo: 1, score: null }], ['ม.2 Cemerlang']],
     ]);
+  });
+
+  test('chart series (§6.5): one point per started round with its maximum; unknown targets are null', async () => {
+    const a = await getSeries(db, { type: 'class', id: A }, now);
+    expect(a).toMatchObject({ type: 'class', title: '121 · ม.1 Amanah', areaWord: 'อาคาร' });
+    expect(a!.points).toEqual([{ roundNo: 1, value: 12.5, label: '12.5', max: expect.any(Number) }]);
+    expect(a!.yMax).toBe(a!.points[0]!.max);
+    expect(a!.yMax).toBeGreaterThan(12.5);
+    expect((await getSeries(db, { type: 'class', id: C }, now))!.points[0]).toMatchObject({ value: null, label: null });
+    const area = await getSeries(db, { type: 'area', id: b1 }, now);
+    expect(area).toMatchObject({ title: 'อาคาร 1', points: [{ roundNo: 1, value: 8, label: '8' }] });
+    expect(await getSeries(db, { type: 'class', id: newId() }, now)).toBeNull();
+    expect(await getSeries(db, { type: 'area', id: newId() }, now)).toBeNull();
   });
 
   test('no person ever appears: no evaluator, approver or student names in any public payload', async () => {

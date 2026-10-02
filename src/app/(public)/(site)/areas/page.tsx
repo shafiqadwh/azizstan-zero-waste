@@ -44,6 +44,12 @@ export default async function AreasPage() {
                   </span>
                 </summary>
                 <div className="mt-3 border-t border-line pt-3">
+                  <a
+                    href={`/charts?type=area&id=${a.areaId}`}
+                    className="mb-2 inline-block text-[14px] font-semibold text-brand-ink underline"
+                  >
+                    ดูกราฟพัฒนาการ
+                  </a>
                   <p className="text-[13px] font-semibold text-ink-muted">ห้องเรียนที่รับผิดชอบ</p>
                   {a.classes.length === 0 ? (
                     <p className="text-[14px]">–</p>
