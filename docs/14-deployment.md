@@ -44,7 +44,7 @@ time sync (`timedatectl set-ntp true`, timezone Asia/Bangkok).
    (Zero Trust → Networks → Tunnels → Create), public hostname e.g. `zerowaste.azizstan.net` → `http://app:3000`.
    Copy the tunnel token into `.env` (`CLOUDFLARE_TUNNEL_TOKEN`) and add `COMPOSE_PROFILES=tunnel`, which turns
    on the `cloudflared` container.
-3. **Clone** into `/opt/azizstan-zero-waste` (a release tag `vX.Y.Z` once releases are tagged; `main` until then).
+3. **Clone the release tag**: `git clone --branch v1.0.0 … /opt/azizstan-zero-waste` (release notes: `docs/releases/`).
 4. **`.env`**: copy from `.env.example`; generate secrets:
    `openssl rand -base64 64` (SESSION_SECRET), `openssl rand -base64 32` (INTERNAL_PDF_SECRET),
    VAPID with `docker run --rm azizstan-zero-waste node scripts/vapid-keys.js` after `sh deploy/zw.sh build`
