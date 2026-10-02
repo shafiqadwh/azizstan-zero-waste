@@ -1,4 +1,4 @@
-import { BookOpen, Building2, ChevronRight, FileText, School, Trophy } from 'lucide-react';
+import { BookOpen, Building2, CalendarDays, ChevronRight, FileText, School, Trophy } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Logo } from '@/components/app/Logo';
@@ -39,6 +39,7 @@ export default async function HomePage() {
   const tiles = [
     ['/classes', 'ห้องเรียน', School],
     ['/areas', areaWord, Building2],
+    ['/calendar', 'ปฏิทินการประเมิน', CalendarDays],
     ['/orders', 'คำสั่งแต่งตั้ง', FileText],
     ['/guide', 'วิธีการใช้งานเบื้องต้น', BookOpen],
   ] as const;
@@ -91,7 +92,7 @@ export default async function HomePage() {
         <ChevronRight aria-hidden />
       </Link>
 
-      <nav aria-label="เมนู" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <nav aria-label="เมนู" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {tiles.map(([href, label, Icon]) => (
           <Link
             key={href}
