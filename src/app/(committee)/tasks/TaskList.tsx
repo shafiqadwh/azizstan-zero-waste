@@ -133,7 +133,7 @@ export function TaskList({ items }: { items: TaskItem[] }) {
         </section>
       ) : null}
       <p id="scan-help" className="text-[13px] text-ink-muted">
-        สแกน QR ที่ประตูห้องด้วยกล้องมือถือ ระบบจะเปิดแบบประเมินของห้องนั้นให้
+        สแกน QR ที่ประตูห้องด้วยกล้องมือถือ ระบบจะเปิดหน้าของห้องนั้น แล้วกด &ldquo;ประเมินห้องนี้&rdquo;
       </p>
     </div>
   );

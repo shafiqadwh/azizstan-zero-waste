@@ -186,11 +186,12 @@ export async function seedJourneyFixture(username: string, opts: { closedRound?:
         [`J${tag}`, `อาคาร J${tag}`],
       )
     ).rows[0]!.id;
+    const qrToken = `qr-${tag}-${randomBytes(6).toString('hex')}`;
     const roomId = (
       await client.query<{ id: string }>(
         `INSERT INTO physical_rooms (id, building_id, room_number, floor, qr_token)
          VALUES (gen_random_uuid(), $1, $2, 2, $3) RETURNING id`,
-        [buildingId, roomNumber, `qr-${tag}-${randomBytes(6).toString('hex')}`],
+        [buildingId, roomNumber, qrToken],
       )
     ).rows[0]!.id;
     const classId = (
@@ -221,7 +222,7 @@ export async function seedJourneyFixture(username: string, opts: { closedRound?:
         termId,
       ])
     ).rows[0]!.id;
-    return { roomNumber, className: `ม.J J${tag}`, roundId, componentId, classId, userId, areaId: buildingId };
+    return { roomNumber, className: `ม.J J${tag}`, roundId, componentId, classId, userId, areaId: buildingId, qrToken };
   } finally {
     await client.end();
   }
