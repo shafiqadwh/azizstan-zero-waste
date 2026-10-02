@@ -61,6 +61,14 @@ export default async function RoundAreasPage({ params }: { params: Promise<{ rou
           {formatTermLabel(term.termNo, term.academicYear)} · {STATUS[round.status]} · เปิด{' '}
           {formatThaiDateTime(round.opensAt)}
         </p>
+        {round.status !== 'scheduled' ? (
+          <a
+            href={`/api/v1/exports/round/${round.id}/pdfs.pdf`}
+            className="mt-2 inline-block text-[14px] font-semibold text-brand-ink underline"
+          >
+            ดาวน์โหลด PDF ผลประเมินทั้งรอบ (ไฟล์เดียว)
+          </a>
+        ) : null}
       </div>
       {!can(user, 'round.manage') ? <ReadOnlyBanner /> : null}
       {round.status === 'scheduled' ? (

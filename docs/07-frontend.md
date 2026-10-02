@@ -8,7 +8,7 @@
 | `/rankings?view=term|round&round=` | public | Rankings | RSC, ISR 60 s |
 | `/classes?grade=&class=` | public | Class scores | RSC + client dropdowns (URL state) |
 | `/areas` · `/areas/[id]` | public | Zones/Buildings (label from term) | RSC |
-| `/charts?type=class|area&id=` | public | Development chart | RSC data + client Recharts |
+| `/charts?type=class|area&id=` | public | Development chart (T32): one series, totals per round, y 0 → round maximum, tap/hover/Tab readout, table view | RSC data + a small client SVG chart (no chart library) |
 | `/orders` · `/orders/[id]` | public | Appointment orders PDF viewer | RSC |
 | `/guide` · `/guide/[slug]` | public | How-to | RSC (markdown) |
 | `/calendar` | public (P2, T31) | Scoring calendar: round cards + month grids from round dates; `/calendar.ics` for phone calendars (24 h reminder before each close) | RSC |

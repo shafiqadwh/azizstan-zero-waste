@@ -52,3 +52,18 @@ export const listCurrentPdfsInRound = (db: DbOrTx, roundId: string) =>
     .from(pdfDocuments)
     .innerJoin(evaluations, eq(evaluations.id, pdfDocuments.evaluationId))
     .where(and(eq(evaluations.roundId, roundId), isNull(pdfDocuments.supersededAt)));
+
+/** The current PDF of every evaluation in a round, in document-number order (merged export, FR-D5). */
+export const listCurrentPdfFilesInRound = (db: DbOrTx, roundId: string) =>
+  db
+    .select({
+      docNumber: pdfDocuments.docNumber,
+      version: pdfDocuments.version,
+      isDraft: pdfDocuments.isDraft,
+      filePath: pdfDocuments.filePath,
+      evaluationStatus: evaluations.status,
+    })
+    .from(pdfDocuments)
+    .innerJoin(evaluations, eq(evaluations.id, pdfDocuments.evaluationId))
+    .where(and(eq(evaluations.roundId, roundId), isNull(pdfDocuments.supersededAt)))
+    .orderBy(pdfDocuments.docNumber);

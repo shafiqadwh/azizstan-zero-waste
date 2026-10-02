@@ -10,6 +10,7 @@ import {
   getPublicGuidePage,
   getPublicSummary,
   getRankings,
+  getSeries,
   listPublicAreas,
   listPublicClasses,
   listPublicGuide,
@@ -37,6 +38,12 @@ export const publicGuide = unstable_cache(() => listPublicGuide(getDb()), ['publ
 export const publicGuidePage = unstable_cache(
   (slug: string) => getPublicGuidePage(getDb(), slug),
   ['public-guide-page'],
+  opts,
+);
+
+export const publicSeries = unstable_cache(
+  (type: 'class' | 'area', id: string) => getSeries(getDb(), { type, id }, new Date()),
+  ['public-series'],
   opts,
 );
 

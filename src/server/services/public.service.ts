@@ -362,3 +362,70 @@ export async function getPublicGuidePage(db: Db, slug: string): Promise<PublicGu
   const g = await contentRepo.findGuidePage(db, slug);
   return g && g.audience === 'public' ? { slug: g.slug, title: g.title, bodyMd: g.bodyMd } : null;
 }
+
+// ───────────── charts (§6.5) ─────────────
+
+export interface SeriesPoint {
+  roundNo: number;
+  /** null = "รอผล" */
+  value: number | null;
+  label: string | null; // display string of value
+  max: number;
+}
+
+export interface PublicSeries {
+  type: 'class' | 'area';
+  id: string;
+  title: string;
+  areaWord: 'อาคาร' | 'โซน';
+  /** y axis top: the largest round maximum, so every round fits */
+  yMax: number;
+  points: SeriesPoint[];
+}
+
+const num = (th: Th) => th / 1000;
+
+/** GET /public/series?type=class|area&id= — totals per started round of the active term (one series). */
+export async function getSeries(
+  db: Db,
+  q: { type: 'class' | 'area'; id: string },
+  now: Date,
+): Promise<PublicSeries | null> {
+  const term = await places.findActiveTerm(db);
+  if (!term) return null;
+  const rounds = (await termsRepo.listRounds(db, term.id)).filter((r) => r.status !== 'scheduled');
+  let title: string;
+  if (q.type === 'class') {
+    if (!(await places.listTermClassIds(db, term.id)).includes(q.id)) return null;
+    const cls = await places.findClass(db, q.id);
+    if (!cls) return null;
+    const room = (await roomNumbers(db, rounds.at(-1)?.id ?? null, now)).get(q.id);
+    title = room ? `${room} · ${cls.displayName}` : cls.displayName;
+  } else {
+    const area = await places.findArea(db, q.id);
+    if (!area || area.type !== term.areaType || !area.isActive) return null;
+    title = area.name;
+  }
+  const points: SeriesPoint[] = [];
+  for (const r of rounds) {
+    const res = await getRoundResults(db, r.id);
+    const area = q.type === 'area' ? res.areas.find((a) => a.areaId === q.id) : undefined;
+    const row =
+      q.type === 'class' ? res.classes.find((c) => c.classId === q.id) : area && { total: area.score, max: area.max };
+    const total = row?.total ?? null;
+    points.push({
+      roundNo: r.roundNo,
+      value: total === null ? null : num(total),
+      label: show(total),
+      max: row ? num(row.max) : 0,
+    });
+  }
+  return {
+    type: q.type,
+    id: q.id,
+    title,
+    areaWord: termView(term).areaWord,
+    yMax: Math.max(0, ...points.map((p) => p.max)),
+    points,
+  };
+}

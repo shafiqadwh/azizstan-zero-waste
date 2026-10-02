@@ -70,6 +70,14 @@ export default async function AdminHomePage() {
         <div>
           <h1 className="text-[20px] leading-[1.3] font-bold lg:text-[26px]">ภาพรวม</h1>
           <p className="mt-1 text-[14px] text-ink-muted">{roundLine}</p>
+          {d.round ? (
+            <a
+              href={`/api/v1/exports/round/${d.round.id}/pdfs.pdf`}
+              className="mt-1 inline-block text-[14px] font-semibold text-brand-ink underline"
+            >
+              PDF ทั้งรอบ (ไฟล์เดียว)
+            </a>
+          ) : null}
         </div>
         {d.canAct && d.round ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">

@@ -93,7 +93,7 @@ Every mutating input carries `expectedVersion` where the entity has a `version`.
 | GET | `/public/classes?grade=` | `[{classId, display, roomNumber}]` |
 | GET | `/public/classes/{id}/scores?termId=` | `{rounds:[{no, classScore, areaScore, total}], termScore}` |
 | GET | `/public/areas/{id}/scores?termId=` | `{rounds:[{no, score}], termScore}` |
-| GET | `/public/series?type=class|area&id=` | `[{roundNo, total}]` of the active term, for charts |
+| GET | `/public/series?type=class|area&id=` | `[{roundNo, total}]` of the active term, for charts (T32: read model `getSeries`, rendered by `/charts`) |
 | GET | `/public/orders` | `[{id, title, url}]` |
 
 Scores are strings with 2 decimals. Only approved data (FR-W7). No evaluator names, no photos.
@@ -111,7 +111,7 @@ Scores are strings with 2 decimals. Only approved data (FR-W7). No evaluator nam
 | GET | `/monitor/targets/{class|area}/{id}?round=` | popover: assigned committee, owner, status, approver, PDF, waiting request |
 | POST | `/push/subscribe` / `/push/unsubscribe` | Web Push subscription JSON |
 | GET | `/exports/term/{termId}.xlsx` | admin/executive |
-| GET | `/exports/round/{roundId}/pdfs.pdf` | merged PDFs (P2) |
+| GET | `/exports/round/{roundId}/pdfs.pdf` | merged PDFs (P2, T32): current version of each approved evaluation, in document-number order; files missing on disk are listed on a cover page; staff |
 
 ### 3.3 ปพ.5 (API key in `Authorization: Bearer <key>`, source IP in `PP5_ALLOWED_CIDRS`)
 | Method | Path | Response |

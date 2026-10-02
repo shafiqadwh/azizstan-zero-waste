@@ -29,6 +29,12 @@ export default async function ClassesPage({ searchParams }: { searchParams: Prom
             {scores.roomNumber ? `${scores.roomNumber} · ` : ''}
             {scores.display}
           </h2>
+          <a
+            href={`/charts?type=class&id=${scores.classId}`}
+            className="mt-1 inline-block text-[14px] font-semibold text-brand-ink underline"
+          >
+            ดูกราฟพัฒนาการ
+          </a>
           {scores.rounds.length === 0 ? (
             <p className="mt-2 text-[14px] text-ink-muted">ยังไม่มีรอบที่เริ่มประเมิน</p>
           ) : (
