@@ -109,7 +109,7 @@ pnpm test             # vitest (unit)
 pnpm test:db          # vitest against PostgreSQL (needs DATABASE_URL; creates and drops a temp database)
 pnpm test:e2e         # playwright
 pnpm lint && pnpm typecheck
-docker compose -f deploy/docker-compose.yml up -d
+sh deploy/zw.sh up -d   # docker compose with the root .env (14-deployment)
 ```
 
 ## 7. Definition of done (every ticket)

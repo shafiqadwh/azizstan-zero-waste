@@ -2,7 +2,7 @@
  * Go-live preflight (14-deployment §2 step 0): checks `.env`, the data directory and the database before the
  * school starts using the system. Exit code 1 when anything blocking is found.
  *   local:     node --env-file=.env scripts/preflight.ts        (or: pnpm preflight)
- *   container: docker compose -f deploy/docker-compose.yml run --rm app node scripts/preflight.js
+ *   container: sh deploy/zw.sh run --rm app node scripts/preflight.js
  */
 import { access, constants, readFile } from 'node:fs/promises';
 import path from 'node:path';

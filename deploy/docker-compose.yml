@@ -76,12 +76,15 @@ services:
         limits: { memory: 1g }
     networks: [internal]
 
+  # Public access through Cloudflare Tunnel. Off unless the "tunnel" profile is on (COMPOSE_PROFILES=tunnel in
+  # .env, production); the NAS test setup can stay LAN-only without a token.
   cloudflared:
     image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
     command: tunnel --no-autoupdate run
     restart: unless-stopped
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set in .env}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on: [app]
     networks: [internal]
 

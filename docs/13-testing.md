@@ -68,3 +68,18 @@ real student data in the repository.
 - ESLint custom rule `no-student-name`: forbids selecting `students.fullName` anywhere except
   `src/server/services/student.service.ts` (sync writes it; nothing reads it for output — ปพ.5 export uses codes).
 - `tsc --noEmit` strict, `eslint`, `prettier --check` in CI.
+
+## 6. E2E against the production image (go-live dry run)
+Run before the first install and after any change under `deploy/`: the same suite, but served by the Docker image
+instead of `pnpm dev`.
+1. `.env` with `APP_URL=http://localhost:3100`; a compose override that publishes `app` on `127.0.0.1:3100:3000`
+   and `db` on `127.0.0.1:5433:5432` (test machine only — production never publishes the database).
+2. `sh deploy/zw.sh build`, then `docker compose --env-file .env -f deploy/docker-compose.yml -f override.yml up -d`.
+3. `DATABASE_URL=postgres://zw:<POSTGRES_PASSWORD>@localhost:5433/zw pnpm test:e2e` — Playwright reuses the server
+   already on port 3100.
+
+Expected: everything passes except journey 2's last step ("the PDF link appears once rendered"), which renders the
+PDF inside the test process and writes it to the host's `./data`, not to the container volume (a test shortcut; the
+worker's own rendering is covered by checking `/data/pdf` in the worker container).
+Last run 2026-10-02: 107 passed; the run found the backup missing `orders/` and the restore leaving the volume
+owned by root (both fixed in `deploy/`).
