@@ -73,11 +73,15 @@ test('after 10 minutes the super admin re-enters the password before changing us
 
   await stepUp.getByLabel(/ยืนยันรหัสผ่านของคุณ/).fill('wrong-password');
   await stepUp.getByRole('button', { name: 'ยืนยันรหัสผ่าน' }).click();
-  await expect(stepUp.getByRole('alert')).toContainText('ไม่ถูกต้อง');
+  await expect(stepUp.getByRole('alert')).toContainText('ไม่ถูกต้อง', { timeout: 20_000 });
   await stepUp.getByLabel(/ยืนยันรหัสผ่านของคุณ/).fill('root-password');
   await stepUp.getByRole('button', { name: 'ยืนยันรหัสผ่าน' }).click();
+  // argon2 verification is deliberately slow; under a parallel test run it can take several seconds
+  await expect(page.getByTestId('step-up-ok')).toBeVisible({ timeout: 20_000 });
+  // start from a settled page: the refresh after step-up may still re-render (and reset) the create form
+  await page.reload();
   await expect(page.getByTestId('step-up-ok')).toBeVisible();
-  await form.getByLabel('ชื่อผู้ใช้').fill(name); // a submitted form resets its fields
+  await form.getByLabel('ชื่อผู้ใช้').fill(name);
   await form.getByLabel('ชื่อที่แสดง').fill('ครูขั้นยืนยัน');
   await form.getByLabel('สิทธิ์').selectOption('teacher');
   await form.getByRole('button', { name: 'เพิ่มผู้ใช้' }).click();

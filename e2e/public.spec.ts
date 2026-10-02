@@ -39,6 +39,7 @@ test('journey 6: home → rankings → toggle building → class picker; no stud
   page,
   browser,
 }) => {
+  test.setTimeout(150_000); // may wait out one public-cache window below
   const teacher = await createTestUser({ role: 'teacher', password: 'teacher-password' });
   const f = await seedJourneyFixture(teacher);
   await seedOldEvaluation(f);
@@ -62,7 +63,12 @@ test('journey 6: home → rankings → toggle building → class picker; no stud
   await page.getByRole('link', { name: 'รอบที่ 1' }).click();
   await expect(page).toHaveURL(/round=1/);
   const group = page.getByTestId('rank-ม.J');
-  await expect(group).toContainText(`${f.roomNumber} · ${f.className}`);
+  // public pages may serve a cached copy for up to 60 s (05-api §3.1); under a parallel run another render can
+  // refill the cache around the approval, so allow one revalidation window before calling it a failure
+  await expect(async () => {
+    await page.reload();
+    await expect(group).toContainText(`${f.roomNumber} · ${f.className}`, { timeout: 2_000 });
+  }).toPass({ timeout: 75_000, intervals: [2_000, 5_000, 10_000] });
   await page.getByRole('navigation', { name: 'ประเภท' }).getByRole('link', { name: 'อาคาร' }).click();
   await expect(page).toHaveURL(/view=areas/);
   await expect(page.getByTestId('rank-areas')).toContainText(`อาคาร J`);
