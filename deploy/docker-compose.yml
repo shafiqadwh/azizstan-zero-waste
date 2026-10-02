@@ -17,7 +17,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
     volumes:
       - db-data:/var/lib/postgresql/data
-      - ./backup:/backup
+    # No host bind for backups: deploy/backup.sh streams pg_dump out through `exec`. (A ./backup bind also broke
+    # on Synology, whose Docker refuses a missing bind source instead of creating it.)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zw -d zw"]
       interval: 10s

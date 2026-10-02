@@ -129,6 +129,7 @@ sh deploy/zw.sh run --rm app node scripts/preflight.js
 | ล็อกอินแล้วเด้งกลับหน้าเดิม | เปิดผ่าน http หรือ IP ให้เปิดผ่าน `https://zerowaste.shafiq-lap.com` เท่านั้น |
 | กดบันทึกแล้วขึ้น `Invalid Server Actions request` | Reverse Proxy ไม่ส่งชื่อโดเมนต่อ ให้เพิ่ม Custom Header `X-Forwarded-Host` = `$host` แล้วลองใหม่ |
 | อัปโหลดรูปไม่ผ่าน ขึ้น 413 | DSM จำกัดขนาด request ระบบย่อรูปก่อนส่งอยู่แล้ว ถ้ายังเจอให้แจ้ง พร้อมขนาดไฟล์ |
+| `Bind mount failed: '…/deploy/backup' does not exist` | โค้ดก่อน 2 ต.ค. 2569 ค่ำ: `git pull` หรือ `mkdir -p deploy/backup` แล้วสั่งใหม่ |
 | `EACCES … /data/...` | `chown 10001:10001 /volume1/zw/data/app` |
 | build ช้ามากหรือค้าง | RAM ไม่พอ ปิดคอนเทนเนอร์อื่นชั่วคราว แล้ว `sh deploy/zw.sh build` ใหม่ |
 
