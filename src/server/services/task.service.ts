@@ -225,6 +225,8 @@ export async function getMyTasks(db: Db, actor: SessionUser, now: Date): Promise
 // ───────────── form context (§6.8) ─────────────
 
 export interface EvaluationForm {
+  /** the signed-in user: keys the offline draft so a shared phone never mixes teachers' drafts */
+  viewerId: string;
   round: RoundView;
   componentId: string;
   componentLabel: string;
@@ -295,6 +297,7 @@ export async function getEvaluationForm(
       now,
     ));
   return {
+    viewerId: actor.id,
     round: { ...round, entryOpen: open },
     componentId: component.id,
     componentLabel: component.label,

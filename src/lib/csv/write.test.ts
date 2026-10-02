@@ -12,6 +12,8 @@ describe('CSV writer', () => {
     expect(csvCell(true)).toBe('true');
     expect(csvCell('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`);
     expect(csvCell('-1.50')).toBe('-1.50');
+    expect(csvCell('-2+3+cmd|calc')).toBe(`'-2+3+cmd|calc`);
+    expect(csvCell('@SUM(A1)')).toBe(`'@SUM(A1)`);
   });
 
   test('BOM, CRLF, and it reads back with the RFC 4180 parser', () => {

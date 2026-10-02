@@ -59,6 +59,17 @@ checked by the person installing the school PC (14-deployment §2) and ticked in
 | 12 | Evidence photos | Code ✓ | Form hint "ถ่ายเฉพาะพื้นที่ หลีกเลี่ยงการถ่ายใบหน้านักเรียน"; signature photos staff-only; deleted by `retention.run`. |
 | 13 | Offline drafts | Not applicable yet | Offline drafts (07-frontend §5) are not built; the rule applies when they are. PDF footer "เอกสารภายใน ห้ามเผยแพร่" is in place. |
 
+## 2b. Pre-go-live review (2026-10-02, after T40/T41/auto-approve/offline drafts)
+| Check | Result |
+|---|---|
+| Every `/api/v1/*` route authenticates (or is public by design: health, appointment order files with the public rate limit, ปพ.5 with key + CIDR) and every server action calls `requireUser` | pass |
+| `students.full_name` read only by student sync; no page, export, PDF or log carries it (T40 lists codes only, e2e asserts no name on the page) | pass |
+| Guide and manual Markdown renders as elements only; links limited to `https://` and same-site paths | pass |
+| Area-teacher access (T41) reaches only area-teacher components; committee duties never count for them, nor the reverse | pass |
+| CSV exports: formula guard extended to `-` (plain negative numbers stay numbers) besides `=`, `+`, `@`, tab, CR | **fixed** |
+| Offline drafts (IndexedDB) keyed by the signed-in user, so a shared phone never restores another teacher's draft | **fixed** |
+| Production `.env` checked by `scripts/preflight.js` before go-live (14-deployment §2 step 10) | added |
+
 ## 3. Retention summary
 | Data | Kept | Deleted by |
 |---|---|---|
