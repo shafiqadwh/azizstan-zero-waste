@@ -14,6 +14,7 @@ const good = {
   VAPID_PRIVATE_KEY: 'priv',
   VAPID_SUBJECT: 'mailto:it@azizstan.ac.th',
   CLOUDFLARE_TUNNEL_TOKEN: 't',
+  COMPOSE_PROFILES: 'tunnel',
   DATA_DIR: '/data',
 };
 const level = (env: Record<string, string>, key: string) => checkEnv(env).find((f) => f.key === key)?.level;
@@ -53,5 +54,13 @@ describe('go-live preflight (14-deployment)', () => {
   it('push keys come in pairs; none just turns phone notifications off', () => {
     expect(level({ ...good, VAPID_PRIVATE_KEY: '' }, 'VAPID_PRIVATE_KEY')).toBe('error');
     expect(level({ ...good, VAPID_PUBLIC_KEY: '', VAPID_PRIVATE_KEY: '' }, 'VAPID_PUBLIC_KEY')).toBe('warn');
+  });
+
+  it('Cloudflare Tunnel: the token and the "tunnel" compose profile go together', () => {
+    expect(level({ ...good, CLOUDFLARE_TUNNEL_TOKEN: '' }, 'CLOUDFLARE_TUNNEL_TOKEN')).toBe('error');
+    expect(level({ ...good, COMPOSE_PROFILES: '' }, 'COMPOSE_PROFILES')).toBe('warn');
+    expect(level({ ...good, CLOUDFLARE_TUNNEL_TOKEN: '', COMPOSE_PROFILES: '' }, 'CLOUDFLARE_TUNNEL_TOKEN')).toBe(
+      'warn',
+    );
   });
 });

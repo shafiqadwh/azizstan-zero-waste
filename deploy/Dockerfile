@@ -32,7 +32,8 @@ COPY --from=build /src/dist/scripts ./scripts
 COPY --from=build /src/db/migrations ./db/migrations
 COPY --from=build /src/fonts ./fonts
 COPY --from=build /out/node_modules/playwright-core ./node_modules/playwright-core
-RUN useradd -r -u 10001 zw && mkdir -p /data && chown -R zw /data /app
+# A home directory: fontconfig (sharp) and Chromium write their caches there.
+RUN useradd -r -m -d /home/zw -u 10001 zw && mkdir -p /data && chown -R zw /data /app
 USER zw
 EXPOSE 3000
 CMD ["node", "server.js"]

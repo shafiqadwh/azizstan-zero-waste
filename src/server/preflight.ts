@@ -108,8 +108,16 @@ export function checkEnv(env: Env): Finding[] {
     add('warn', 'VAPID_SUBJECT', 'ยังเป็น admin@example.com — ใส่อีเมลของโรงเรียน');
   else add('ok', 'VAPID_PUBLIC_KEY', 'ตั้งแล้ว');
 
-  if (!get('CLOUDFLARE_TUNNEL_TOKEN'))
-    add('warn', 'CLOUDFLARE_TUNNEL_TOKEN', 'ไม่ได้ตั้ง — ภายนอกโรงเรียนจะเข้าเว็บไม่ได้ ถ้าไม่ได้ใช้ช่องทางอื่น');
+  // the cloudflared container only starts with the "tunnel" compose profile (deploy/docker-compose.yml)
+  const tunnelOn = get('COMPOSE_PROFILES')
+    .split(',')
+    .map((p) => p.trim())
+    .includes('tunnel');
+  if (!get('CLOUDFLARE_TUNNEL_TOKEN')) {
+    if (tunnelOn) add('error', 'CLOUDFLARE_TUNNEL_TOKEN', 'เปิด COMPOSE_PROFILES=tunnel แต่ยังไม่ได้ใส่ token');
+    else add('warn', 'CLOUDFLARE_TUNNEL_TOKEN', 'ไม่ได้ตั้ง — ภายนอกโรงเรียนจะเข้าเว็บไม่ได้ ถ้าไม่ได้ใช้ช่องทางอื่น');
+  } else if (!tunnelOn)
+    add('warn', 'COMPOSE_PROFILES', 'ใส่ token แล้วแต่ยังไม่ได้ตั้ง COMPOSE_PROFILES=tunnel — cloudflared จะไม่ทำงาน');
   if (!get('DATA_DIR')) add('error', 'DATA_DIR', 'ยังไม่ได้ตั้ง (รูปและ PDF เก็บที่นี่)');
   if (!get('TEACHER_AUTH_URL')) add('ok', 'TEACHER_AUTH_URL', 'ไม่ได้ตั้ง — ใช้บัญชีในระบบเท่านั้น (T33 รอสเปก API)');
   return out;

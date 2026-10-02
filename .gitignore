@@ -12,3 +12,7 @@ playwright-report/
 !.env.example
 .DS_Store
 /data/
+
+# backups (real data, even encrypted) and the per-install backup key
+deploy/backup/
+deploy/backup.pub

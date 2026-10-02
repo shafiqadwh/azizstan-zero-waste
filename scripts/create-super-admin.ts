@@ -1,7 +1,7 @@
 /**
  * Create the first super admin, or reset an existing one's password (06-auth, 14-deployment step 5).
  *   pnpm user:super-admin [--username superadmin] [--name "ผู้ดูแลระบบ"]
- *   container: docker compose -f deploy/docker-compose.yml run --rm app node scripts/create-super-admin.js
+ *   container: sh deploy/zw.sh run --rm app node scripts/create-super-admin.js
  * The password is read from ZW_SUPER_ADMIN_PASSWORD, or asked twice on the terminal (not echoed).
  */
 import { createInterface } from 'node:readline';
