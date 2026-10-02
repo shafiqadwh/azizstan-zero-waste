@@ -1,0 +1,19 @@
+# Machine-specific settings for a test install on a Synology / Xpenology NAS (docs/nas-test-th.md).
+# Copy to deploy/compose.local.yml (gitignored); sh deploy/zw.sh adds it automatically.
+#
+# - app listens on 127.0.0.1 only: DSM Reverse Proxy (https, the *.shafiq-lap.com certificate) is the only way in,
+#   so nobody on the LAN can reach the plain-http port.
+# - db-data and app-data live in the ENCRYPTED shared folder `zw` (12-security §2 item 11), not in
+#   /volume1/@docker. Create the folders first:
+#     mkdir -p /volume1/zw/data/db /volume1/zw/data/app && chown 10001:10001 /volume1/zw/data/app
+services:
+  app:
+    ports: ["127.0.0.1:3100:3000"]
+
+volumes:
+  db-data:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /volume1/zw/data/db }
+  app-data:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /volume1/zw/data/app }

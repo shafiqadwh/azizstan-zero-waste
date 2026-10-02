@@ -16,3 +16,5 @@ playwright-report/
 # backups (real data, even encrypted) and the per-install backup key
 deploy/backup/
 deploy/backup.pub
+# machine-specific compose override (ports, volume paths); example in deploy/compose.local.example.yml
+deploy/compose.local.yml
