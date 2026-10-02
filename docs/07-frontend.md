@@ -15,7 +15,8 @@
 | `/login` | public | Login | client form |
 | `/account/password` | staff | Change password | client form |
 | `/tasks` | committee | My tasks (tabs: ต้องทำ · รออนุมัติ · เสร็จ · คำขอของฉัน) | RSC + 30 s refresh |
-| `/r/[qrToken]` | public | Room hub (door QR): room, class, building/floor, cleanliness scores; signed-in committee gets "ประเมินห้องนี้" / "ดูผลประเมินของห้องนี้", signed out gets login with `next` back here; IT and facility reporting cards ("เปิดให้บริการเร็ว ๆ นี้") reserve the same QR for those systems; unknown/inactive token → 404 | RSC |
+| `/r/[qrToken]` | public | Room hub (door QR): room, class, building/floor and a menu of the room's programs (only "ประเมินความสะอาด" for now; IT and facility reporting are added to the menu once built); unknown/inactive token → 404 | RSC |
+| `/r/[qrToken]/cleanliness` | public | Cleanliness program of the room: latest round and term scores; signed-in committee gets "ประเมินห้องนี้" / "ดูผลประเมินของห้องนี้", signed out gets login with `next` back here | RSC |
 | `/evaluate/new?round=&component=&target=` | committee | Evaluation form | client (offline-capable) |
 | `/evaluate/[id]` | committee/staff | Evaluation detail / edit / request | RSC + client |
 | `/requests/new?…` | committee | Request form (sheet) | client |
