@@ -13,7 +13,9 @@ import { homeFor } from '@/server/auth/redirects';
 import { getDb } from '@/server/db';
 import { isStaffRole } from '@/server/policies';
 import { getDashboard } from '@/server/services/dashboard.service';
+import { getSetupChecklist } from '@/server/services/setup.service';
 import { RemindButton } from './RemindButton';
+import { SetupChecklist } from './SetupChecklist';
 import { FinalizeRound } from './settings/rounds/[roundId]/FinalizeRound';
 
 export const metadata: Metadata = { title: 'ภาพรวม · AZIZSTAN ZERO WASTE' };
@@ -52,6 +54,7 @@ export default async function AdminHomePage() {
   // layouts and pages render in parallel: repeat the layout's guard so a teacher never reaches the service
   if (!isStaffRole(user.role)) redirect(homeFor(user.role));
   const d = await getDashboard(getDb(), user, new Date());
+  const setup = d.canAct ? await getSetupChecklist(getDb(), user) : null;
   const areaWord = d.term?.areaType === 'zone' ? 'โซน' : 'อาคาร';
   const roundLine = d.term
     ? [
@@ -87,6 +90,7 @@ export default async function AdminHomePage() {
         ) : null}
       </div>
       {!d.canAct ? <ReadOnlyBanner /> : null}
+      {setup ? <SetupChecklist steps={setup} /> : null}
       <InstallPrompt />
       {process.env.VAPID_PUBLIC_KEY ? <PushControls vapidKey={process.env.VAPID_PUBLIC_KEY} /> : null}
 

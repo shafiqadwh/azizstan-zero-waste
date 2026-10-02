@@ -164,6 +164,9 @@ T25 (student sync), T26 (push; in-app inbox first), T27 (ปพ.5 — needed onl
   menu of the room's programs — only "ประเมินความสะอาด" (`/r/[qrToken]/cleanliness`) for now; IT and facility
   issue reporting (separate systems, same QR) get their menu entries when they are built. *Built.*
 
+- **T36** First-day setup checklist on `/admin` (2026-10-02): nine steps in the 14-deployment §2 step 7 order,
+  ticked from the data (`setup.service`), admins only, hidden once complete. *Built.*
+
 ## Phase 3 — Future rule sets
 - **T40** Individual mode end to end (per-student scores UI with codes only, student-level results, ปพ.5 students). *Built:* area-unit components stay group-scored (areas have no students).
 - **T41** Area-teacher deductions (FR-E12) with limits and PDFs. *Built (Q4 answered):* `area_teacher` duty on areas, deductions per class per round with photo + reason, admin approval, PDF "แบบบันทึกการหักคะแนนความสะอาด".
