@@ -101,9 +101,21 @@ export default async function ClassesPage() {
       </section>
 
       <section aria-labelledby="rooms" className="rounded-xl border border-line bg-surface p-5">
-        <h2 id="rooms" className="mb-3 text-[17px] font-bold">
-          อาคารและหมายเลขห้อง
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="rooms" className="text-[17px] font-bold">
+            อาคารและหมายเลขห้อง
+          </h2>
+          {canManage && places.rooms.length > 0 ? (
+            <a
+              href="/api/v1/pdf/room-qr"
+              target="_blank"
+              rel="noopener"
+              className="inline-flex h-11 items-center rounded-md border border-line-strong bg-surface px-4 text-[14px] font-semibold hover:bg-surface-muted"
+            >
+              พิมพ์ QR ทุกห้อง
+            </a>
+          ) : null}
+        </div>
         {buildings.length === 0 ? <p className="mb-3">ยังไม่มีอาคาร · เพิ่มอาคารหรือนำเข้าจาก Excel</p> : null}
         <div className="flex flex-col gap-4">
           {buildings.map((b) => {
@@ -112,6 +124,16 @@ export default async function ClassesPage() {
               <div key={b.id}>
                 <h3 className="font-semibold">
                   {b.name} <span className="text-[13px] font-normal text-ink-muted">· {rooms.length} ห้อง</span>
+                  {canManage && rooms.length > 0 ? (
+                    <a
+                      href={`/api/v1/pdf/room-qr?buildingId=${b.id}`}
+                      target="_blank"
+                      rel="noopener"
+                      className="ml-3 text-[13px] font-semibold text-brand-ink underline"
+                    >
+                      พิมพ์ QR อาคารนี้
+                    </a>
+                  ) : null}
                 </h3>
                 <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                   {rooms.map((r) => (
@@ -119,7 +141,20 @@ export default async function ClassesPage() {
                       key={r.id}
                       className={`rounded-lg px-3 py-2 text-[13px] ${r.currentClassId ? 'border border-line' : 'border border-dashed border-warn-ink text-warn-ink'}`}
                     >
-                      <span className="block text-[16px] font-bold text-ink">{r.roomNumber}</span>
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="text-[16px] font-bold text-ink">{r.roomNumber}</span>
+                        {canManage ? (
+                          <a
+                            href={`/api/v1/pdf/room-qr?roomId=${r.id}`}
+                            target="_blank"
+                            rel="noopener"
+                            aria-label={`พิมพ์ QR ห้อง ${r.roomNumber}`}
+                            className="text-[12px] font-semibold text-brand-ink underline"
+                          >
+                            QR
+                          </a>
+                        ) : null}
+                      </span>
                       {r.currentClassId ? className.get(r.currentClassId) : 'ยังไม่ผูกห้องเรียน'}
                     </li>
                   ))}

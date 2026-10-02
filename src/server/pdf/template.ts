@@ -174,3 +174,65 @@ footer { display: flex; justify-content: space-between; gap: 4mm; border-top: .7
 </footer>
 </div></body></html>`;
 }
+
+export interface RoomQrTile {
+  roomNumber: string;
+  building: string;
+  floor: number | null;
+  classLabel: string | null; // class using the room today
+  qrSvg: string; // inline <svg> of the URL /r/{qrToken}
+}
+
+export const QR_PER_PAGE = 12;
+
+/**
+ * T34 QR sheet: A4 portrait, 12 cards per page (3 × 4), one per room — the QR of `/r/{qrToken}`, the room number
+ * large, building/floor and the class using it. Cut along the dashed lines and stick on the door.
+ */
+export function roomQrSheetHtml(
+  tiles: RoomQrTile[],
+  d: { termLabel: string; generatedAt: string },
+  fontCss: string,
+): string {
+  const pages: RoomQrTile[][] = [];
+  for (let i = 0; i < tiles.length; i += QR_PER_PAGE) pages.push(tiles.slice(i, i + QR_PER_PAGE));
+  if (pages.length === 0) pages.push([]);
+  const card = (t: RoomQrTile) => `<div class="card">
+  <div class="qr">${t.qrSvg}</div>
+  <div class="no">${esc(t.roomNumber)}</div>
+  <div class="where">${esc(t.building)}${t.floor !== null ? ` · ชั้น ${t.floor}` : ''}</div>
+  <div class="cls">${esc(t.classLabel ?? '–')}</div>
+  <div class="hint">สแกนเพื่อใส่คะแนน · AZIZSTAN ZERO WASTE</div>
+</div>`;
+  return `<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><title>QR ห้องเรียน</title>
+<style>
+${fontCss}
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: 'Sarabun', sans-serif; color: #17201B; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; padding: 10mm; display: flex; flex-direction: column; gap: 3mm;
+  page-break-after: always; break-after: page; overflow: hidden; }
+.page:last-child { page-break-after: auto; break-after: auto; }
+.head { display: flex; justify-content: space-between; font-size: 9pt; color: #3D4641; }
+.grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr)); }
+.card { border: .6pt dashed #9AA49E; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 2mm; text-align: center; min-height: 0; overflow: hidden; }
+.qr { width: 36mm; height: 36mm; flex: none; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.no { font-size: 22pt; font-weight: 700; line-height: 1.1; margin-top: 1.5mm; }
+.where { font-size: 10pt; color: #3D4641; line-height: 1.3; }
+.cls { font-size: 11pt; line-height: 1.3; font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hint { font-size: 7.5pt; color: #6B746E; margin-top: .5mm; }
+</style></head>
+<body>${pages
+    .map(
+      (p, i) => `<div class="page" data-pdf-page>
+<div class="head"><span>QR ประจำห้อง · ${esc(d.termLabel)}</span><span>หน้า ${i + 1}/${pages.length} · ${esc(d.generatedAt)}</span></div>
+<div class="grid">${p.map(card).join('')}</div>
+</div>`,
+    )
+    .join('')}</body></html>`;
+}
