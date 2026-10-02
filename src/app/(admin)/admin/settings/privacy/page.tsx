@@ -8,6 +8,7 @@ import { homeFor } from '@/server/auth/redirects';
 import { getDb } from '@/server/db';
 import { isStaffRole } from '@/server/policies';
 import { getRetentionOverview, type RetentionTermView } from '@/server/services/retention.service';
+import { DISK_ALERT_RATIO, formatGb, formatPercent } from '@/server/services/disk.service';
 
 export const metadata: Metadata = { title: 'ข้อมูลและความเป็นส่วนตัว · AZIZSTAN ZERO WASTE' };
 
@@ -94,6 +95,26 @@ export default async function PrivacyPage() {
         <p className="mt-1 text-[13px] text-ink-muted">
           สำรองทุกคืนเวลา 01:30 น. (ฐานข้อมูล รูปหลักฐาน และ PDF) เข้ารหัสแล้วคัดลอกออกนอกเครื่อง ·
           ขั้นตอนกู้คืนอยู่ในเอกสาร 14-deployment §5
+        </p>
+      </Card>
+
+      <Card title="พื้นที่ดิสก์" id="disk-title">
+        {o.disk ? (
+          <p
+            className={`text-[14px] ${o.disk.usedRatio >= DISK_ALERT_RATIO ? 'font-semibold text-danger-ink' : ''}`}
+            data-testid="disk-usage"
+          >
+            ใช้ไป {formatPercent(o.disk.usedRatio)} · เหลือ {formatGb(o.disk.freeBytes)} จาก{' '}
+            {formatGb(o.disk.totalBytes)}
+          </p>
+        ) : (
+          <p className="text-[14px]" data-testid="disk-usage">
+            ยังไม่มีผลตรวจ
+          </p>
+        )}
+        <p className="mt-1 text-[13px] text-ink-muted">
+          ระบบตรวจทุกชั่วโมง{o.disk ? ` (ล่าสุด ${formatThaiDateTime(new Date(o.disk.at))})` : ''} · ใช้เกิน{' '}
+          {formatPercent(DISK_ALERT_RATIO)} จะแจ้งเตือนแอดมินวันละครั้ง ถ้าดิสก์เต็ม ระบบจะรับรูปและสร้าง PDF ไม่ได้
         </p>
       </Card>
 

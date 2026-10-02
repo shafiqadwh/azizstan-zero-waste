@@ -4,6 +4,7 @@
  */
 import { PgBoss } from 'pg-boss';
 import { createDb } from '../db/client.ts';
+import { registerDiskJobs } from '../src/server/jobs/disk.job.ts';
 import { registerEvidenceJobs } from '../src/server/jobs/evidence.job.ts';
 import { registerPdfJobs } from '../src/server/jobs/pdf.job.ts';
 import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_QUEUE, heartbeatJob } from '../src/server/jobs/heartbeat.job.ts';
@@ -57,6 +58,8 @@ async function main() {
   await registerEvidenceJobs(boss, db);
   // Term data one year after closing, expired students, old audit rows, sessions (BR-D1..D4)
   await registerRetentionJobs(boss, db);
+  // Disk space under DATA_DIR every hour; admins are told at 80 % used (14-deployment §4)
+  await registerDiskJobs(boss, db);
 
   log.info('worker started');
 

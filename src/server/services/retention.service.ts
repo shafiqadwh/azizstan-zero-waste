@@ -21,6 +21,7 @@ import { dataDir, removeDataFile, resolveData } from '../storage.ts';
 import { withTransaction } from '../transaction.ts';
 import { zipStream, type ZipEntry } from '../zip.ts';
 import { writeAudit } from './audit.service.ts';
+import { readLastDisk } from './disk.service.ts';
 import { send } from './notify.service.ts';
 
 export const RETENTION_RUN_QUEUE = 'retention.run';
@@ -199,6 +200,7 @@ export async function getRetentionOverview(db: Db, actor: SessionUser, now: Date
     retentionDays: RETENTION_DAYS,
     warnDays: WARN_DAYS,
     lastBackupAt: backup?.at ? new Date(backup.at) : null,
+    disk: await readLastDisk(db),
   };
 }
 

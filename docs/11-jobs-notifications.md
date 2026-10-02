@@ -13,6 +13,7 @@
 | `retention.warn` | cron `0 8 * * *` | BR-D2 | 1 |
 | `pdf.render` | on approve / finalize / applied request | 09-pdf | 3 (exp backoff) |
 | `evidence.gc` | cron `0 4 * * *` | BR-V4 | 1 |
+| `disk.check` | cron `15 * * * *` | measures the filesystem under `DATA_DIR`; stores `disk.last` (shown on /admin/settings/privacy); at ≥ 80 % used sends `disk_space` once per Bangkok day | 0 |
 | `request.expire` | on finalize | BR-Q4 | 1 |
 | `push.send` | fan-out from `notify.service` | web-push; delete subscription on 404/410 | 2 |
 | `backup.db` | cron `30 1 * * *` | see 14-deployment §5 (script runs in the `db` container instead if simpler) | 1 |
@@ -40,6 +41,7 @@ writes an audit row with `actor_id = null` when it changes data.
 | `request_decided` | requester | คำขอ{อนุมัติแล้ว/ถูกปฏิเสธ} | {target} {note} | /tasks |
 | `round_complete` | admins, executives | ประเมินครบทุกรายการแล้ว | รอบที่ {n} พร้อมปิดรอบ | /admin |
 | `sync_problem` | admins | Sync รายชื่อ{ล้มเหลว/หยุดอัตโนมัติ} | {reason} | /admin/settings/students |
+| `disk_space` | super admin, admins | พื้นที่ดิสก์ใกล้เต็ม (ใช้ไป {p}%) | เหลือ {free} จาก {total} … | /admin/settings/privacy |
 | `retention_warning` | super admin, admins | ข้อมูลภาคเรียน {term} จะถูกลบใน 30 วัน | ดาวน์โหลดข้อมูลเก็บถาวรได้ก่อนวันที่ {date} | /admin/settings/privacy |
 
 Quiet hours: no push between 21:00 and 06:00 Bangkok time (held and sent at 06:00; inbox unaffected).
