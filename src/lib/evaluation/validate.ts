@@ -18,6 +18,9 @@ export const EVAL_MSG = {
   signatureRequired: 'กรุณาถ่ายรูปใบลงชื่อนักเรียน',
   signatureNotUsed: 'ส่วนคะแนนนี้ไม่ใช้ใบลงชื่อนักเรียน',
   commentMax: (max: number) => `ข้อติชมยาวเกิน ${max} ตัวอักษร`,
+  deductPositive: 'คะแนนที่หักต้องมากกว่า 0',
+  deductRequired: 'กรุณาเลือกคะแนนที่หัก',
+  deductReason: 'กรุณาระบุเหตุผลที่หักคะแนนอย่างน้อย 5 ตัวอักษร',
 } as const;
 
 export interface ContentRules {
@@ -29,6 +32,8 @@ export interface ContentRules {
   commentMax: number;
   /** Individual mode: the class's roster snapshot for the round; null in group mode. */
   rosterIds: readonly string[] | null;
+  /** T41 deduction (FR-E12): more than 0 and a reason (the comment) of at least 5 characters */
+  deduction?: boolean;
 }
 
 export interface Content {
@@ -69,8 +74,10 @@ export function checkContent(content: Content, rules: ContentRules): ContentErro
       if (err) return { field: 'studentScores', message: err };
     }
   } else {
+    if (rules.deduction && content.score === null) return { field: 'score', message: EVAL_MSG.deductRequired };
     const err = scoreError(content.score, rules);
     if (err) return { field: 'score', message: err };
+    if (rules.deduction && content.score === 0) return { field: 'score', message: EVAL_MSG.deductPositive };
   }
   if (content.siteCount < rules.photoMin)
     return { field: 'sitePhotos', message: EVAL_MSG.photosMin(rules.photoMin - content.siteCount) };
@@ -79,6 +86,8 @@ export function checkContent(content: Content, rules: ContentRules): ContentErro
     return { field: 'signature', message: EVAL_MSG.signatureRequired };
   if (!rules.requiresSignature && content.hasSignature)
     return { field: 'signature', message: EVAL_MSG.signatureNotUsed };
+  if (rules.deduction && [...content.comment.trim()].length < 5)
+    return { field: 'comment', message: EVAL_MSG.deductReason };
   if ([...content.comment].length > rules.commentMax)
     return { field: 'comment', message: EVAL_MSG.commentMax(rules.commentMax) };
   return null;

@@ -94,7 +94,7 @@ async function loadContext(tx: Tx, roundId: string, componentId: string): Promis
   if (!round) throw notFound();
   const term = (await places.findTerm(tx, round.termId))!;
   const component = (await termsRepo.listComponents(tx, term.id)).find((c) => c.id === componentId);
-  if (!component || !component.enabled || component.source !== 'committee')
+  if (!component || !component.enabled)
     throw new AppError('VALIDATION', { field: 'componentId', message: EVALUATION_MSG.componentNotUsed });
   const override = (await termsRepo.listRoundMax(tx, [round.id])).find((m) => m.componentId === component.id);
   return {
@@ -102,8 +102,8 @@ async function loadContext(tx: Tx, roundId: string, componentId: string): Promis
     term,
     component,
     max: parseScore(override?.maxValue ?? component.maxValue),
-    // Individual mode scores students of a class; areas have no students (FR-R6)
-    individual: component.unit === 'class' && term.roomMode === 'individual',
+    // Individual mode scores students of a class; areas have no students (FR-R6); deductions are per class (T41)
+    individual: component.unit === 'class' && component.kind === 'score' && term.roomMode === 'individual',
   };
 }
 
@@ -138,11 +138,13 @@ async function validateContent(
   const rules: ContentRules = {
     max: ctx.max,
     step: scoreStepFor(ctx.term),
-    photoMin: ctx.term.photoMin,
+    // FR-E12 / Q4 (T41): a deduction needs at least one photo, a reason, and no signature sheet
+    photoMin: ctx.component.kind === 'deduct' ? 1 : ctx.term.photoMin,
     photoMax: ctx.term.photoMax,
-    requiresSignature: ctx.component.requiresSignature,
+    requiresSignature: ctx.component.kind === 'deduct' ? false : ctx.component.requiresSignature,
     commentMax: ctx.term.commentMax,
     rosterIds: ctx.individual ? await repo.listRosterStudentIds(tx, ctx.round.id, t.id) : null,
+    deduction: ctx.component.kind === 'deduct',
   };
   const error = checkContent(
     {
@@ -246,12 +248,16 @@ export async function submitEvaluation(
       if (ctx.component.unit !== t.type)
         throw new AppError('VALIDATION', { field: 'target', message: EVALUATION_MSG.wrongTarget });
 
-      // BR-P1 / BR-P4: only a committee duty on this target counts, whatever the role
-      const hasDuty = await dutiesRepo.hasCommitteeDutyFor(
+      // BR-P1 / BR-P4: only a duty matching the component's source counts, whatever the role (T41: area teachers)
+      const hasDuty = await dutiesRepo.hasScoringDutyFor(
         tx,
-        ctx.term.id,
-        actor.id,
-        t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+        {
+          termId: ctx.term.id,
+          userId: actor.id,
+          source: ctx.component.source,
+          target: t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+          roundId: ctx.round.id,
+        },
         now,
       );
       assertCan(actor, 'evaluation.create', { hasDuty });
@@ -682,11 +688,15 @@ export async function applyRequestedChange(
     if (to.type === 'class' && !(await places.listTermClassIds(tx, ctx.term.id)).includes(to.id))
       throw new AppError('VALIDATION', { field: 'target', message: EVALUATION_MSG.targetNotInTerm });
     // the owner must be assigned to the new target too (§6 move_target)
-    const ownerHasDuty = await dutiesRepo.hasCommitteeDutyFor(
+    const ownerHasDuty = await dutiesRepo.hasScoringDutyFor(
       tx,
-      ctx.term.id,
-      e.ownerId,
-      to.type === 'class' ? { classId: to.id } : { areaId: to.id },
+      {
+        termId: ctx.term.id,
+        userId: e.ownerId,
+        source: ctx.component.source,
+        target: to.type === 'class' ? { classId: to.id } : { areaId: to.id },
+        roundId: e.roundId,
+      },
       now,
     );
     if (!ownerHasDuty) throw new AppError('VALIDATION', { field: 'target', message: EVALUATION_MSG.ownerNotAssigned });

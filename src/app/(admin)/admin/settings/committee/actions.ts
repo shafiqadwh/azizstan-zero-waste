@@ -25,7 +25,8 @@ const done = async (prev: MessageState | null, fn: () => Promise<string>): Promi
 
 export async function assignDutyAction(prev: MessageState | null, form: FormData) {
   return done(prev, async () => {
-    const duty = str(form, 'duty') === 'approver' ? 'approver' : 'committee';
+    const raw = str(form, 'duty');
+    const duty = raw === 'approver' || raw === 'area_teacher' ? raw : 'committee';
     // target = "class:<id>" | "area:<id>" | "" (approver of every target)
     const [targetType, targetId] = str(form, 'target').split(':');
     const isFreelance = duty === 'committee' && form.get('isFreelance') === 'on';

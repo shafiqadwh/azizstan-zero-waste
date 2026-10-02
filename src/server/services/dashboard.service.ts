@@ -58,6 +58,8 @@ export interface ResultCard {
   max: string;
   /** individual mode (T40): every student's score by code — never names (FR-S1); [] in group mode */
   students: { code: string; score: string }[];
+  /** T41: an area teacher's deduction — shown as "−n" */
+  deduction: boolean;
   photos: { id: string; kind: 'site' | 'signature'; thumb: string }[];
   comment: string;
   /** BR-E6: false when another admin is this target's approver (or for executives) */
@@ -127,6 +129,7 @@ export async function listWaitingResults(db: Db, actor: SessionUser, now: Date):
             }
           : { roomNumber: null, label: areas.find((a) => a.id === e.targetAreaId)?.name ?? '–' },
       componentLabel: component.label,
+      deduction: component.kind === 'deduct',
       ownerName,
       submittedAt: e.lastEditedAt,
       score:

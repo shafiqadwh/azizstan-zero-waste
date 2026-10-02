@@ -34,7 +34,7 @@ import {
   updateEvaluation,
 } from './evaluation.service.ts';
 import { linkClassRoom, setTermClasses, upsertArea, upsertClass, upsertPhysicalRoom } from './place.service.ts';
-import { getEvaluationDetail, getEvaluationForm } from './task.service.ts';
+import { getEvaluationDetail, getEvaluationForm, getMyTasks } from './task.service.ts';
 import { activateTerm, createTerm } from './term.service.ts';
 import { createUser } from './user.service.ts';
 
@@ -496,6 +496,100 @@ describe('individual mode (FR-R6)', () => {
       expect(JSON.stringify(detail)).not.toContain('ทดสอบ');
     } finally {
       await db.update(terms).set({ roomMode: 'group' }).where(eq(terms.id, termId));
+    }
+  });
+});
+
+describe('area-teacher deductions (T41, FR-E12, Q4)', () => {
+  test('only the area teacher of the class’s area, once per round, > 0, a reason and a photo', async () => {
+    const u = await createUser(db, root, { username: 't.area', displayName: 'ครูอาคาร', role: 'teacher' }, meta, now);
+    const areaTeacher = await signIn('t.area', u.tempPassword!);
+    await expect(
+      assignDuty(
+        db,
+        admin,
+        { termId, userId: areaTeacher.id, duty: 'area_teacher', targetType: 'class', targetId: cls.Amanah! },
+        meta,
+        now,
+      ),
+    ).rejects.toMatchObject({ message: 'ครูผู้รับผิดชอบพื้นที่ต้องเลือกอาคารหรือโซน' });
+    await assignDuty(
+      db,
+      admin,
+      { termId, userId: areaTeacher.id, duty: 'area_teacher', targetType: 'area', targetId: b1 },
+      meta,
+      now,
+    );
+    const deductC = newId();
+    await db.insert(scoreComponents).values({
+      id: deductC,
+      termId,
+      key: 'area_deduct',
+      label: 'หักคะแนนจากครูผู้รับผิดชอบ',
+      unit: 'class',
+      source: 'area_teacher',
+      kind: 'deduct',
+      maxValue: '3.000',
+      enabled: true,
+      requiresSignature: false,
+      sortOrder: 9,
+    });
+    const deduct = async (user: SessionUser, classKey: string, extra: Record<string, unknown> = {}) =>
+      submitEvaluation(
+        db,
+        user,
+        {
+          roundId,
+          componentId: deductC,
+          target: { type: 'class', id: cls[classKey]! },
+          score: '2',
+          siteEvidenceIds: await photos(user, 1),
+          signatureEvidenceId: null,
+          comment: 'ขยะล้นถังหน้าห้อง',
+          ...extra,
+        },
+        meta,
+        now,
+      );
+    try {
+      // a committee duty on the class is not an area-teacher duty
+      await expect(deduct(t1, 'Amanah')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      // Berdikari is not frozen into อาคาร 1 for this round
+      await expect(deduct(areaTeacher, 'Berdikari')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(deduct(areaTeacher, 'Amanah', { score: '0' })).rejects.toMatchObject({
+        field: 'score',
+        message: 'คะแนนที่หักต้องมากกว่า 0',
+      });
+      await expect(deduct(areaTeacher, 'Amanah', { score: '3.5' })).rejects.toMatchObject({ field: 'score' });
+      await expect(deduct(areaTeacher, 'Amanah', { siteEvidenceIds: [] })).rejects.toMatchObject({
+        field: 'sitePhotos',
+        message: 'ต้องถ่ายรูปอีก 1 รูป',
+      });
+      await expect(deduct(areaTeacher, 'Amanah', { comment: 'ขยะ' })).rejects.toMatchObject({
+        field: 'comment',
+        message: 'กรุณาระบุเหตุผลที่หักคะแนนอย่างน้อย 5 ตัวอักษร',
+      });
+
+      const tasks = await getMyTasks(db, areaTeacher, now);
+      const mine = tasks.items.filter((i) => i.componentId === deductC);
+      expect(mine.map((i) => [i.target.id, i.optional, i.status])).toEqual([[cls.Amanah, true, 'not_evaluated']]);
+      const form = await getEvaluationForm(
+        db,
+        areaTeacher,
+        { roundId, componentId: deductC, target: { type: 'class', id: cls.Amanah! } },
+        now,
+      );
+      expect(form).toMatchObject({ deduction: true, photoMin: 1, requiresSignature: false, individual: false });
+
+      const e = await deduct(areaTeacher, 'Amanah');
+      expect(e).toMatchObject({ status: 'submitted', score: '2.000' });
+      // once per round (BR-P3)
+      await expect(deduct(areaTeacher, 'Amanah')).rejects.toMatchObject({ code: 'ALREADY_EVALUATED' });
+      // the area teacher sees their deduction, a committee member of the class does not get it as their own
+      expect((await getEvaluationDetail(db, areaTeacher, e.id, now)).deduction).toBe(true);
+      await approveEvaluation(db, admin, { id: e.id, expectedVersion: e.version }, meta, now);
+    } finally {
+      await db.update(scoreComponents).set({ enabled: false }).where(eq(scoreComponents.id, deductC));
     }
   });
 });

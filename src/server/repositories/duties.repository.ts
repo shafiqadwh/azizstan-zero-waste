@@ -1,5 +1,5 @@
-import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import { duties, terms, users } from '../../../db/schema.ts';
+import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { duties, roundClassAreas, rounds, scoreComponents, terms, users } from '../../../db/schema.ts';
 import type { DbOrTx } from '../transaction.ts';
 
 /** Any non-expired duty in the active term (gate for the committee area, 06-auth §4 rule 3). */
@@ -100,4 +100,94 @@ export async function hasCommitteeDutyFor(
       ),
     );
   return (row?.n ?? 0) > 0;
+}
+
+/**
+ * BR-P1 for any component source (T41). `committee` → a committee duty on exactly this target. `area_teacher`
+ * (FR-E12) → an area_teacher duty on the area itself, or, for a class, on the area the class belonged to in
+ * `roundId` (frozen at round open, `round_class_areas`) — in any round of the term when `roundId` is null.
+ */
+export async function hasScoringDutyFor(
+  db: DbOrTx,
+  q: {
+    termId: string;
+    userId: string;
+    source: 'committee' | 'area_teacher';
+    target: { classId?: string | null; areaId?: string | null };
+    roundId?: string | null;
+  },
+  now: Date,
+): Promise<boolean> {
+  if (q.source === 'committee') return hasCommitteeDutyFor(db, q.termId, q.userId, q.target, now);
+  let areaIds: string[];
+  if (q.target.areaId) areaIds = [q.target.areaId];
+  else {
+    const rows = await db
+      .selectDistinct({ areaId: roundClassAreas.areaId })
+      .from(roundClassAreas)
+      .innerJoin(rounds, eq(rounds.id, roundClassAreas.roundId))
+      .where(
+        and(
+          eq(roundClassAreas.classId, q.target.classId!),
+          q.roundId ? eq(roundClassAreas.roundId, q.roundId) : eq(rounds.termId, q.termId),
+        ),
+      );
+    areaIds = rows.map((r) => r.areaId);
+  }
+  if (areaIds.length === 0) return false;
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(duties)
+    .where(
+      and(
+        eq(duties.termId, q.termId),
+        eq(duties.userId, q.userId),
+        eq(duties.duty, 'area_teacher'),
+        inArray(duties.targetAreaId, areaIds),
+        dutyInForce(now),
+      ),
+    );
+  return (row?.n ?? 0) > 0;
+}
+
+/** Either kind of scoring duty on the target (uploads and photo access, where no component is known yet). */
+export async function hasAnyScoringDutyFor(
+  db: DbOrTx,
+  termId: string,
+  userId: string,
+  target: { classId?: string | null; areaId?: string | null },
+  now: Date,
+): Promise<boolean> {
+  return (
+    (await hasCommitteeDutyFor(db, termId, userId, target, now)) ||
+    (await hasScoringDutyFor(db, { termId, userId, source: 'area_teacher', target }, now))
+  );
+}
+
+/** The user's area_teacher duties in force (T41 task list). */
+export const listMyAreaTeacherDuties = (db: DbOrTx, termId: string, userId: string, now: Date) =>
+  db
+    .select()
+    .from(duties)
+    .where(
+      and(eq(duties.termId, termId), eq(duties.userId, userId), eq(duties.duty, 'area_teacher'), dutyInForce(now)),
+    );
+
+/** {@link hasScoringDutyFor} for a component known by id (evaluation detail, requests, PDFs, T41). */
+export async function hasDutyForComponent(
+  db: DbOrTx,
+  q: {
+    termId: string;
+    userId: string;
+    componentId: string;
+    target: { classId?: string | null; areaId?: string | null };
+    roundId: string;
+  },
+  now: Date,
+): Promise<boolean> {
+  const [c] = await db
+    .select({ source: scoreComponents.source })
+    .from(scoreComponents)
+    .where(eq(scoreComponents.id, q.componentId));
+  return hasScoringDutyFor(db, { ...q, source: c?.source ?? 'committee' }, now);
 }

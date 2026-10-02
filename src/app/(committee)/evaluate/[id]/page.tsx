@@ -78,11 +78,15 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
       <section className="rounded-[18px] border border-line bg-surface p-4">
         <h2 className="text-[16px] font-bold">{d.componentLabel}</h2>
         <p className="mt-1 text-[40px] leading-tight font-bold" data-testid="detail-score">
-          {d.score === null ? '–' : show(d.score)}
-          <span className="text-[17px] font-normal text-ink-muted"> / {trimScore(toDisplay(d.max))}</span>
+          {d.score === null ? '–' : `${d.deduction ? '−' : ''}${show(d.score)}`}
+          <span className="text-[17px] font-normal text-ink-muted">
+            {d.deduction ? ` หักได้สูงสุด ${trimScore(toDisplay(d.max))}` : ` / ${trimScore(toDisplay(d.max))}`}
+          </span>
         </p>
         {d.studentScores.length > 0 ? <p className="text-[14px] text-ink-muted">เฉลี่ยห้องจากคะแนนรายคน</p> : null}
-        <p className="text-[14px] text-ink-muted">ประเมินโดย {d.ownerName}</p>
+        <p className="text-[14px] text-ink-muted">
+          {d.deduction ? 'บันทึกโดย' : 'ประเมินโดย'} {d.ownerName}
+        </p>
         {d.studentScores.length > 0 ? (
           <details className="mt-3">
             <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-brand-ink">
@@ -149,7 +153,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
 
       {d.comment ? (
         <section className="rounded-[18px] border border-line bg-surface p-4">
-          <h2 className="mb-1 text-[16px] font-bold">คำแนะนำและข้อติชม</h2>
+          <h2 className="mb-1 text-[16px] font-bold">{d.deduction ? 'เหตุผลที่หักคะแนน' : 'คำแนะนำและข้อติชม'}</h2>
           <p className="text-[15px] whitespace-pre-wrap">{d.comment}</p>
         </section>
       ) : null}

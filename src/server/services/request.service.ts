@@ -149,11 +149,15 @@ export async function createRequest(
         const t = input.target;
         const round = await termsRepo.findRound(tx, input.roundId);
         if (!round) throw notFound();
-        const hasDuty = await dutiesRepo.hasCommitteeDutyFor(
+        const hasDuty = await dutiesRepo.hasDutyForComponent(
           tx,
-          round.termId,
-          actor.id,
-          t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+          {
+            termId: round.termId,
+            userId: actor.id,
+            componentId: input.componentId,
+            target: t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+            roundId: round.id,
+          },
           now,
         );
         assertCan(actor, 'request.create', { hasDuty });
@@ -204,11 +208,15 @@ export async function createRequest(
         const isOwner = e.ownerId === actor.id;
         const hasDuty =
           isOwner ||
-          (await dutiesRepo.hasCommitteeDutyFor(
+          (await dutiesRepo.hasDutyForComponent(
             tx,
-            round.termId,
-            actor.id,
-            t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+            {
+              termId: round.termId,
+              userId: actor.id,
+              componentId: e.componentId,
+              target: t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+              roundId: e.roundId,
+            },
             now,
           ));
         assertCan(actor, 'request.create', { hasDuty });

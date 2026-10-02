@@ -43,6 +43,8 @@ export interface TaskItem {
   ownerName: string | null;
   mine: boolean;
   href: string;
+  /** T41 deduction (FR-E12): done only when the area teacher finds a problem, never "missing" */
+  optional: boolean;
 }
 
 export interface RoundView {
@@ -163,33 +165,56 @@ export async function getMyTasks(db: Db, actor: SessionUser, now: Date): Promise
         }),
     ).values(),
   ];
-  const components = componentsInUse(await termsRepo.listComponents(db, term.id)).filter(
-    (c) => c.source === 'committee',
-  );
-  const views = await describeTargets(db, round.status === 'scheduled' ? null : round.id, targets, now);
-  const live = await repo.listLiveEvaluations(db, round.id);
-  const items: TaskItem[] = [];
-  for (const t of targets) {
-    for (const c of components.filter((x) => x.unit === t.type)) {
-      const found = live.find(
-        (l) =>
-          l.evaluation.componentId === c.id &&
-          (t.type === 'class' ? l.evaluation.targetClassId === t.id : l.evaluation.targetAreaId === t.id),
-      );
-      items.push({
-        key: `${c.id}:${targetRef(t)}`,
-        roundId: round.id,
-        componentId: c.id,
-        componentLabel: c.label,
-        target: views.get(targetRef(t))!,
-        status: found ? (found.evaluation.status as TaskStatus) : 'not_evaluated',
-        evaluationId: found?.evaluation.id ?? null,
-        ownerName: found?.ownerName ?? null,
-        mine: found ? found.evaluation.ownerId === actor.id : false,
-        href: found ? `/evaluate/${found.evaluation.id}` : newEvaluationHref(round.id, c.id, t),
-      });
+  const allComponents = componentsInUse(await termsRepo.listComponents(db, term.id));
+  const components = allComponents.filter((c) => c.source === 'committee');
+  // T41: an area teacher's targets are their areas and the classes frozen into them for this round
+  const teacherComponents = allComponents.filter((c) => c.source === 'area_teacher');
+  const teacherTargets: { type: 'class' | 'area'; id: string }[] = [];
+  if (teacherComponents.length > 0 && round.status !== 'scheduled') {
+    const areaIds = new Set(
+      (await dutiesRepo.listMyAreaTeacherDuties(db, term.id, actor.id, now)).map((d) => d.targetAreaId!),
+    );
+    if (areaIds.size > 0) {
+      for (const a of areaIds) teacherTargets.push({ type: 'area', id: a });
+      for (const r of await roundsRepo.listRoundClassAreas(db, round.id))
+        if (areaIds.has(r.areaId) && selected.has(r.classId)) teacherTargets.push({ type: 'class', id: r.classId });
     }
   }
+  const views = await describeTargets(
+    db,
+    round.status === 'scheduled' ? null : round.id,
+    [...targets, ...teacherTargets],
+    now,
+  );
+  const live = await repo.listLiveEvaluations(db, round.id);
+  const items: TaskItem[] = [];
+  const work: [{ type: 'class' | 'area'; id: string }[], typeof components][] = [
+    [targets, components],
+    [teacherTargets, teacherComponents],
+  ];
+  for (const [list, comps] of work)
+    for (const t of list) {
+      for (const c of comps.filter((x) => x.unit === t.type)) {
+        const found = live.find(
+          (l) =>
+            l.evaluation.componentId === c.id &&
+            (t.type === 'class' ? l.evaluation.targetClassId === t.id : l.evaluation.targetAreaId === t.id),
+        );
+        items.push({
+          key: `${c.id}:${targetRef(t)}`,
+          roundId: round.id,
+          componentId: c.id,
+          componentLabel: c.label,
+          target: views.get(targetRef(t))!,
+          status: found ? (found.evaluation.status as TaskStatus) : 'not_evaluated',
+          evaluationId: found?.evaluation.id ?? null,
+          ownerName: found?.ownerName ?? null,
+          mine: found ? found.evaluation.ownerId === actor.id : false,
+          href: found ? `/evaluate/${found.evaluation.id}` : newEvaluationHref(round.id, c.id, t),
+          optional: c.kind === 'deduct',
+        });
+      }
+    }
   return {
     termLabel,
     round: { ...round, entryOpen: entryOpen(round, now) },
@@ -213,6 +238,8 @@ export interface EvaluationForm {
   commentMax: number;
   selfEditHours: number;
   individual: boolean;
+  /** T41 (FR-E12): an area teacher's deduction — the score is the points taken off, the comment is the reason */
+  deduction: boolean;
   /** Individual mode (T40): the class's snapshot students for the round, codes only (FR-S1); [] otherwise. */
   students: { id: string; code: string }[];
   /** Entry is open for this user: the round is open, or they hold a late-entry grant (BR-P2). */
@@ -235,13 +262,16 @@ export async function getEvaluationForm(
   if (!round) throw notFound();
   const term = (await places.findTerm(db, round.termId))!;
   const component = (await termsRepo.listComponents(db, term.id)).find((c) => c.id === q.componentId);
-  if (!component || !component.enabled || component.source !== 'committee' || component.unit !== q.target.type)
-    throw notFound();
-  const hasDuty = await dutiesRepo.hasCommitteeDutyFor(
+  if (!component || !component.enabled || component.unit !== q.target.type) throw notFound();
+  const hasDuty = await dutiesRepo.hasScoringDutyFor(
     db,
-    term.id,
-    actor.id,
-    q.target.type === 'class' ? { classId: q.target.id } : { areaId: q.target.id },
+    {
+      termId: term.id,
+      userId: actor.id,
+      source: component.source,
+      target: q.target.type === 'class' ? { classId: q.target.id } : { areaId: q.target.id },
+      roundId: round.id,
+    },
     now,
   );
   assertCan(actor, 'evaluation.create', { hasDuty });
@@ -251,7 +281,8 @@ export async function getEvaluationForm(
   )!;
   const live = await repo.findLiveEvaluation(db, round.id, component.id, q.target);
   const open = entryOpen(round, now);
-  const individual = component.unit === 'class' && term.roomMode === 'individual';
+  const individual = component.unit === 'class' && component.kind === 'score' && term.roomMode === 'individual';
+  const deduction = component.kind === 'deduct';
   const granted =
     !open &&
     round.status !== 'scheduled' &&
@@ -269,9 +300,10 @@ export async function getEvaluationForm(
     max: parseScore(override?.maxValue ?? component.maxValue),
     step: scoreStepFor(term),
     scoreFormat: term.scoreFormat,
-    photoMin: term.photoMin,
+    photoMin: deduction ? 1 : term.photoMin,
     photoMax: term.photoMax,
-    requiresSignature: component.requiresSignature,
+    requiresSignature: deduction ? false : component.requiresSignature,
+    deduction,
     commentMax: term.commentMax,
     selfEditHours: term.selfEditHours,
     individual,
@@ -305,6 +337,8 @@ export interface EvaluationDetail {
   roundNo: number;
   componentId: string;
   componentLabel: string;
+  /** T41: an area teacher's deduction (score = points taken off, comment = reason) */
+  deduction: boolean;
   target: TargetView;
   status: Exclude<TaskStatus, 'not_evaluated'> | 'void';
   /** the score; in individual mode the class mean of the student scores (BR-S2) */
@@ -351,11 +385,15 @@ export async function getEvaluationDetail(
   const isOwner = e.ownerId === actor.id;
   const ownTarget =
     isOwner ||
-    (await dutiesRepo.hasCommitteeDutyFor(
+    (await dutiesRepo.hasDutyForComponent(
       db,
-      round.termId,
-      actor.id,
-      t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+      {
+        termId: round.termId,
+        userId: actor.id,
+        componentId: e.componentId,
+        target: t.type === 'class' ? { classId: t.id } : { areaId: t.id },
+        roundId: round.id,
+      },
       now,
     ));
   if (!can(actor, 'staff.read', { ownTarget })) throw new AppError('FORBIDDEN');
@@ -403,6 +441,7 @@ export async function getEvaluationDetail(
     roundNo: round.roundNo,
     componentId: component.id,
     componentLabel: component.label,
+    deduction: component.kind === 'deduct',
     target: { ...view.get(targetRef(t))!, roomNumber: e.roomNumberAtEval ?? view.get(targetRef(t))!.roomNumber },
     status: e.status,
     score: e.score ?? (classMean === null ? null : toDb(classMean)),

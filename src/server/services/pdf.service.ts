@@ -106,6 +106,7 @@ export async function preparePdf(db: Db, evaluationId: string, now: Date, root =
       approverName: approver?.displayName ?? null,
       score: e.score !== null ? show(e.score) : students.length ? showTh(mean(students.map((x) => x.th))!) : '–',
       students: students.map((x) => ({ code: x.code, score: showTh(x.th) })),
+      deduction: component.kind === 'deduct',
       max: show(override?.maxValue ?? component.maxValue),
       comment: e.comment ?? '',
       sitePhotos: site,
@@ -213,11 +214,15 @@ export async function readPdf(
     const round = (await termsRepo.findRound(db, e.roundId))!;
     const ownTarget =
       e.ownerId === actor.id ||
-      (await dutiesRepo.hasCommitteeDutyFor(
+      (await dutiesRepo.hasDutyForComponent(
         db,
-        round.termId,
-        actor.id,
-        { classId: e.targetClassId, areaId: e.targetAreaId },
+        {
+          termId: round.termId,
+          userId: actor.id,
+          componentId: e.componentId,
+          target: { classId: e.targetClassId, areaId: e.targetAreaId },
+          roundId: e.roundId,
+        },
         now,
       ));
     if (!can(actor, 'staff.read', { ownTarget })) throw new AppError('FORBIDDEN');

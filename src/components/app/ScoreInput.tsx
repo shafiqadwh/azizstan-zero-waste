@@ -19,6 +19,7 @@ export function ScoreInput({
   onChange,
   invalid,
   describedBy,
+  noZero,
 }: {
   id: string;
   max: Th;
@@ -27,6 +28,8 @@ export function ScoreInput({
   onChange: (v: Th) => void;
   invalid?: boolean;
   describedBy?: string;
+  /** T41 deduction: 0 is not a choice (nothing to deduct means no deduction at all) */
+  noZero?: boolean;
 }) {
   const dec = () => onChange(value === null ? 0 : Math.max(0, value - step));
   const inc = () => onChange(value === null ? Math.min(step, max) : Math.min(max, value + step));
@@ -39,7 +42,9 @@ export function ScoreInput({
       dec();
     }
   };
-  const chips = max <= 10_000 ? Array.from({ length: Math.floor(max / 1000) + 1 }, (_, i) => i * 1000) : [];
+  const chips = (max <= 10_000 ? Array.from({ length: Math.floor(max / 1000) + 1 }, (_, i) => i * 1000) : []).filter(
+    (c) => !noZero || c > 0,
+  );
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-center gap-6">

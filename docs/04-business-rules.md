@@ -79,6 +79,14 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 - **BR-P1** user is active and holds a `committee` duty in `round.term` whose target equals `target`
   (for freelance duties also `valid_until > now`). Component source must be `committee`
   (area_teacher components need an `area_teacher` duty on the area — P3).
+- **BR-P1b (T41)** `source = area_teacher`: the user holds an `area_teacher` duty (always on an area) for the target
+  area, or — for a class — for the area the class is frozen into for that round (`round_class_areas`). A committee
+  duty never counts for such a component, nor the other way round.
+- **BR-D-E (T41, FR-E12, Q4)** A deduction (`kind = deduct`) is an evaluation like any other — one per (round,
+  component, class), self-edit window, requests, approval, PDF — with these content rules: deducted points > 0 and
+  ≤ the component max, step as BR-N2; at least 1 photo (whatever `photo_min`); the comment is a required reason of at
+  least 5 characters; no signature sheet; never per student. A deduction nobody made counts as 0 and is never
+  "missing" (no reminders, does not block finalize).
 - **BR-P2** entry is open (BR-T2) **or** the user has an approved `late_entry` request for this
   (round, component, target) with `grant_until > now`.
 - **BR-P3** no live evaluation exists for (round, component, target) (I1). If one exists, the UI shows

@@ -55,7 +55,9 @@ export default async function NewEvaluationPage({
         <Link href="/tasks" aria-label="กลับ" className="flex size-11 items-center justify-center rounded-md">
           <ChevronLeft size={24} aria-hidden />
         </Link>
-        <h1 className="text-[18px] font-bold">{ctx.target.type === 'class' ? 'ประเมินห้องเรียน' : 'ประเมินพื้นที่'}</h1>
+        <h1 className="text-[18px] font-bold">
+          {ctx.deduction ? 'หักคะแนน' : ctx.target.type === 'class' ? 'ประเมินห้องเรียน' : 'ประเมินพื้นที่'}
+        </h1>
       </div>
       {ctx.canEnter ? (
         <EvaluationForm ctx={ctx} />

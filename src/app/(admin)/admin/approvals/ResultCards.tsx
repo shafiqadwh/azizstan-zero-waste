@@ -103,8 +103,10 @@ export function ResultCards({ cards }: { cards: ResultCard[] }) {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-[32px] leading-none font-bold" data-testid="result-score">
-                      {c.score ?? '–'}
-                      <span className="text-[15px] font-normal text-ink-muted"> / {c.max}</span>
+                      {c.score === null ? '–' : `${c.deduction ? '−' : ''}${c.score}`}
+                      <span className="text-[15px] font-normal text-ink-muted">
+                        {c.deduction ? ` หักได้สูงสุด ${c.max}` : ` / ${c.max}`}
+                      </span>
                     </p>
                     {c.students.length > 0 ? (
                       <p className="mt-1 text-[13px] text-ink-muted">เฉลี่ยจาก {c.students.length} คน</p>

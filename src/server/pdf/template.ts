@@ -26,6 +26,8 @@ export interface EvaluationPdfData {
   draft: boolean;
   /** individual mode: each student's score by code; `score` is then the class mean. Absent or [] in group mode. */
   students?: { code: string; score: string }[];
+  /** T41 (FR-E12): an area teacher's deduction — `score` is the points taken off, `comment` the reason */
+  deduction?: boolean;
 }
 
 /** 4 columns × 25 rows of student codes per page. */
@@ -38,8 +40,11 @@ const esc = (s: string) =>
 const truncate = (s: string, n: number) => ([...s].length > n ? `${[...s].slice(0, n - 1).join('')}…` : s);
 
 export function evaluationHtml(d: EvaluationPdfData, fontCss: string): string {
-  const title =
-    d.kind === 'class' ? 'แบบรายงานผลการประเมินความสะอาดห้องเรียน' : 'แบบรายงานผลการประเมินความสะอาดอาคาร/โซน';
+  const title = d.deduction
+    ? 'แบบบันทึกการหักคะแนนความสะอาด'
+    : d.kind === 'class'
+      ? 'แบบรายงานผลการประเมินความสะอาดห้องเรียน'
+      : 'แบบรายงานผลการประเมินความสะอาดอาคาร/โซน';
   const cells = [
     ...d.sitePhotos.slice(0, 5).map((src) => `<figure class="cell"><img class="site" src="${src}" alt=""></figure>`),
     ...(d.kind === 'class' && d.signature
@@ -140,11 +145,11 @@ ${header}
 <table class="info"><tbody>
   <tr><th>${d.kind === 'class' ? 'ห้อง' : 'พื้นที่'}</th><td>${esc(d.target)}</td><th>รอบที่</th><td>${d.roundNo}</td></tr>
   <tr><th>${d.kind === 'class' ? 'อาคาร' : 'รายละเอียด'}</th><td>${esc(truncate(d.place ?? '–', 70))}</td><th>วันที่ประเมิน</th><td>${esc(d.evaluatedAt)}</td></tr>
-  <tr><th>ผู้ประเมิน</th><td>${esc(d.ownerName)}</td><th>ผู้อนุมัติ</th><td>${esc(d.approverName ?? '–')}</td></tr>
+  <tr><th>${d.deduction ? 'ผู้บันทึก' : 'ผู้ประเมิน'}</th><td>${esc(d.ownerName)}</td><th>ผู้อนุมัติ</th><td>${esc(d.approverName ?? '–')}</td></tr>
 </tbody></table>
 <section class="result">
-  <div class="score"><span class="label">${students.length ? 'คะแนนเฉลี่ยห้อง' : 'คะแนนที่ได้'}</span><span class="value">${esc(d.score)}</span><span class="max">จากคะแนนเต็ม ${esc(d.max)}</span></div>
-  <div class="comment"><h2>คำแนะนำและข้อติชม</h2><p>${esc(truncate(d.comment || '–', 300))}</p></div>
+  <div class="score"><span class="label">${d.deduction ? 'คะแนนที่หัก' : students.length ? 'คะแนนเฉลี่ยห้อง' : 'คะแนนที่ได้'}</span><span class="value">${d.deduction ? '−' : ''}${esc(d.score)}</span><span class="max">${d.deduction ? 'หักได้สูงสุด' : 'จากคะแนนเต็ม'} ${esc(d.max)}</span></div>
+  <div class="comment"><h2>${d.deduction ? 'เหตุผลที่หักคะแนน' : 'คำแนะนำและข้อติชม'}</h2><p>${esc(truncate(d.comment || '–', 300))}</p></div>
 </section>
 <section class="photos"><h2>ภาพหลักฐาน</h2>
   ${cells.length ? `<div class="grid">${cells.join('')}</div>` : '<p class="empty">ไม่มีภาพหลักฐาน</p>'}

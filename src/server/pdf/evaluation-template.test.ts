@@ -42,6 +42,16 @@ describe('evaluation PDF (09-pdf §2, T40)', () => {
     expect(html).toContain('แสดงเฉพาะรหัสนักเรียน ไม่แสดงชื่อ');
   });
 
+  test('T41 deduction: own title, "คะแนนที่หัก −n", reason heading', () => {
+    const html = evaluationHtml({ ...base, deduction: true, score: '2', comment: 'ขยะล้นถัง' }, '');
+    expect(html).toContain('แบบบันทึกการหักคะแนนความสะอาด');
+    expect(html).toContain('คะแนนที่หัก');
+    expect(html).toContain('−2');
+    expect(html).toContain('หักได้สูงสุด 5');
+    expect(html).toContain('เหตุผลที่หักคะแนน');
+    expect(pages(html)).toBe(1);
+  });
+
   test('escapes codes', () => {
     const html = evaluationHtml({ ...base, students: [{ code: '<b>', score: '1' }] }, '');
     expect(html).toContain('&lt;b&gt;');
