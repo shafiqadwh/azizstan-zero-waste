@@ -58,6 +58,9 @@ describe('checkContent (BR-E1)', () => {
       ),
     ).toBeNull();
     expect(checkContent(scores([['s1', 4000]]), ind)?.message).toBe('ยังไม่ได้ให้คะแนนนักเรียนอีก 1 คน');
+    expect(checkContent(scores([]), { ...rules, rosterIds: [] })?.message).toBe(
+      'ยังไม่มีรายชื่อนักเรียนของห้องนี้ในรอบนี้ แจ้งผู้ดูแลระบบให้ซิงก์รายชื่อก่อน',
+    );
     expect(
       checkContent(
         scores([

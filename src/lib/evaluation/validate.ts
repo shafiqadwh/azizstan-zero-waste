@@ -12,6 +12,7 @@ export const EVAL_MSG = {
   scoreRange: (max: string) => `คะแนนต้องอยู่ระหว่าง 0 ถึง ${max}`,
   studentsMissing: (n: number) => `ยังไม่ได้ให้คะแนนนักเรียนอีก ${n} คน`,
   studentsUnknown: 'มีนักเรียนที่ไม่อยู่ในห้องนี้ในรอบนี้',
+  studentsNone: 'ยังไม่มีรายชื่อนักเรียนของห้องนี้ในรอบนี้ แจ้งผู้ดูแลระบบให้ซิงก์รายชื่อก่อน',
   photosMin: (n: number) => `ต้องถ่ายรูปอีก ${n} รูป`,
   photosMax: (max: number) => `ถ่ายได้สูงสุด ${max} รูป`,
   signatureRequired: 'กรุณาถ่ายรูปใบลงชื่อนักเรียน',
@@ -56,6 +57,8 @@ function scoreError(value: Th | null, rules: ContentRules): string | null {
 /** First problem in field order (score → photos → signature → comment), or null when the content may be sent. */
 export function checkContent(content: Content, rules: ContentRules): ContentError | null {
   if (rules.rosterIds) {
+    // no snapshot → the class mean would never exist and the class could never get a total (BR-S2)
+    if (rules.rosterIds.length === 0) return { field: 'studentScores', message: EVAL_MSG.studentsNone };
     const roster = new Set(rules.rosterIds);
     if ([...content.studentScores.keys()].some((id) => !roster.has(id)))
       return { field: 'studentScores', message: EVAL_MSG.studentsUnknown };

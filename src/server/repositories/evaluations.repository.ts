@@ -11,8 +11,10 @@ import {
   roundClassAreas,
   rounds,
   physicalRooms,
+  students,
   users,
 } from '../../../db/schema.ts';
+import { mean, parseScore, type Th } from '../../lib/scoring/decimal.ts';
 import type { DbOrTx } from '../transaction.ts';
 
 export type EvaluationRow = typeof evaluations.$inferSelect;
@@ -105,6 +107,36 @@ export async function listRosterStudentIds(db: DbOrTx, roundId: string, classId:
     .from(rosterSnapshots)
     .where(and(eq(rosterSnapshots.roundId, roundId), eq(rosterSnapshots.classId, classId)));
   return rows.map((r) => r.id);
+}
+
+/** Individual mode (T40): the class's snapshot students for the round, by code. Codes only — never names (FR-S1). */
+export const listRosterCodes = (db: DbOrTx, roundId: string, classId: string) =>
+  db
+    .select({ id: students.id, code: students.studentCode })
+    .from(rosterSnapshots)
+    .innerJoin(students, eq(students.id, rosterSnapshots.studentId))
+    .where(and(eq(rosterSnapshots.roundId, roundId), eq(rosterSnapshots.classId, classId)))
+    .orderBy(students.studentCode);
+
+/** Per-student scores of an evaluation with their codes, by code (T40). */
+export const listStudentScoresWithCodes = (db: DbOrTx, evaluationId: string) =>
+  db
+    .select({ studentId: students.id, code: students.studentCode, score: evaluationStudentScores.score })
+    .from(evaluationStudentScores)
+    .innerJoin(students, eq(students.id, evaluationStudentScores.studentId))
+    .where(eq(evaluationStudentScores.evaluationId, evaluationId))
+    .orderBy(students.studentCode);
+
+/** Individual mode: the class mean of each evaluation's student scores (BR-S2); evaluations without any are absent. */
+export async function studentMeans(db: DbOrTx, evaluationIds: string[]): Promise<Map<string, Th>> {
+  if (evaluationIds.length === 0) return new Map();
+  const rows = await db
+    .select({ evaluationId: evaluationStudentScores.evaluationId, score: evaluationStudentScores.score })
+    .from(evaluationStudentScores)
+    .where(inArray(evaluationStudentScores.evaluationId, evaluationIds));
+  const by = new Map<string, Th[]>();
+  for (const r of rows) by.set(r.evaluationId, [...(by.get(r.evaluationId) ?? []), parseScore(r.score)]);
+  return new Map([...by].map(([id, list]) => [id, mean(list)!]));
 }
 
 /** Room number frozen for the class when the round opened (printed on the PDF). */

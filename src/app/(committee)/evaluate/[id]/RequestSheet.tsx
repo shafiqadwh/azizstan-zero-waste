@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { PhotoGrid, type PhotoItem } from '@/components/app/PhotoGrid';
 import { ScoreInput } from '@/components/app/ScoreInput';
+import { StudentScoreList } from '@/components/app/StudentScoreList';
 import { toDb, type Th } from '@/lib/scoring/decimal';
 import { createRequestAction } from '../request-actions';
 import { shrink, upload } from '../upload';
@@ -30,6 +31,7 @@ export function RequestSheet({
   target,
   isOwner,
   score,
+  studentScores,
   max,
   step,
   comment,
@@ -41,6 +43,8 @@ export function RequestSheet({
   target: string;
   isOwner: boolean;
   score: Th | null;
+  /** individual mode (T40): the current per-student scores, codes only; [] in group mode */
+  studentScores: { studentId: string; code: string; score: Th }[];
   max: Th;
   step: Th;
   comment: string;
@@ -52,6 +56,10 @@ export function RequestSheet({
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<Type>('edit_score');
   const [newScore, setNewScore] = useState<Th | null>(score);
+  const individual = studentScores.length > 0;
+  const [newStudents, setNewStudents] = useState<Record<string, Th | null>>(() =>
+    Object.fromEntries(studentScores.map((r) => [r.studentId, r.score])),
+  );
   const [newComment, setNewComment] = useState(comment);
   const [remove, setRemove] = useState<string[]>([]);
   const [added, setAdded] = useState<PhotoItem[]>([]);
@@ -90,7 +98,14 @@ export function RequestSheet({
   const payload = (): Record<string, unknown> | null => {
     switch (type) {
       case 'edit_score':
-        return { score: newScore === null ? null : toDb(newScore) };
+        return individual
+          ? {
+              studentScores: studentScores.map((r) => {
+                const v = newStudents[r.studentId] ?? null;
+                return { studentId: r.studentId, score: v === null ? null : toDb(v) };
+              }),
+            }
+          : { score: newScore === null ? null : toDb(newScore) };
       case 'edit_comment':
         return { comment: newComment };
       case 'edit_photos':
@@ -144,7 +159,20 @@ export function RequestSheet({
       {type === 'edit_score' ? (
         <div>
           <p className="mb-2 text-[13px] font-semibold">คะแนนใหม่</p>
-          <ScoreInput id="request-score" max={max} step={step} value={newScore} onChange={setNewScore} />
+          {individual ? (
+            <StudentScoreList
+              students={studentScores.map((r) => ({ id: r.studentId, code: r.code }))}
+              max={max}
+              step={step}
+              values={newStudents}
+              onChange={(id, v) => setNewStudents((m) => ({ ...m, [id]: v }))}
+              onFillEmpty={(v) =>
+                setNewStudents((m) => Object.fromEntries(studentScores.map((r) => [r.studentId, m[r.studentId] ?? v])))
+              }
+            />
+          ) : (
+            <ScoreInput id="request-score" max={max} step={step} value={newScore} onChange={setNewScore} />
+          )}
         </div>
       ) : null}
       {type === 'edit_comment' ? (

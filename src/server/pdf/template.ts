@@ -1,5 +1,6 @@
 /**
- * The evaluation report (09-pdf §2): A4 portrait, always one page. Pure — takes ready data (images already as
+ * The evaluation report (09-pdf §2): A4 portrait, one page — plus, in individual mode (T40), pages listing every
+ * student's score by code (never names, FR-S1), 100 per page. Pure — takes ready data (images already as
  * data URIs) and returns a complete HTML document, so the worker can print it with page.setContent and the
  * internal route can show the very same markup.
  */
@@ -23,7 +24,13 @@ export interface EvaluationPdfData {
   generatedAt: string;
   /** FR-D2: watermark "ฉบับร่าง" until the round is finalized */
   draft: boolean;
+  /** individual mode: each student's score by code; `score` is then the class mean. Absent or [] in group mode. */
+  students?: { code: string; score: string }[];
 }
+
+/** 4 columns × 25 rows of student codes per page. */
+export const STUDENTS_PER_PAGE = 100;
+const STUDENT_ROWS = 25;
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -41,6 +48,42 @@ export function evaluationHtml(d: EvaluationPdfData, fontCss: string): string {
         ]
       : []),
   ];
+  const students = d.students ?? [];
+  const studentPages: (typeof students)[] = [];
+  for (let i = 0; i < students.length; i += STUDENTS_PER_PAGE)
+    studentPages.push(students.slice(i, i + STUDENTS_PER_PAGE));
+  const totalPages = 1 + studentPages.length;
+  const header = `<header>
+  <div><h1>${title}</h1><p>โรงเรียนมูลนิธิอาซิซสถาน · โครงการ AZIZSTAN Zero Waste ${esc(d.termLabel)}</p></div>
+  <div class="mark">AZIZSTAN<br>ZERO WASTE</div>
+</header>`;
+  const footer = (page: number) => `<footer>
+  <span>เอกสารภายใน ห้ามเผยแพร่ · สร้างจากระบบ AZIZSTAN Zero Waste · ${esc(d.generatedAt)}</span>
+  <span>เลขที่เอกสาร ${esc(d.docNumber)} · ฉบับที่ ${d.version}${totalPages > 1 ? ` · หน้า ${page}/${totalPages}` : ''}</span>
+</footer>
+${d.draft ? '<div class="watermark" aria-hidden="true">ฉบับร่าง</div>' : ''}`;
+  const studentPage = (list: typeof students, i: number) => {
+    const columns: (typeof students)[] = [];
+    for (let c = 0; c < list.length; c += STUDENT_ROWS) columns.push(list.slice(c, c + STUDENT_ROWS));
+    const first = i * STUDENTS_PER_PAGE;
+    return `<div class="page" data-pdf-page>
+${header}
+<p class="students-title"><b>คะแนนรายคน</b> · ${esc(d.target)} · รอบที่ ${d.roundNo} · ${students.length} คน · เฉลี่ยห้อง ${esc(d.score)} จากคะแนนเต็ม ${esc(d.max)}</p>
+<div class="students">${columns
+      .map(
+        (col, c) =>
+          `<table class="codes"><thead><tr><th>ที่</th><th>รหัสนักเรียน</th><th>คะแนน</th></tr></thead><tbody>${col
+            .map(
+              (st, r) =>
+                `<tr><td class="n">${first + c * STUDENT_ROWS + r + 1}</td><td>${esc(st.code)}</td><td class="v">${esc(st.score)}</td></tr>`,
+            )
+            .join('')}</tbody></table>`,
+      )
+      .join('')}</div>
+<p class="students-note">แสดงเฉพาะรหัสนักเรียน ไม่แสดงชื่อ</p>
+${footer(i + 2)}
+</div>`;
+  };
   return `<!doctype html>
 <html lang="th"><head><meta charset="utf-8"><title>${esc(d.docNumber)}</title>
 <style>
@@ -51,7 +94,16 @@ html, body { margin: 0; padding: 0; }
 body { font-family: 'Sarabun', sans-serif; color: #17201B; font-size: 14pt; line-height: 1.45;
   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .page { position: relative; width: 210mm; height: 297mm; padding: 15mm; overflow: hidden;
-  display: flex; flex-direction: column; gap: 5mm; }
+  display: flex; flex-direction: column; gap: 5mm; break-after: page; page-break-after: always; }
+.page:last-child { break-after: auto; page-break-after: auto; }
+.students-title { margin: 0; font-size: 13pt; }
+.students { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; align-content: start; }
+table.codes { width: 100%; border-collapse: collapse; font-size: 12pt; font-variant-numeric: tabular-nums; }
+table.codes th { font-size: 10.5pt; font-weight: 600; color: #3D4641; text-align: left; border-bottom: 1pt solid #1D6A4E; padding: .5mm 1mm; }
+table.codes td { border-bottom: .5pt solid #C9CFC8; padding: .9mm 1mm; height: 8mm; }
+table.codes td.n { color: #6B746E; font-size: 10pt; width: 7mm; }
+table.codes td.v, table.codes th:last-child { text-align: right; font-weight: 700; }
+.students-note { margin: 0; font-size: 10.5pt; color: #6B746E; }
 header { display: flex; justify-content: space-between; align-items: flex-start; gap: 6mm;
   border-bottom: 1.5pt solid #1D6A4E; padding-bottom: 3mm; }
 header h1 { font-size: 17pt; font-weight: 700; margin: 0; line-height: 1.3; }
@@ -84,28 +136,21 @@ footer span:last-child { white-space: nowrap; }
   font-size: 96pt; font-weight: 700; color: #17201B; opacity: .08; white-space: nowrap; pointer-events: none; }
 </style></head>
 <body><div class="page" data-pdf-page>
-<header>
-  <div><h1>${title}</h1><p>โรงเรียนมูลนิธิอาซิซสถาน · โครงการ AZIZSTAN Zero Waste ${esc(d.termLabel)}</p></div>
-  <div class="mark">AZIZSTAN<br>ZERO WASTE</div>
-</header>
+${header}
 <table class="info"><tbody>
   <tr><th>${d.kind === 'class' ? 'ห้อง' : 'พื้นที่'}</th><td>${esc(d.target)}</td><th>รอบที่</th><td>${d.roundNo}</td></tr>
   <tr><th>${d.kind === 'class' ? 'อาคาร' : 'รายละเอียด'}</th><td>${esc(truncate(d.place ?? '–', 70))}</td><th>วันที่ประเมิน</th><td>${esc(d.evaluatedAt)}</td></tr>
   <tr><th>ผู้ประเมิน</th><td>${esc(d.ownerName)}</td><th>ผู้อนุมัติ</th><td>${esc(d.approverName ?? '–')}</td></tr>
 </tbody></table>
 <section class="result">
-  <div class="score"><span class="label">คะแนนที่ได้</span><span class="value">${esc(d.score)}</span><span class="max">จากคะแนนเต็ม ${esc(d.max)}</span></div>
+  <div class="score"><span class="label">${students.length ? 'คะแนนเฉลี่ยห้อง' : 'คะแนนที่ได้'}</span><span class="value">${esc(d.score)}</span><span class="max">จากคะแนนเต็ม ${esc(d.max)}</span></div>
   <div class="comment"><h2>คำแนะนำและข้อติชม</h2><p>${esc(truncate(d.comment || '–', 300))}</p></div>
 </section>
 <section class="photos"><h2>ภาพหลักฐาน</h2>
   ${cells.length ? `<div class="grid">${cells.join('')}</div>` : '<p class="empty">ไม่มีภาพหลักฐาน</p>'}
 </section>
-<footer>
-  <span>เอกสารภายใน ห้ามเผยแพร่ · สร้างจากระบบ AZIZSTAN Zero Waste · ${esc(d.generatedAt)}</span>
-  <span>เลขที่เอกสาร ${esc(d.docNumber)} · ฉบับที่ ${d.version}</span>
-</footer>
-${d.draft ? '<div class="watermark" aria-hidden="true">ฉบับร่าง</div>' : ''}
-</div></body></html>`;
+${footer(1)}
+</div>${studentPages.map(studentPage).join('')}</body></html>`;
 }
 
 export interface SignatureSheetData {

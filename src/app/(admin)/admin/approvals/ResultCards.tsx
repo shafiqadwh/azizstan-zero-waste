@@ -101,11 +101,32 @@ export function ResultCards({ cards }: { cards: ResultCard[] }) {
                       {c.ownerName} · {formatThaiDateTime(c.submittedAt)}
                     </p>
                   </div>
-                  <p className="shrink-0 text-[32px] leading-none font-bold" data-testid="result-score">
-                    {c.score ?? 'รายคน'}
-                    <span className="text-[15px] font-normal text-ink-muted"> / {c.max}</span>
-                  </p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[32px] leading-none font-bold" data-testid="result-score">
+                      {c.score ?? '–'}
+                      <span className="text-[15px] font-normal text-ink-muted"> / {c.max}</span>
+                    </p>
+                    {c.students.length > 0 ? (
+                      <p className="mt-1 text-[13px] text-ink-muted">เฉลี่ยจาก {c.students.length} คน</p>
+                    ) : null}
+                  </div>
                 </div>
+                {c.students.length > 0 ? (
+                  <details>
+                    <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-brand-ink">
+                      คะแนนรายคน ({c.students.length} คน)
+                    </summary>
+                    {/* codes only — names are never shown (FR-S1) */}
+                    <ul className="grid grid-cols-2 gap-x-4 text-[14px] tabular-nums md:grid-cols-4">
+                      {c.students.map((st) => (
+                        <li key={st.code} className="flex justify-between border-b border-line py-1">
+                          <span>{st.code}</span>
+                          <b>{st.score}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
                 {c.photos.length > 0 ? (
                   <div className="grid grid-cols-6 gap-1.5">
                     {c.photos.slice(0, 6).map((p) => (

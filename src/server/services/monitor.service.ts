@@ -201,6 +201,10 @@ async function buildRows(db: Db, scope: Scope, round: termsRepo.RoundRow, now: D
   const views = await describeTargets(db, round.status === 'scheduled' ? null : round.id, targets, now);
 
   const live = await evalRepo.listLiveEvaluations(db, round.id);
+  const means = await evalRepo.studentMeans(
+    db,
+    live.filter((l) => l.evaluation.score === null).map((l) => l.evaluation.id),
+  );
   const pdfs = new Map((await pdfRepo.listCurrentPdfsInRound(db, round.id)).map((p) => [p.evaluationId, p.id]));
   const names = new Map((await usersRepo.listUsers(db)).map((u) => [u.id, u.displayName]));
   const committee = (await dutiesRepo.listTermDuties(db, term.id)).filter(
@@ -243,7 +247,8 @@ async function buildRows(db: Db, scope: Scope, round: termsRepo.RoundRow, now: D
         evaluationId: e?.id ?? null,
         ownerName: found?.ownerName ?? null,
         submittedAt: e?.firstSubmittedAt ?? null,
-        score: e ? show(e.score) : null,
+        // individual mode: the class mean (BR-S2)
+        score: e ? (show(e.score) ?? (means.has(e.id) ? trimScore(toDisplay(means.get(e.id)!)) : null)) : null,
         pdfStatus: (e?.pdfStatus ?? 'none') as BoardRow['pdfStatus'],
         pdfError: e?.pdfStatus === 'failed' ? e.pdfError : null,
         pdfUrl: pdfId && e?.pdfStatus === 'ready' ? `/api/v1/pdf/${pdfId}` : null,

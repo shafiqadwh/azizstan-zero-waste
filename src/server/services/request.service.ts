@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { Db } from '../../../db/client.ts';
 import { formatThaiDateTime } from '../../lib/dates/index.ts';
 import { checkScore } from '../../lib/scoring/index.ts';
-import { parseScore, toDisplay } from '../../lib/scoring/decimal.ts';
+import { mean, parseScore, toDisplay, type Th } from '../../lib/scoring/decimal.ts';
 import { scoreStepFor, trimScore } from '../../lib/term/config.ts';
 import { newId } from '../../lib/ids.ts';
 import { AppError, notFound, parseInput } from '../errors.ts';
@@ -499,8 +499,25 @@ async function toCard(db: Db | Tx, r: repo.RequestRow, requesterName: string): P
   let newValue = '';
   if (r.type === 'late_entry') newValue = p.hours ? `ขอเวลา ${p.hours} ชั่วโมง` : 'ขอใส่คะแนน';
   else if (r.type === 'edit_score') {
-    oldValue = fmt(e?.score);
-    newValue = fmt(p.score as string);
+    const asked = p.studentScores as { studentId: string; score?: string | number | null }[] | undefined;
+    if (asked && e) {
+      // individual mode (T40): class mean before → after, plus which codes change (never names, FR-S1)
+      const before = await evalRepo.listStudentScoresWithCodes(db, e.id);
+      const next = new Map(asked.map((x) => [x.studentId, x.score == null ? null : parseScore(String(x.score))]));
+      const showTh = (v: Th | null) => (v === null ? '–' : trimScore(toDisplay(v)));
+      const changed = before.filter((b) => next.has(b.studentId) && next.get(b.studentId) !== parseScore(b.score));
+      oldValue = `เฉลี่ย ${showTh(mean(before.map((b) => parseScore(b.score))))}`;
+      const after = mean(before.map((b) => (next.has(b.studentId) ? next.get(b.studentId) : parseScore(b.score)) ?? 0));
+      const list = changed
+        .slice(0, 8)
+        .map((b) => `${b.code} ${showTh(parseScore(b.score))}→${showTh(next.get(b.studentId) ?? null)}`);
+      newValue = `เฉลี่ย ${showTh(after)} · เปลี่ยน ${changed.length} คน${list.length ? `: ${list.join(', ')}` : ''}${
+        changed.length > list.length ? ` และอีก ${changed.length - list.length} คน` : ''
+      }`;
+    } else {
+      oldValue = fmt(e?.score);
+      newValue = fmt(p.score as string);
+    }
   } else if (r.type === 'edit_comment') {
     oldValue = e?.comment ?? '–';
     newValue = String(p.comment ?? '') || '–';

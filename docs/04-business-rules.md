@@ -187,6 +187,10 @@ With equal maxima this is identical to BR-S4. Always implement with `termScoreBy
 
 ### 7.6 Student-level results — BR-S6
 For each round, each student in `roster_snapshots` gets the total of the class they were in **in that round**.
+Individual mode (FR-R6, T40): the class-unit score components that were scored per student use the student's
+**own** score instead of the class mean; area components and deductions are the class's. The class still ranks on
+the mean (BR-S2). A class with no snapshot students cannot be scored in individual mode (submit refused with
+"ยังไม่มีรายชื่อนักเรียนของห้องนี้ในรอบนี้ …").
 Term score per student = mean over rounds they have a total in, scaled as BR-S4. A student who moved keeps earlier
 rounds from the old class (FR-R9). Students absent from a round's snapshot (joined later) simply have fewer rounds.
 
