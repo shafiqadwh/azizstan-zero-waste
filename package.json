@@ -24,7 +24,8 @@
     "db:migrate": "node db/migrate.ts",
     "db:seed": "node db/seed.ts",
     "user:super-admin": "node scripts/create-super-admin.ts",
-    "preflight": "node --env-file-if-exists=.env scripts/preflight.ts"
+    "preflight": "node --env-file-if-exists=.env scripts/preflight.ts",
+    "vapid:generate": "node scripts/vapid-keys.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

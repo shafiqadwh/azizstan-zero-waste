@@ -6,6 +6,7 @@ import { defineConfig, type Options } from 'tsup';
  *   dist/scripts/migrate.js → /app/scripts/migrate.js (node scripts/migrate.js)
  *   dist/scripts/create-super-admin.js → /app/scripts/create-super-admin.js
  *   dist/scripts/preflight.js → /app/scripts/preflight.js (go-live checks, 14-deployment)
+ *   dist/scripts/vapid-keys.js → /app/scripts/vapid-keys.js (web push key pair for .env)
  */
 const shared: Options = {
   format: ['esm'],
@@ -28,6 +29,7 @@ export default defineConfig([
       migrate: 'db/migrate.ts',
       'create-super-admin': 'scripts/create-super-admin.ts',
       preflight: 'scripts/preflight.ts',
+      'vapid-keys': 'scripts/vapid-keys.ts',
     },
     outDir: 'dist/scripts',
   },

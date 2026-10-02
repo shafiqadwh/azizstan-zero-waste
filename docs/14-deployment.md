@@ -1,5 +1,7 @@
 # 14 — Deployment
 
+Step-by-step Thai handbook for the school's IT staff: `docs/go-live-th.md` (same procedure, tested commands).
+
 Same Docker Compose on both machines. Files: `deploy/docker-compose.yml`, `deploy/Dockerfile`,
 `deploy/backup.sh`, `deploy/zw.sh`, `.env.example`.
 
@@ -42,10 +44,11 @@ time sync (`timedatectl set-ntp true`, timezone Asia/Bangkok).
    (Zero Trust → Networks → Tunnels → Create), public hostname e.g. `zerowaste.azizstan.net` → `http://app:3000`.
    Copy the tunnel token into `.env` (`CLOUDFLARE_TUNNEL_TOKEN`) and add `COMPOSE_PROFILES=tunnel`, which turns
    on the `cloudflared` container.
-3. **Clone the release tag**: `git clone --branch vX.Y.Z … /opt/azizstan-zero-waste`.
+3. **Clone** into `/opt/azizstan-zero-waste` (a release tag `vX.Y.Z` once releases are tagged; `main` until then).
 4. **`.env`**: copy from `.env.example`; generate secrets:
    `openssl rand -base64 64` (SESSION_SECRET), `openssl rand -base64 32` (INTERNAL_PDF_SECRET),
-   `pnpm vapid:generate` or `npx web-push generate-vapid-keys` (VAPID). Put the **rotated** student API token.
+   VAPID with `docker run --rm azizstan-zero-waste node scripts/vapid-keys.js` after `sh deploy/zw.sh build`
+   (no Node.js needed on the host; from a checkout: `pnpm vapid:generate`). Put the **rotated** student API token.
 5. **Start**: same commands as §1 step 5.
 6. **Create the super admin** (step 5's `create-super-admin.js`; you type the password) → log in.
 7. **Admin setup order** — `/admin` shows it as the "ตั้งค่าเริ่มต้น n/9" checklist, each step ticked from the
