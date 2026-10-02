@@ -5,7 +5,7 @@ Agents: implement the **default**, mark the code with `// OPEN-QUESTION: Qn`, an
 | ID | Question | Default until answered | Affects |
 |---|---|---|---|
 | Q1 | Teacher login API: URL, request/response, how to identify the teacher | **Answered 2026-09-30:** no API details yet. Local accounts only; `ExternalAuthProvider` stub returns `unavailable`; revisit in T33 | T33, 06-auth §1.2 |
-| Q2 | When committee and teacher both score the same room (future term): use committee only, or combine? | Undecided (owner, 2026-09-30). Committee value only; teacher score stored but not counted | T42 |
+| Q2 | When committee and teacher both score the same room (future term): use committee only, or combine? | **Answered 2026-10-02:** committee value only; a teacher's score of the same room is stored and shown but not counted. (A teacher score that should count is set up as its own score component instead.) | T42 |
 | Q3 | Only super admin creates users? (earlier note said executives could create users) | **Answered:** only super admin creates users and sets roles (admin/executive/teacher); admin assigns committee duty | T12 |
 | Q4 | Area-teacher deductions: max per round, per student or per class, anytime or once per round, photo required? | **Answered 2026-10-02 (T41):** once per round per class (like an evaluation), for the whole class (not per student), at least 1 photo and a reason (≥ 5 characters), counted only after an admin approves; max per round = the component's full marks | T41 |
 | Q5 | Retention of evidence photos and PDFs | **Answered:** all term data kept 1 year after the term closes, then deleted (BR-D1..D4) | T28 |
