@@ -1,11 +1,22 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { PhotoGrid, type PhotoItem } from '@/components/app/PhotoGrid';
 import { ScoreInput } from '@/components/app/ScoreInput';
 import { TargetHeader } from '@/components/app/TargetHeader';
 import { checkContent, type ContentError } from '@/lib/evaluation/validate';
+import {
+  draftKey,
+  hasContent,
+  isExpired,
+  isNetworkError,
+  reusableEvidence,
+  type Draft,
+  type DraftPhoto,
+} from '@/lib/offline/draft';
+import { deleteDraft, readDraft, saveDraft } from '@/lib/offline/draft-store';
+import { useOnline } from '@/lib/offline/use-online';
 import { toDisplay, toDb, type Th } from '@/lib/scoring/decimal';
 import { trimScore } from '@/lib/term/config';
 import type { EvaluationForm as FormContext } from '@/server/services/task.service';
@@ -13,6 +24,12 @@ import { submitEvaluationAction, updateEvaluationAction } from './actions';
 import { shrink, upload } from './upload';
 
 type Field = ContentError['field'];
+type Kind = 'site' | 'signature';
+/** The shrunk blob stays with the photo so it can be queued offline and saved in the draft. */
+type FormPhoto = PhotoItem & { blob?: Blob; uploadedAt?: number };
+
+/** How often queued photos and a confirmed submit retry while the phone claims a signal it cannot use. */
+const RETRY_MS = 15_000;
 
 export interface InitialContent {
   evaluationId: string;
@@ -58,12 +75,15 @@ function Card({
 /** 08-ux-ui §6.8 — new evaluation, or the owner's edit / fix-and-resubmit of their own (BR-E2, BR-E8). */
 export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: InitialContent }) {
   const router = useRouter();
+  const online = useOnline();
   const target = `${ctx.target.type}:${ctx.target.id}`;
+  // 07-frontend §3.5: new evaluations keep a local draft; an edit starts from the saved evaluation instead.
+  const key = initial ? null : draftKey(ctx.round.id, ctx.componentId, target);
   const [score, setScore] = useState<Th | null>(initial?.score ?? null);
-  const [site, setSite] = useState<PhotoItem[]>(
+  const [site, setSite] = useState<FormPhoto[]>(
     initial?.site.map((p) => ({ key: p.evidenceId, src: p.src, status: 'done', evidenceId: p.evidenceId })) ?? [],
   );
-  const [signature, setSignature] = useState<PhotoItem[]>(
+  const [signature, setSignature] = useState<FormPhoto[]>(
     initial?.signature
       ? [
           {
@@ -79,6 +99,18 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
   const [errors, setErrors] = useState<Partial<Record<Field | 'form', string>>>({});
   const [dirty, setDirty] = useState(false);
   const [pending, start] = useTransition();
+  /** the user confirmed submit; it goes out once there is signal and every photo is uploaded */
+  const [submitRequested, setSubmitRequested] = useState(false);
+  /** null until the stored draft has been read, so an empty form never overwrites it */
+  const [loaded, setLoaded] = useState(key === null);
+  const [restoredAt, setRestoredAt] = useState<number | null>(null);
+  const [tick, setTick] = useState(0);
+
+  const lists = useRef<Record<Kind, FormPhoto[]>>({ site, signature });
+  useEffect(() => {
+    lists.current = { site, signature };
+  }, [site, signature]);
+  const inflight = useRef(new Set<string>());
 
   // 08-ux-ui §6.8: leaving with unsaved changes asks first
   useEffect(() => {
@@ -88,10 +120,115 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  const touch = () => (setDirty(true), setErrors({}));
-  const uploading = [...site, ...signature].some((p) => p.status === 'uploading');
-  const doneSite = site.filter((p) => p.status === 'done');
-  const doneSignature = signature.find((p) => p.status === 'done') ?? null;
+  const setList = (kind: Kind) => (kind === 'site' ? setSite : setSignature);
+
+  const startUpload = useCallback(
+    (kind: Kind, photoKey: string, blob: Blob) => {
+      if (inflight.current.has(photoKey)) return;
+      const set = kind === 'site' ? setSite : setSignature;
+      const patch = (p: Partial<FormPhoto>) =>
+        set((list) => list.map((x) => (x.key === photoKey ? { ...x, ...p } : x)));
+      if (!navigator.onLine) return patch({ status: 'queued' });
+      inflight.current.add(photoKey);
+      patch({ status: 'uploading', error: undefined });
+      void upload(blob, kind, target)
+        .then((out) => patch({ status: 'done', evidenceId: out.evidenceId, uploadedAt: Date.now() }))
+        .catch((err: unknown) =>
+          isNetworkError(err, navigator.onLine)
+            ? patch({ status: 'queued' })
+            : patch({ status: 'error', error: (err as Error).message }),
+        )
+        .finally(() => inflight.current.delete(photoKey));
+    },
+    [target],
+  );
+
+  // restore the local draft once (07-frontend §3.5)
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+    void readDraft(key).then((d) => {
+      if (cancelled) return;
+      if (d && !isExpired(d, Date.now())) {
+        const now = Date.now();
+        const revive = (p: DraftPhoto): FormPhoto => {
+          const evidenceId = reusableEvidence(p, now);
+          return {
+            key: p.key,
+            src: URL.createObjectURL(p.blob),
+            blob: p.blob,
+            status: evidenceId ? 'done' : 'queued',
+            evidenceId,
+            uploadedAt: evidenceId ? p.uploadedAt : undefined,
+          };
+        };
+        const restored = { site: d.site.map(revive), signature: d.signature.map(revive) };
+        setScore(d.score === null ? null : (d.score as Th));
+        setComment(d.comment);
+        setSite(restored.site);
+        setSignature(restored.signature);
+        setSubmitRequested(d.submitRequested);
+        setRestoredAt(d.updatedAt);
+        setDirty(true);
+        lists.current = restored;
+        for (const kind of ['site', 'signature'] as const)
+          for (const p of restored[kind]) if (p.status === 'queued') startUpload(kind, p.key, p.blob!);
+      }
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, startUpload]);
+
+  // keep the draft in step with the form (debounced: the comment changes per keystroke)
+  useEffect(() => {
+    if (!key || !loaded || !dirty) return;
+    const keep = (list: FormPhoto[]): DraftPhoto[] =>
+      list
+        .filter((p) => p.blob && p.status !== 'error')
+        .map((p) => ({
+          key: p.key,
+          blob: p.blob!,
+          evidenceId: p.status === 'done' ? p.evidenceId : undefined,
+          uploadedAt: p.status === 'done' ? p.uploadedAt : undefined,
+        }));
+    const draft: Draft = {
+      key,
+      updatedAt: Date.now(),
+      score,
+      comment,
+      site: keep(site),
+      signature: keep(signature),
+      submitRequested,
+    };
+    const id = setTimeout(() => void (hasContent(draft) ? saveDraft(draft) : deleteDraft(key)), 300);
+    return () => clearTimeout(id);
+  }, [key, loaded, dirty, score, comment, site, signature, submitRequested]);
+
+  const touch = () => (setDirty(true), setErrors({}), setSubmitRequested(false));
+  const all = [...site, ...signature];
+  const uploading = all.some((p) => p.status === 'uploading');
+  const waiting = all.some((p) => p.status === 'queued') || submitRequested;
+  const allDone = all.every((p) => p.status === 'done' || p.status === 'error');
+  // photos still on their way count: offline they are what the user will send
+  const present = (list: FormPhoto[]) => list.filter((p) => p.status !== 'error');
+  const sitePresent = present(site).length;
+  const signaturePresent = present(signature).length > 0;
+  const doneSite = useMemo(() => site.filter((p) => p.status === 'done'), [site]);
+  const doneSignature = useMemo(() => signature.find((p) => p.status === 'done') ?? null, [signature]);
+
+  // retry queued work when the signal returns, and every 15 s while the phone claims one it cannot use
+  useEffect(() => {
+    if (!waiting) return;
+    const id = setInterval(() => setTick((t) => t + 1), RETRY_MS);
+    return () => clearInterval(id);
+  }, [waiting]);
+  useEffect(() => {
+    if (!online) return;
+    for (const kind of ['site', 'signature'] as const)
+      for (const p of lists.current[kind]) if (p.status === 'queued' && p.blob) startUpload(kind, p.key, p.blob);
+  }, [online, tick, startUpload]);
 
   const problem = useMemo(
     () =>
@@ -99,8 +236,8 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
         {
           score,
           studentScores: new Map(),
-          siteCount: doneSite.length,
-          hasSignature: doneSignature !== null,
+          siteCount: sitePresent,
+          hasSignature: signaturePresent,
           comment,
         },
         {
@@ -113,39 +250,28 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
           rosterIds: null,
         },
       ),
-    [score, doneSite.length, doneSignature, comment, ctx],
+    [score, sitePresent, signaturePresent, comment, ctx],
   );
 
-  const addPhotos = (kind: 'site' | 'signature') => (files: File[]) => {
+  const addPhotos = (kind: Kind) => (files: File[]) => {
     touch();
-    const set = kind === 'site' ? setSite : setSignature;
     for (const file of files) {
-      const key = crypto.randomUUID();
+      const photoKey = crypto.randomUUID();
       const src = URL.createObjectURL(file);
-      set((list) => [...list, { key, src, status: 'uploading' }]);
-      void (async () => {
-        try {
-          const out = await upload(await shrink(file), kind, target);
-          set((list) => list.map((p) => (p.key === key ? { ...p, status: 'done', evidenceId: out.evidenceId } : p)));
-        } catch (err) {
-          set((list) =>
-            list.map((p) => (p.key === key ? { ...p, status: 'error', error: (err as Error).message } : p)),
-          );
-        }
-      })();
+      setList(kind)((list) => [...list, { key: photoKey, src, status: 'uploading' }]);
+      void shrink(file).then((blob) => {
+        setList(kind)((list) => list.map((p) => (p.key === photoKey ? { ...p, blob } : p)));
+        startUpload(kind, photoKey, blob);
+      });
     }
   };
-  const removePhoto = (kind: 'site' | 'signature') => (key: string) => {
+  const removePhoto = (kind: Kind) => (photoKey: string) => {
     touch();
-    (kind === 'site' ? setSite : setSignature)((list) => list.filter((p) => p.key !== key));
+    setList(kind)((list) => list.filter((p) => p.key !== photoKey));
   };
 
-  const submit = () => {
-    if (problem) {
-      setErrors({ [problem.field]: problem.message });
-      document.getElementById(`card-${problem.field}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
+  const retryAfter = useRef(0);
+  const send = useCallback(() => {
     const content = {
       score: score === null ? null : toDb(score),
       siteEvidenceIds: doneSite.map((p) => p.evidenceId!),
@@ -153,19 +279,31 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       comment,
     };
     start(async () => {
-      const result = initial
-        ? await updateEvaluationAction(
-            { id: initial.evaluationId, expectedVersion: initial.version, ...content },
-            initial.status === 'returned' ? 'resubmit' : 'update',
-          )
-        : await submitEvaluationAction({
-            roundId: ctx.round.id,
-            componentId: ctx.componentId,
-            target: ctx.target,
-            ...content,
-          });
+      let result;
+      try {
+        result = initial
+          ? await updateEvaluationAction(
+              { id: initial.evaluationId, expectedVersion: initial.version, ...content },
+              initial.status === 'returned' ? 'resubmit' : 'update',
+            )
+          : await submitEvaluationAction({
+              roundId: ctx.round.id,
+              componentId: ctx.componentId,
+              target: ctx.target,
+              ...content,
+            });
+      } catch (err) {
+        // never reached the server: keep the request and try again with the next signal
+        if (isNetworkError(err, navigator.onLine)) {
+          retryAfter.current = Date.now() + RETRY_MS / 3;
+          return;
+        }
+        throw err;
+      }
+      setSubmitRequested(false);
       if (result.ok) {
         setDirty(false);
+        if (key) await deleteDraft(key);
         if (typeof navigator.vibrate === 'function') navigator.vibrate(30);
         router.push(`/tasks?saved=1`);
         return;
@@ -174,6 +312,38 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       const known: (Field | 'form')[] = ['score', 'sitePhotos', 'signature', 'comment', 'studentScores'];
       setErrors({ [known.includes(field) ? field : 'form']: result.error.message });
     });
+  }, [score, doneSite, doneSignature, comment, initial, ctx, key, router]);
+
+  // 07-frontend §3.5: submits by itself once every upload finished and the user confirmed
+  const sending = useRef(false);
+  useEffect(() => {
+    sending.current = pending;
+  }, [pending]);
+  useEffect(() => {
+    if (online) retryAfter.current = 0; // the signal just came back: no need to wait
+  }, [online]);
+  useEffect(() => {
+    if (!submitRequested || !online || !allDone || problem || sending.current) return;
+    if (Date.now() < retryAfter.current) return;
+    sending.current = true;
+    send();
+    // `tick` retries a send that failed on a signal the phone only claimed to have
+  }, [submitRequested, online, allDone, problem, tick, send]);
+
+  const submit = () => {
+    if (problem) {
+      setErrors({ [problem.field]: problem.message });
+      document.getElementById(`card-${problem.field}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setErrors({});
+    setSubmitRequested(true);
+  };
+
+  const clearDraft = async () => {
+    if (key) await deleteDraft(key);
+    setDirty(false);
+    window.location.reload();
   };
 
   const counter = (n: number) => {
@@ -201,6 +371,25 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
         roundNo={ctx.round.roundNo}
       />
 
+      {restoredAt !== null ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-brand-soft px-4 py-3"
+        >
+          <span className="text-[14px] text-brand-ink">
+            กู้คืนร่างที่บันทึกไว้ในเครื่องเมื่อ{' '}
+            {new Date(restoredAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+          </span>
+          <button
+            type="button"
+            onClick={() => void clearDraft()}
+            className="h-11 rounded-md px-3 text-[14px] font-semibold text-brand-ink underline"
+          >
+            ล้างร่าง
+          </button>
+        </div>
+      ) : null}
+
       <div id="card-score">
         <Card
           title={ctx.componentLabel}
@@ -225,7 +414,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       </div>
 
       <div id="card-sitePhotos">
-        <Card title="รูปสถานที่" aside={counter(doneSite.length)} error={errors.sitePhotos} errorId="err-sitePhotos">
+        <Card title="รูปสถานที่" aside={counter(sitePresent)} error={errors.sitePhotos} errorId="err-sitePhotos">
           <p className="mb-2 text-[13px] text-ink-muted">
             ถ่ายเฉพาะพื้นที่ หลีกเลี่ยงการถ่ายใบหน้านักเรียน · ถ่ายรูปหรือเลือกจากคลังรูป
             ระบบประทับวันเวลาลงรูปอัตโนมัติ
@@ -307,13 +496,27 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
           <button
             type="button"
             onClick={submit}
-            disabled={pending || uploading}
+            disabled={pending || submitRequested || (uploading && online)}
             className="h-14 w-full rounded-[14px] bg-brand text-[16px] font-bold text-white disabled:opacity-60"
           >
-            {pending ? 'กำลังส่ง…' : uploading ? 'กำลังอัปโหลดรูป…' : buttonLabel}
+            {pending
+              ? 'กำลังส่ง…'
+              : submitRequested && (!online || !allDone)
+                ? 'จะส่งเมื่อมีสัญญาณ'
+                : submitRequested
+                  ? 'กำลังส่ง…'
+                  : uploading && online
+                    ? 'กำลังอัปโหลดรูป…'
+                    : buttonLabel}
           </button>
           <p className="text-center text-[13px] text-ink-muted" aria-live="polite">
-            {problem ? problem.message : `แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมงหลังบันทึก`}
+            {submitRequested
+              ? 'ส่งให้อัตโนมัติเมื่อมีสัญญาณและอัปโหลดรูปครบ · แก้ข้อมูลเพื่อยกเลิก'
+              : problem
+                ? problem.message
+                : !online
+                  ? 'ออฟไลน์ · ร่างถูกเก็บไว้ในเครื่อง'
+                  : `แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมงหลังบันทึก`}
           </p>
         </div>
       </div>

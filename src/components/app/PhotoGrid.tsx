@@ -1,13 +1,13 @@
 'use client';
 
-import { Camera, Loader2, X } from 'lucide-react';
+import { Camera, CloudOff, Loader2, X } from 'lucide-react';
 import { useRef } from 'react';
 
 export interface PhotoItem {
   key: string;
   /** object URL while uploading, then the server thumbnail */
   src: string;
-  status: 'uploading' | 'done' | 'error';
+  status: 'uploading' | 'queued' | 'done' | 'error';
   evidenceId?: string;
   error?: string;
 }
@@ -44,6 +44,15 @@ export function PhotoGrid({
           {p.status === 'uploading' ? (
             <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white" role="status">
               <Loader2 className="animate-spin" size={28} aria-label="กำลังอัปโหลด" />
+            </span>
+          ) : null}
+          {p.status === 'queued' ? (
+            <span
+              className="absolute inset-x-0 top-0 flex items-center gap-1 bg-warn-soft px-1 py-0.5 text-[12px] font-semibold text-warn-ink"
+              role="status"
+            >
+              <CloudOff size={14} aria-hidden />
+              รอสัญญาณ
             </span>
           ) : null}
           {p.status === 'error' ? (

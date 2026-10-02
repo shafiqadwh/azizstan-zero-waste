@@ -58,6 +58,12 @@ Layouts: `(public)` top bar + bottom actions on mobile; `(committee)` app shell 
    IndexedDB key `draft:{round}:{component}:{target}` on every change. If offline, uploads queue and retry when
    `online` fires; the submit button shows "จะส่งเมื่อมีสัญญาณ" and submits automatically when all uploads finish
    **and** the user confirmed submit. Drafts older than 7 days are cleared.
+   *Built:* `src/lib/offline/` (IndexedDB `zw-offline`/`drafts`, no dependency). Drafts are kept for **new**
+   evaluations only (an edit starts from the saved evaluation). Each photo keeps its shrunk JPEG in the draft; an
+   upload older than 20 h is sent again on restore because unattached evidence is removed after 24 h. Network
+   failures queue ("รอสัญญาณ" on the photo) and retry on `online` and every 15 s; server refusals do not. Editing
+   anything cancels a queued submit. The service worker does not cache pages (T26), so the form must have been
+   opened with signal; losing signal afterwards, reloading, or closing the app loses nothing.
 6. **Submit**: one primary button fixed at the bottom; disabled with an inline reason until valid
    ("ต้องถ่ายรูปอีก 1 รูป"). On success → haptic (`navigator.vibrate(30)` where supported) + toast
    "ส่งแล้ว รออนุมัติ" → back to `/tasks` with the item moved to "รออนุมัติ".
