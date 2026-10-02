@@ -57,7 +57,7 @@ checked by the person installing the school PC (14-deployment §2) and ticked in
 | 10 | Moodle / DB port | Code ✓ · On site | `deploy/docker-compose.yml` publishes no DB port. On site: Moodle not exposed through the tunnel. |
 | 11 | NAS development | Owner | Owner's written permission on file; delete after handover. |
 | 12 | Evidence photos | Code ✓ | Form hint "ถ่ายเฉพาะพื้นที่ หลีกเลี่ยงการถ่ายใบหน้านักเรียน"; signature photos staff-only; deleted by `retention.run`. |
-| 13 | Offline drafts | Not applicable yet | Offline drafts (07-frontend §5) are not built; the rule applies when they are. PDF footer "เอกสารภายใน ห้ามเผยแพร่" is in place. |
+| 13 | Offline drafts | Code ✓ | Deleted after a successful submit (`EvaluationForm`), after 7 days (`purgeExpiredDrafts`), and on logout: `LogoutButton` deletes the user's `draft:{userId}:` keys first, naming any unsent drafts in a confirm (`e2e/offline-draft.spec.ts`). PDF footer "เอกสารภายใน ห้ามเผยแพร่" is in place. |
 
 ## 2b. Pre-go-live review (2026-10-02, after T40/T41/auto-approve/offline drafts)
 | Check | Result |
@@ -68,6 +68,7 @@ checked by the person installing the school PC (14-deployment §2) and ticked in
 | Area-teacher access (T41) reaches only area-teacher components; committee duties never count for them, nor the reverse | pass |
 | CSV exports: formula guard extended to `-` (plain negative numbers stay numbers) besides `=`, `+`, `@`, tab, CR | **fixed** |
 | Offline drafts (IndexedDB) keyed by the signed-in user, so a shared phone never restores another teacher's draft | **fixed** |
+| Offline drafts deleted on logout (§2 item 13) — they hold photos, signature sheets included | **fixed** (2026-10-02) |
 | Production `.env` checked by `scripts/preflight.js` before go-live (14-deployment §2 step 10) | added |
 
 ## 3. Retention summary

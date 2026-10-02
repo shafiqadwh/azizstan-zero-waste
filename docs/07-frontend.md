@@ -63,7 +63,8 @@ Layouts: `(public)` top bar + bottom actions on mobile; `(committee)` app shell 
 5. **Offline draft**: the form state (score, comment, evidence ids, and not-yet-uploaded image blobs) is saved to
    IndexedDB key `draft:{round}:{component}:{target}` on every change. If offline, uploads queue and retry when
    `online` fires; the submit button shows "จะส่งเมื่อมีสัญญาณ" and submits automatically when all uploads finish
-   **and** the user confirmed submit. Drafts older than 7 days are cleared.
+   **and** the user confirmed submit. Drafts older than 7 days are cleared, and logout deletes the user's drafts
+   (a confirm names unsent ones first).
    *Built:* `src/lib/offline/` (IndexedDB `zw-offline`/`drafts`, no dependency). Drafts are kept for **new**
    evaluations only (an edit starts from the saved evaluation). Each photo keeps its shrunk JPEG in the draft; an
    upload older than 20 h is sent again on restore because unattached evidence is removed after 24 h. Network

@@ -76,3 +76,45 @@ test('offline draft: survives a reload, queues photos offline and sends itself w
   await expect(page.getByTestId('detail-score')).toContainText('4');
   await expect(page.getByRole('link', { name: /ดูรูปที่/ })).toHaveCount(4);
 });
+
+test('logout removes the teacher’s drafts from the phone, after naming how many are unsent', async ({ page }) => {
+  const teacher = await createTestUser({ role: 'teacher', password: 'teacher-password' });
+  const { roomNumber } = await seedJourneyFixture(teacher);
+  await page.goto('/login');
+  await page.getByLabel('ชื่อผู้ใช้').fill(teacher);
+  await page.getByLabel('รหัสผ่าน', { exact: true }).fill('teacher-password');
+  await page.getByRole('button', { name: 'เข้าสู่ระบบ' }).click();
+  await page.waitForURL((url) => url.pathname !== '/login');
+  await page.goto('/tasks');
+  await page.getByTestId(`task-${roomNumber}`).click();
+  await page.getByRole('textbox', { name: 'คำแนะนำและข้อติชม' }).fill('ยังไม่ได้ส่ง');
+  await page.waitForTimeout(800); // draft writes are debounced
+  const count = () =>
+    page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          const req = indexedDB.open('zw-offline', 1);
+          req.onsuccess = () => {
+            const c = req.result.transaction('drafts').objectStore('drafts').count();
+            c.onsuccess = () => resolve(c.result);
+          };
+        }),
+    );
+  expect(await count()).toBe(1);
+
+  // "cancel" keeps both the session and the draft
+  let message = '';
+  page.once('dialog', (d) => {
+    message = d.message();
+    void d.dismiss();
+  });
+  await page.getByRole('button', { name: 'ออกจากระบบ' }).click();
+  await expect.poll(() => message).toContain('มีแบบร่างที่ยังไม่ได้ส่ง 1 รายการ');
+  expect(page.url()).toContain('/evaluate/new');
+  expect(await count()).toBe(1);
+
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: 'ออกจากระบบ' }).click();
+  await page.waitForURL(/\/login/);
+  expect(await count()).toBe(0);
+});

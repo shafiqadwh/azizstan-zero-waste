@@ -3,6 +3,7 @@ import {
   DRAFT_TTL_MS,
   UPLOAD_REUSE_MS,
   draftKey,
+  draftPrefix,
   hasContent,
   isExpired,
   isNetworkError,
@@ -48,5 +49,14 @@ describe('offline drafts (07-frontend §3.5)', () => {
     expect(isNetworkError(new TypeError('Failed to fetch'), true)).toBe(true);
     expect(isNetworkError(new Error('ไฟล์ใหญ่เกินไป'), false)).toBe(true);
     expect(isNetworkError(new Error('ไฟล์ใหญ่เกินไป'), true)).toBe(false);
+  });
+});
+
+describe('draftPrefix', () => {
+  it('covers exactly one user’s keys', () => {
+    const mine = draftKey('u1', 'r', 'c', 't');
+    expect(mine.startsWith(draftPrefix('u1'))).toBe(true);
+    expect(mine.startsWith(draftPrefix('u'))).toBe(false);
+    expect(draftKey('u10', 'r', 'c', 't').startsWith(draftPrefix('u1'))).toBe(false);
   });
 });

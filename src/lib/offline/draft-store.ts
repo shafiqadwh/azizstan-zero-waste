@@ -1,5 +1,5 @@
 /** IndexedDB home of evaluation drafts (07-frontend §3.5). Every call fails soft: no IndexedDB → no draft. */
-import { isExpired, type Draft } from './draft';
+import { draftPrefix, isExpired, type Draft } from './draft';
 
 const DB_NAME = 'zw-offline';
 const STORE = 'drafts';
@@ -52,4 +52,20 @@ export const purgeExpiredDrafts = (now: number) =>
     const old = all.filter((d) => isExpired(d, now));
     for (const d of old) await run('readwrite', (s) => s.delete(d.key));
     return old.length;
+  }, 0);
+
+/** Keys of one user's drafts on this device (key range on the `draft:{userId}:` prefix). */
+const keysOf = (userId: string) => {
+  const prefix = draftPrefix(userId);
+  return run<IDBValidKey[]>('readonly', (s) => s.getAllKeys(IDBKeyRange.bound(prefix, `${prefix}\uffff`)));
+};
+
+export const countDraftsOf = (userId: string) => soft(async () => (await keysOf(userId)).length, 0);
+
+/** Logout (12-security §2 item 13): the user's drafts, photos included, leave the device. Returns how many. */
+export const deleteDraftsOf = (userId: string) =>
+  soft(async () => {
+    const keys = await keysOf(userId);
+    for (const k of keys) await run('readwrite', (s) => s.delete(k));
+    return keys.length;
   }, 0);
