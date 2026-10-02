@@ -1,6 +1,7 @@
 # 14 — Deployment
 
 Step-by-step Thai handbook for the school's IT staff: `docs/go-live-th.md` (same procedure, tested commands).
+NAS test install in Thai (DSM Reverse Proxy, encrypted folder, `deploy/compose.local.yml`): `docs/nas-test-th.md`.
 
 Same Docker Compose on both machines. Files: `deploy/docker-compose.yml`, `deploy/Dockerfile`,
 `deploy/backup.sh`, `deploy/zw.sh`, `.env.example`.
