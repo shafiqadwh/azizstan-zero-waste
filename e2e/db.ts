@@ -221,7 +221,7 @@ export async function seedJourneyFixture(username: string, opts: { closedRound?:
         termId,
       ])
     ).rows[0]!.id;
-    return { roomNumber, className: `ม.J J${tag}`, roundId, componentId, classId, userId };
+    return { roomNumber, className: `ม.J J${tag}`, roundId, componentId, classId, userId, areaId: buildingId };
   } finally {
     await client.end();
   }
@@ -308,6 +308,59 @@ export async function setRoomMode(mode: 'group' | 'individual') {
   await client.connect();
   try {
     await client.query("UPDATE terms SET room_mode = $1 WHERE status = 'active'", [mode]);
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * T41: an enabled class-unit deduction by area teachers (max 3) on the shared active term, and an area_teacher
+ * duty for `username` on `areaId`. Returns the component id; {@link disableDeduction} switches it off again.
+ */
+export async function seedDeduction(username: string, areaId: string) {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    const termId = (await client.query<{ id: string }>("SELECT id FROM terms WHERE status = 'active'")).rows[0]!.id;
+    const componentId = (
+      await client.query<{ id: string }>(
+        `INSERT INTO score_components (id, term_id, key, label, unit, source, kind, max_value, enabled, requires_signature, sort_order)
+         VALUES (gen_random_uuid(), $1, 'e2e_deduct', 'หักคะแนนจากครูผู้รับผิดชอบ', 'class', 'area_teacher', 'deduct', 3, true, false, 9)
+         ON CONFLICT (term_id, key) DO UPDATE SET enabled = true
+         RETURNING id`,
+        [termId],
+      )
+    ).rows[0]!.id;
+    const userId = (await client.query<{ id: string }>('SELECT id FROM users WHERE username = $1', [username])).rows[0]!
+      .id;
+    await client.query(
+      `INSERT INTO duties (id, term_id, user_id, duty, target_type, target_area_id)
+       VALUES (gen_random_uuid(), $1, $2, 'area_teacher', 'area', $3)`,
+      [termId, userId, areaId],
+    );
+    return componentId;
+  } finally {
+    await client.end();
+  }
+}
+
+export async function disableDeduction() {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    await client.query(
+      "UPDATE score_components SET enabled = false WHERE key = 'e2e_deduct' AND term_id = (SELECT id FROM terms WHERE status = 'active')",
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+export async function setAutoApprove(enabled: boolean) {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    await client.query("UPDATE terms SET auto_approve = $1 WHERE status = 'active'", [enabled]);
   } finally {
     await client.end();
   }

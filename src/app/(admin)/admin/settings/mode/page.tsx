@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { LockedBanner, ReadOnlyBanner } from '@/components/app/settings';
+import { Card, LockedBanner, ReadOnlyBanner } from '@/components/app/settings';
 import { TermPicker } from '@/components/app/TermPicker';
 import { formatTermLabel } from '@/lib/dates';
 import { requirePageUser } from '@/server/auth/current-user';
 import { can } from '@/server/policies';
 import { resolveSettingsTerm } from '../term-context';
+import { AutoApproveSwitch } from './AutoApproveSwitch';
 import { ModeForm } from './ModeForm';
 
 export const metadata: Metadata = { title: 'รูปแบบการประเมิน · AZIZSTAN ZERO WASTE' };
@@ -37,6 +38,9 @@ export default async function ModePage({ searchParams }: { searchParams: Promise
         </div>
         <TermPicker terms={terms} selectedId={t.id} />
       </div>
+      <Card title="การอนุมัติผลประเมิน" id="approval">
+        <AutoApproveSwitch key={t.id} termId={t.id} enabled={t.autoApprove} disabled={readOnly} />
+      </Card>
       {readOnly ? <ReadOnlyBanner /> : t.configLockedAt ? <LockedBanner /> : null}
       <ModeForm
         key={t.id}

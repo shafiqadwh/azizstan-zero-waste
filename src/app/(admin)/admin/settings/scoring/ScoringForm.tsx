@@ -100,6 +100,7 @@ export function ScoringForm({
                 <tr>
                   <th className="px-2 py-2">ใช้</th>
                   <th className="px-2 py-2">ส่วนคะแนน</th>
+                  <th className="px-2 py-2">ประเมิน</th>
                   <th className="px-2 py-2">ผู้ให้คะแนน</th>
                   <th className="px-2 py-2">ประเภท</th>
                   <th className="px-2 py-2">คะแนนเต็ม</th>
@@ -129,6 +130,17 @@ export function ScoringForm({
                         <span className="text-[12px] text-ink-muted">ประเมิน{areaLabel}</span>
                       ) : null}
                       {!c.enabled ? <span className="block text-[12px]">ไม่ใช้ในเทอมนี้</span> : null}
+                    </td>
+                    <td className="px-2 py-2">
+                      <select
+                        aria-label={`สิ่งที่ประเมินของ${c.label}`}
+                        value={c.unit}
+                        onChange={(e) => update(i, { unit: e.target.value as ComponentValue['unit'] })}
+                        className={inputCls}
+                      >
+                        <option value="class">ห้อง</option>
+                        <option value="area">{areaLabel}</option>
+                      </select>
                     </td>
                     <td className="px-2 py-2">
                       <select

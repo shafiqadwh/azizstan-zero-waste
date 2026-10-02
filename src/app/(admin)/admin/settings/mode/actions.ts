@@ -5,7 +5,7 @@ import type { MessageState } from '@/components/app/settings';
 import { clientMeta, requireUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { toResult } from '@/server/result';
-import { updateTermConfig } from '@/server/services/term.service';
+import { setAutoApprove, updateTermConfig } from '@/server/services/term.service';
 
 const n = (f: FormData, k: string) => Number(f.get(k));
 const s = (f: FormData, k: string) => String(f.get(k) ?? '');
@@ -36,4 +36,16 @@ export async function saveModeAction(prev: MessageState | null, form: FormData):
     return { message: 'บันทึกการตั้งค่าแล้ว' };
   });
   return { ...r, seq: (prev?.seq ?? 0) + 1 };
+}
+
+/** "อนุมัติอัตโนมัติ" switch (settings and approvals pages); not affected by the config lock. */
+export async function setAutoApproveAction(termId: string, enabled: boolean): Promise<MessageState> {
+  const r = await toResult(async () => {
+    await setAutoApprove(getDb(), await requireUser(), { termId, enabled }, await clientMeta(), new Date());
+    revalidatePath('/admin/settings', 'layout');
+    revalidatePath('/admin/approvals');
+    revalidatePath('/admin');
+    return { message: enabled ? 'เปิดอนุมัติอัตโนมัติแล้ว' : 'ปิดอนุมัติอัตโนมัติแล้ว' };
+  });
+  return { ...r, seq: 0 };
 }

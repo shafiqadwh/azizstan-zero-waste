@@ -167,6 +167,20 @@ export default async function CommitteePage({ searchParams }: { searchParams: Pr
                         ))}
                       </ul>
                     ) : null}
+                    {t.areaTeachers.length > 0 ? (
+                      <ul className="flex flex-wrap gap-1.5 text-ink" aria-label={`ครูผู้รับผิดชอบ ${t.label}`}>
+                        {t.areaTeachers.map((h) => (
+                          <DutyChip
+                            key={h.dutyId}
+                            dutyId={h.dutyId}
+                            name={h.displayName}
+                            target={t.label}
+                            note="ครูผู้รับผิดชอบ"
+                            canManage={canManage}
+                          />
+                        ))}
+                      </ul>
+                    ) : null}
                     {t.approvers.length > 0 ? (
                       <ul className="flex flex-wrap gap-1.5 text-ink" aria-label={`ผู้อนุมัติ ${t.label}`}>
                         {t.approvers.map((h) => (

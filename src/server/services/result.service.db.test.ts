@@ -247,6 +247,37 @@ describe('individual mode student results (FR-R6, T40)', () => {
   });
 });
 
+describe('area-teacher deduction (T41)', () => {
+  test('an approved deduction lowers the class total, capped at its max, never below 0', async () => {
+    const r1 = roundIds[0]!;
+    const deductC = newId();
+    await db.insert(scoreComponents).values({
+      id: deductC,
+      termId,
+      key: 'area_deduct',
+      label: 'หักคะแนน',
+      unit: 'class',
+      source: 'area_teacher',
+      kind: 'deduct',
+      maxValue: '3.000',
+      enabled: true,
+      requiresSignature: false,
+      sortOrder: 9,
+    });
+    const e = await approved(r1, deductC, { class: A }, '2');
+    try {
+      const r = await computeRoundResults(db, r1);
+      expect(r.classes.find((c) => c.classId === A)).toMatchObject({ deduction: th(2), total: th(11) });
+      // a deduction nobody entered counts as 0 and is never "missing"
+      expect(r.classes.find((c) => c.classId === B)).toMatchObject({ deduction: 0, total: th(14) });
+      expect(r.missing.some((m) => m.componentId === deductC)).toBe(false);
+    } finally {
+      await db.delete(evaluations).where(eq(evaluations.id, e));
+      await db.delete(scoreComponents).where(eq(scoreComponents.id, deductC));
+    }
+  });
+});
+
 describe('finalize (BR-R3)', () => {
   test('T-R2: missing evaluations → ROUND_NOT_COMPLETE (n); a waiting request blocks; only closed rounds', async () => {
     await expect(finalizeRound(db, executive, { roundId: roundIds[1]! }, meta, now)).rejects.toMatchObject({

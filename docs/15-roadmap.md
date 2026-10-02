@@ -162,5 +162,5 @@ T25 (student sync), T26 (push; in-app inbox first), T27 (ปพ.5 — needed onl
 
 ## Phase 3 — Future rule sets
 - **T40** Individual mode end to end (per-student scores UI with codes only, student-level results, ปพ.5 students). *Built:* area-unit components stay group-scored (areas have no students).
-- **T41** Area-teacher deductions (FR-E12) with limits and PDFs.
+- **T41** Area-teacher deductions (FR-E12) with limits and PDFs. *Built (Q4 answered):* `area_teacher` duty on areas, deductions per class per round with photo + reason, admin approval, PDF "แบบบันทึกการหักคะแนนความสะอาด".
 - **T42** Zone head, zone teacher teams (FR-P4) and teacher-as-committee terms (priority rule Q2).

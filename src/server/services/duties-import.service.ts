@@ -95,12 +95,16 @@ export async function parseDutiesWorkbook(data: ArrayBuffer): Promise<DutyImport
   return rows;
 }
 
-const DUTY_WORDS: Record<string, 'committee' | 'approver'> = {
+const DUTY_WORDS: Record<string, 'committee' | 'approver' | 'area_teacher'> = {
   committee: 'committee',
   กรรมการ: 'committee',
   approver: 'approver',
   ผู้อนุมัติ: 'approver',
+  area_teacher: 'area_teacher',
+  ครูผู้รับผิดชอบ: 'area_teacher',
+  ครูผู้รับผิดชอบพื้นที่: 'area_teacher',
 };
+const DUTY_LABEL = { committee: 'กรรมการ', approver: 'ผู้อนุมัติ', area_teacher: 'ครูผู้รับผิดชอบพื้นที่' } as const;
 const TYPE_WORDS: Record<string, 'class' | 'zone' | 'building'> = {
   ห้อง: 'class',
   ห้องเรียน: 'class',
@@ -208,7 +212,7 @@ export async function importDuties(
             fail(row.target ? DUTY_IMPORT_MSG.unknownTarget(row.target) : DUTY_IMPORT_MSG.targetRequired);
             continue;
           }
-        } else if (duty === 'committee') {
+        } else if (duty !== 'approver') {
           fail(DUTY_IMPORT_MSG.targetRequired);
           continue;
         }
@@ -242,7 +246,7 @@ export async function importDuties(
           } else summary.existing++;
           if (outcome.enabledUser) summary.enabledUsers++;
           const action = outcome.created
-            ? `มอบหมาย${duty === 'committee' ? 'กรรมการ' : 'ผู้อนุมัติ'}${outcome.enabledUser ? ' · เปิดบัญชี' : ''}`
+            ? `มอบหมาย${DUTY_LABEL[duty]}${outcome.enabledUser ? ' · เปิดบัญชี' : ''}`
             : 'มอบหมายไว้แล้ว';
           results.push({ ...base, action, error: null });
         } catch (err) {

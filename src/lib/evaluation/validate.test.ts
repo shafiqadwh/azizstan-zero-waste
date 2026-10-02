@@ -45,6 +45,17 @@ describe('checkContent (BR-E1)', () => {
     expect(checkContent({ ...ok, comment: 'ก'.repeat(300) }, rules)).toBeNull();
   });
 
+  test('T41 deduction: chosen, more than 0, with a reason', () => {
+    const d = { ...rules, deduction: true, requiresSignature: false };
+    const base = { ...ok, hasSignature: false, comment: 'ขยะล้นถัง' };
+    expect(checkContent({ ...base, score: null }, d)?.message).toBe('กรุณาเลือกคะแนนที่หัก');
+    expect(checkContent({ ...base, score: 0 }, d)?.message).toBe('คะแนนที่หักต้องมากกว่า 0');
+    expect(checkContent({ ...base, score: 2000, comment: ' ขยะ ' }, d)?.message).toBe(
+      'กรุณาระบุเหตุผลที่หักคะแนนอย่างน้อย 5 ตัวอักษร',
+    );
+    expect(checkContent({ ...base, score: 2000 }, d)).toBeNull();
+  });
+
   test('individual mode: every snapshot student needs a valid score', () => {
     const ind = { ...rules, rosterIds: ['s1', 's2'] };
     const scores = (m: [string, number | null][]) => ({ ...ok, score: null, studentScores: new Map(m) });

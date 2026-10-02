@@ -79,6 +79,14 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 - **BR-P1** user is active and holds a `committee` duty in `round.term` whose target equals `target`
   (for freelance duties also `valid_until > now`). Component source must be `committee`
   (area_teacher components need an `area_teacher` duty on the area — P3).
+- **BR-P1b (T41)** `source = area_teacher`: the user holds an `area_teacher` duty (always on an area) for the target
+  area, or — for a class — for the area the class is frozen into for that round (`round_class_areas`). A committee
+  duty never counts for such a component, nor the other way round.
+- **BR-D-E (T41, FR-E12, Q4)** A deduction (`kind = deduct`) is an evaluation like any other — one per (round,
+  component, class), self-edit window, requests, approval, PDF — with these content rules: deducted points > 0 and
+  ≤ the component max, step as BR-N2; at least 1 photo (whatever `photo_min`); the comment is a required reason of at
+  least 5 characters; no signature sheet; never per student. A deduction nobody made counts as 0 and is never
+  "missing" (no reminders, does not block finalize).
 - **BR-P2** entry is open (BR-T2) **or** the user has an approved `late_entry` request for this
   (round, component, target) with `grant_until > now`.
 - **BR-P3** no live evaluation exists for (round, component, target) (I1). If one exists, the UI shows
@@ -112,6 +120,13 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 - **BR-E5 Delete** by owner within the window → status `void` (row kept; unique index frees the slot).
 - **BR-E6 Approve** (admin; if the target has an `approver` duty holder, only that admin or a super admin):
   status `approved`, `approved_at/by`, enqueue `pdf.render`, revalidate public cache, recompute live results.
+- **BR-E6b อนุมัติอัตโนมัติ (2026-10-02)** Per term switch `terms.auto_approve` (admin, any time — not part of the
+  config lock; on the mode settings page and the approvals page; audited `term.auto_approve`). On: a submitted
+  evaluation is stored `approved` at once with `approved_by = null` and its PDF queued (approver printed as
+  "อนุมัติอัตโนมัติ"). Its owner keeps the self-edit window (BR-E2): each change stays `approved`, `version + 1` and
+  queues the next PDF version; deleting voids it. Once the round is finalized, or for an admin-approved evaluation,
+  changes go through requests (BR-E9). Requests (late entry, edits after the window, delete, move) still wait for an
+  admin. Applies to evaluations submitted while it is on.
 - **BR-E7 Return** (admin, reason required ≥ 5 chars): status `returned`, `returned_reason`,
   `self_edit_until = max(self_edit_until, now + self_edit_hours)` so the owner can fix it. Notifies owner.
 - **BR-E8 Resubmit** from `returned` → `submitted` (same validation as BR-E1).

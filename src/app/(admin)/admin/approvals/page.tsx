@@ -9,6 +9,7 @@ import { findActiveTerm } from '@/server/repositories/places.repository';
 import { listWaitingResults } from '@/server/services/dashboard.service';
 import { listWaitingRequests } from '@/server/services/request.service';
 import { RequestCardView } from './RequestCardView';
+import { AutoApproveSwitch } from '../settings/mode/AutoApproveSwitch';
 import { ResultCards } from './ResultCards';
 
 export const metadata: Metadata = { title: 'รออนุมัติ · AZIZSTAN ZERO WASTE' };
@@ -46,6 +47,11 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           คำขอ {cards.length}
         </Link>
       </nav>
+      {term ? (
+        <section aria-label="การอนุมัติผลประเมิน" className="rounded-xl border border-line bg-surface p-4">
+          <AutoApproveSwitch termId={term.id} enabled={term.autoApprove} disabled={!can(user, 'term.configure')} />
+        </section>
+      ) : null}
       <AutoRefresh />
       {!canDecide ? <ReadOnlyBanner /> : null}
       {tab === 'results' ? (

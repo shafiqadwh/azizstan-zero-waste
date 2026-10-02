@@ -168,6 +168,12 @@ Login card: logo, "เข้าสู่ระบบ", ชื่อผู้ใ�
 ของโรงเรียน". After first login on mobile: sheet "ติดตั้งแอปเพื่อรับการแจ้งเตือน" — Android: install button; iOS: 3
 illustrated steps (แตะปุ่มแชร์ → เพิ่มไปยังหน้าจอโฮม → เปิดจากไอคอน) + "ไว้ทีหลัง".
 
+### 6.6b "อนุมัติอัตโนมัติ" switch (BR-E6b)
+Card "การอนุมัติผลประเมิน" at the top of `/admin/settings/mode` and above the tabs of `/admin/approvals`: one switch
+"อนุมัติอัตโนมัติ" with a sentence for each state, enabled even when the term config is locked. When on, the committee
+form's button reads "บันทึกผลประเมิน" (deduction: "บันทึกการหักคะแนน"), the caption "อนุมัติอัตโนมัติเมื่อบันทึก ·
+แก้ไขเองได้ภายใน {n} ชั่วโมง", and the toast "บันทึกแล้ว อนุมัติอัตโนมัติ".
+
 ### 6.7 My tasks `/tasks`
 Content: top bar · deadline banner (amber: "รอบที่ 1 · เหลือเวลาลงคะแนน 3 วัน"; red after close: "เลยกำหนดแล้ว ·
 ต้องขออนุมัติก่อนใส่คะแนน") · search field (numeric keyboard, "เลขห้อง เช่น 121") + QR button · status tabs
@@ -176,6 +182,11 @@ name, status pill, chevron). Order: returned first, then not evaluated (by room 
 Tap a row: not evaluated → form; others → detail.
 Empty (no duties): illustration-free message "คุณยังไม่ได้รับมอบหมายให้ประเมินในเทอมนี้".
 All done: "ครบทุกรายการแล้ว ขอบคุณครับ/ค่ะ" with a check icon (no emoji anywhere in the UI).
+Area teachers (T41): below the list, a section "หักคะแนน (n)" lists the classes in their areas for the current
+round with a neutral "หักได้" pill — optional, never counted in "ต้องทำ". The form is titled "หักคะแนน", the score card
+shows "หักได้สูงสุด {max}" without a 0 chip, photos are "รูปหลักฐานการหักคะแนน" (at least 1), the comment is
+"เหตุผลที่หักคะแนน (จำเป็น)", no signature card; submit "บันทึกการหักคะแนนและส่งให้ Admin อนุมัติ". Detail and approval
+cards show "−n · หักได้สูงสุด {max}".
 
 ### 6.8 Evaluation form `/evaluate/new`
 Content: back + "ประเมินห้องเรียน" · target header (§4.5) · card คะแนน (§4.6) · card รูปสถานที่ (§4.7) with hint

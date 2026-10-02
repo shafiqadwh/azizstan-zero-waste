@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { clientMeta, requireUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
+import { refreshPublic } from '@/server/public-cache';
 import { toResult, type Result } from '@/server/result';
 import {
   deleteEvaluation,
@@ -22,6 +23,7 @@ const refresh = (id?: string) => {
 export async function submitEvaluationAction(input: z.input<typeof submitInput>): Promise<Result<{ id: string }>> {
   return toResult(async () => {
     const e = await submitEvaluation(getDb(), await requireUser(), input, await clientMeta(), new Date());
+    if (e.status === 'approved') refreshPublic(); // "อนุมัติอัตโนมัติ"
     refresh(e.id);
     return { id: e.id };
   });
@@ -34,6 +36,7 @@ export async function updateEvaluationAction(
   return toResult(async () => {
     const fn = mode === 'resubmit' ? resubmitEvaluation : updateEvaluation;
     const e = await fn(getDb(), await requireUser(), input, await clientMeta(), new Date());
+    if (e.status === 'approved') refreshPublic(); // an auto-approved result edited inside the window
     refresh(e.id);
     return { id: e.id };
   });
@@ -42,6 +45,7 @@ export async function updateEvaluationAction(
 export async function deleteEvaluationAction(id: string, expectedVersion: number): Promise<Result<null>> {
   return toResult(async () => {
     await deleteEvaluation(getDb(), await requireUser(), { id, expectedVersion }, await clientMeta(), new Date());
+    refreshPublic(); // it may have been auto-approved
     refresh(id);
     return null;
   });

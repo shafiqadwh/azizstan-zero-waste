@@ -234,6 +234,7 @@ export async function createTerm(
           reminderHours: source.reminderHours,
           publicRankingsVisible: source.publicRankingsVisible,
           publicShowLiveScores: source.publicShowLiveScores,
+          autoApprove: source.autoApprove,
         }
       : { areaType: 'building' as const, finalMax: '15.000' };
     await repo.insertTerm(tx, {
@@ -361,6 +362,44 @@ export async function updateTermConfig(
 }
 
 /** Components table + "ใช้คะแนนเต็มเท่ากันทุกรอบ" + per-round grid (08-ux-ui §6.12 scoring card). */
+export const autoApproveInput = z.object({ termId: z.uuid(), enabled: z.boolean() });
+
+/**
+ * "อนุมัติอัตโนมัติ" (2026-10-02): when on, a committee evaluation is approved — and its PDF queued — the moment it
+ * is submitted. Requests still go to an admin. An operating choice, not scoring config: allowed after the config
+ * lock (BR-TM2), not on a closed term. Applies to evaluations submitted from now on.
+ */
+export async function setAutoApprove(
+  db: Db,
+  actor: SessionUser,
+  raw: z.input<typeof autoApproveInput>,
+  meta: ClientMeta,
+  now: Date,
+) {
+  assertCan(actor, 'term.configure');
+  const input = parseInput(autoApproveInput, raw);
+  await withTransaction(db, async (tx) => {
+    const term = await repo.findTerm(tx, input.termId);
+    if (!term) throw notFound();
+    assertTermWritable(term);
+    if (term.autoApprove === input.enabled) return;
+    await repo.updateTerm(tx, term.id, { autoApprove: input.enabled });
+    await writeAudit(
+      tx,
+      {
+        actorId: actor.id,
+        action: 'term.auto_approve',
+        entity: 'term',
+        entityId: term.id,
+        before: { autoApprove: term.autoApprove },
+        after: { autoApprove: input.enabled },
+        ip: meta.ip,
+      },
+      now,
+    );
+  });
+}
+
 export async function updateScoring(
   db: Db,
   actor: SessionUser,

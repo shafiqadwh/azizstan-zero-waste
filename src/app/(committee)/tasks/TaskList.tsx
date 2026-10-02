@@ -10,16 +10,47 @@ import type { TaskItem } from '@/server/services/task.service';
 type Tab = 'todo' | 'waiting' | 'done';
 
 const tabOf = (i: TaskItem): Tab => (i.status === 'approved' ? 'done' : i.status === 'submitted' ? 'waiting' : 'todo');
+/** T41: a deduction nobody has made is not work left to do — it is listed apart, never under "ต้องทำ" */
+const isSpare = (i: TaskItem) => i.optional && i.status === 'not_evaluated';
+
+function Row({ i, testId }: { i: TaskItem; testId: string }) {
+  return (
+    <li>
+      <Link href={i.href} className="flex min-h-16 items-center gap-3 px-4 py-3" data-testid={testId}>
+        <span className="min-w-0 flex-1">
+          <TargetBadge
+            roomNumber={i.target.roomNumber}
+            label={i.target.label}
+            className="block truncate text-[16px] font-semibold"
+          />
+          <span className="block truncate text-[13px] text-ink-muted">
+            {[i.componentLabel, i.target.subtitle, i.ownerName && !i.mine ? `โดย ${i.ownerName}` : null]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </span>
+        {isSpare(i) ? (
+          <span className="shrink-0 rounded-full border border-line-strong px-2.5 py-1 text-[13px]">หักได้</span>
+        ) : (
+          <StatusPill status={i.status} />
+        )}
+        <ChevronRight size={18} aria-hidden className="shrink-0 text-ink-muted" />
+      </Link>
+    </li>
+  );
+}
 
 /** Tabs "ต้องทำ n · รออนุมัติ n · เสร็จ n" and a room-number search over the user's own targets. */
 export function TaskList({ items }: { items: TaskItem[] }) {
   const [tab, setTab] = useState<Tab>('todo');
   const [q, setQ] = useState('');
-  const count = (t: Tab) => items.filter((i) => tabOf(i) === t).length;
+  const work = items.filter((i) => !isSpare(i));
+  const spare = items.filter(isSpare);
+  const count = (t: Tab) => work.filter((i) => tabOf(i) === t).length;
   const query = q.trim().toLowerCase();
-  const shown = items.filter((i) =>
-    query ? `${i.target.roomNumber ?? ''} ${i.target.label}`.toLowerCase().includes(query) : tabOf(i) === tab,
-  );
+  const shown = query
+    ? items.filter((i) => `${i.target.roomNumber ?? ''} ${i.target.label}`.toLowerCase().includes(query))
+    : work.filter((i) => tabOf(i) === tab);
   const tabs: [Tab, string][] = [
     ['todo', 'ต้องทำ'],
     ['waiting', 'รออนุมัติ'],
@@ -78,31 +109,29 @@ export function TaskList({ items }: { items: TaskItem[] }) {
       ) : (
         <ul className="flex flex-col divide-y divide-line rounded-xl border border-line bg-surface">
           {shown.map((i) => (
-            <li key={i.key}>
-              <Link
-                href={i.href}
-                className="flex min-h-16 items-center gap-3 px-4 py-3"
-                data-testid={`task-${i.target.roomNumber ?? i.target.label}`}
-              >
-                <span className="min-w-0 flex-1">
-                  <TargetBadge
-                    roomNumber={i.target.roomNumber}
-                    label={i.target.label}
-                    className="block truncate text-[16px] font-semibold"
-                  />
-                  <span className="block truncate text-[13px] text-ink-muted">
-                    {[i.componentLabel, i.target.subtitle, i.ownerName && !i.mine ? `โดย ${i.ownerName}` : null]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                </span>
-                <StatusPill status={i.status} />
-                <ChevronRight size={18} aria-hidden className="shrink-0 text-ink-muted" />
-              </Link>
-            </li>
+            <Row
+              key={i.key}
+              i={i}
+              testId={`${isSpare(i) ? 'deduct' : 'task'}-${i.target.roomNumber ?? i.target.label}`}
+            />
           ))}
         </ul>
       )}
+      {!query && spare.length > 0 ? (
+        <section aria-labelledby="spare-title" className="flex flex-col gap-2">
+          <h2 id="spare-title" className="text-[16px] font-bold">
+            หักคะแนน ({spare.length})
+          </h2>
+          <p className="text-[13px] text-ink-muted">
+            ห้องในพื้นที่ที่คุณรับผิดชอบ หักได้รอบละครั้งเมื่อพบปัญหา ต้องมีรูปหลักฐานและเหตุผล ไม่ต้องทำทุกห้อง
+          </p>
+          <ul className="flex flex-col divide-y divide-line rounded-xl border border-line bg-surface">
+            {spare.map((i) => (
+              <Row key={i.key} i={i} testId={`deduct-${i.target.roomNumber ?? i.target.label}`} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <p id="scan-help" className="text-[13px] text-ink-muted">
         สแกน QR ที่ประตูห้องด้วยกล้องมือถือ ระบบจะเปิดแบบประเมินของห้องนั้นให้
       </p>

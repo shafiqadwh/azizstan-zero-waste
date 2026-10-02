@@ -28,11 +28,11 @@ export function AssignForm({
 }) {
   const [state, action, pending] = useActionState<MessageState | null, FormData>(assignDutyAction, null);
   const [query, setQuery] = useState('');
-  const [duty, setDuty] = useState<'committee' | 'approver'>('committee');
+  const [duty, setDuty] = useState<'committee' | 'approver' | 'area_teacher'>('committee');
   const [freelance, setFreelance] = useState(false);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return users.filter((u) => (duty === 'committee' || u.isAdmin) && (!q || u.label.toLowerCase().includes(q)));
+    return users.filter((u) => (duty !== 'approver' || u.isAdmin) && (!q || u.label.toLowerCase().includes(q)));
   }, [users, query, duty]);
 
   return (
@@ -71,28 +71,34 @@ export function AssignForm({
           id="d-duty"
           name="duty"
           value={duty}
-          onChange={(e) => setDuty(e.target.value === 'approver' ? 'approver' : 'committee')}
+          onChange={(e) =>
+            setDuty(e.target.value === 'approver' || e.target.value === 'area_teacher' ? e.target.value : 'committee')
+          }
           className={inputCls}
         >
           <option value="committee">กรรมการประเมิน</option>
           <option value="approver">ผู้อนุมัติ (ผู้ดูแลระบบเท่านั้น)</option>
+          <option value="area_teacher">ครูผู้รับผิดชอบพื้นที่ (หักคะแนนห้องในพื้นที่)</option>
         </select>
       </div>
       <div className="flex min-w-0 flex-col gap-1">
         <label htmlFor="d-target" className="text-[13px] font-semibold">
           ห้องเรียนหรือพื้นที่
         </label>
-        <select id="d-target" name="target" required={duty === 'committee'} className={inputCls} key={duty}>
+        <select id="d-target" name="target" required={duty !== 'approver'} className={inputCls} key={duty}>
           {duty === 'approver' ? <option value="">ทุกรายการ</option> : null}
-          {groups.map((g) => (
-            <optgroup key={g.title} label={g.title}>
-              {g.targets.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
+          {/* an area teacher is responsible for a building or zone (T41) */}
+          {groups
+            .filter((g) => duty !== 'area_teacher' || g.targets.some((t) => t.value.startsWith('area:')))
+            .map((g) => (
+              <optgroup key={g.title} label={g.title}>
+                {g.targets.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
         </select>
       </div>
       {duty === 'committee' ? (

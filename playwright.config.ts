@@ -18,19 +18,27 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile-360',
-      testIgnore: /individual\.spec\.ts/,
+      testIgnore: /(individual|deduction|auto-approve)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 } },
     },
     {
       name: 'desktop-1440',
-      testIgnore: /individual\.spec\.ts/,
+      testIgnore: /(individual|deduction|auto-approve)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
-    // T40: switches the shared active term to individual mode, so it runs alone after every other spec
+    // T40/T41: change the shared active term (individual mode, an extra deduction component), so they run
+    // after every other spec
     {
-      name: 'individual',
-      testMatch: /individual\.spec\.ts/,
+      name: 'isolated',
+      testMatch: /(individual|deduction)\.spec\.ts/,
       dependencies: ['mobile-360', 'desktop-1440'],
+      use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 } },
+    },
+    // switches every new evaluation to "อนุมัติอัตโนมัติ", so it runs after the other isolated specs too
+    {
+      name: 'isolated-auto',
+      testMatch: /auto-approve\.spec\.ts/,
+      dependencies: ['isolated'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 } },
     },
   ],

@@ -34,8 +34,8 @@ import {
   updateEvaluation,
 } from './evaluation.service.ts';
 import { linkClassRoom, setTermClasses, upsertArea, upsertClass, upsertPhysicalRoom } from './place.service.ts';
-import { getEvaluationDetail, getEvaluationForm } from './task.service.ts';
-import { activateTerm, createTerm } from './term.service.ts';
+import { getEvaluationDetail, getEvaluationForm, getMyTasks } from './task.service.ts';
+import { activateTerm, createTerm, setAutoApprove } from './term.service.ts';
 import { createUser } from './user.service.ts';
 
 const baseUrl = process.env.DATABASE_URL;
@@ -496,6 +496,165 @@ describe('individual mode (FR-R6)', () => {
       expect(JSON.stringify(detail)).not.toContain('ทดสอบ');
     } finally {
       await db.update(terms).set({ roomMode: 'group' }).where(eq(terms.id, termId));
+    }
+  });
+});
+
+describe('area-teacher deductions (T41, FR-E12, Q4)', () => {
+  test('only the area teacher of the class’s area, once per round, > 0, a reason and a photo', async () => {
+    const u = await createUser(db, root, { username: 't.area', displayName: 'ครูอาคาร', role: 'teacher' }, meta, now);
+    const areaTeacher = await signIn('t.area', u.tempPassword!);
+    await expect(
+      assignDuty(
+        db,
+        admin,
+        { termId, userId: areaTeacher.id, duty: 'area_teacher', targetType: 'class', targetId: cls.Amanah! },
+        meta,
+        now,
+      ),
+    ).rejects.toMatchObject({ message: 'ครูผู้รับผิดชอบพื้นที่ต้องเลือกอาคารหรือโซน' });
+    await assignDuty(
+      db,
+      admin,
+      { termId, userId: areaTeacher.id, duty: 'area_teacher', targetType: 'area', targetId: b1 },
+      meta,
+      now,
+    );
+    const deductC = newId();
+    await db.insert(scoreComponents).values({
+      id: deductC,
+      termId,
+      key: 'area_deduct',
+      label: 'หักคะแนนจากครูผู้รับผิดชอบ',
+      unit: 'class',
+      source: 'area_teacher',
+      kind: 'deduct',
+      maxValue: '3.000',
+      enabled: true,
+      requiresSignature: false,
+      sortOrder: 9,
+    });
+    const deduct = async (user: SessionUser, classKey: string, extra: Record<string, unknown> = {}) =>
+      submitEvaluation(
+        db,
+        user,
+        {
+          roundId,
+          componentId: deductC,
+          target: { type: 'class', id: cls[classKey]! },
+          score: '2',
+          siteEvidenceIds: await photos(user, 1),
+          signatureEvidenceId: null,
+          comment: 'ขยะล้นถังหน้าห้อง',
+          ...extra,
+        },
+        meta,
+        now,
+      );
+    try {
+      // a committee duty on the class is not an area-teacher duty
+      await expect(deduct(t1, 'Amanah')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      // Berdikari is not frozen into อาคาร 1 for this round
+      await expect(deduct(areaTeacher, 'Berdikari')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(deduct(areaTeacher, 'Amanah', { score: '0' })).rejects.toMatchObject({
+        field: 'score',
+        message: 'คะแนนที่หักต้องมากกว่า 0',
+      });
+      await expect(deduct(areaTeacher, 'Amanah', { score: '3.5' })).rejects.toMatchObject({ field: 'score' });
+      await expect(deduct(areaTeacher, 'Amanah', { siteEvidenceIds: [] })).rejects.toMatchObject({
+        field: 'sitePhotos',
+        message: 'ต้องถ่ายรูปอีก 1 รูป',
+      });
+      await expect(deduct(areaTeacher, 'Amanah', { comment: 'ขยะ' })).rejects.toMatchObject({
+        field: 'comment',
+        message: 'กรุณาระบุเหตุผลที่หักคะแนนอย่างน้อย 5 ตัวอักษร',
+      });
+
+      const tasks = await getMyTasks(db, areaTeacher, now);
+      const mine = tasks.items.filter((i) => i.componentId === deductC);
+      expect(mine.map((i) => [i.target.id, i.optional, i.status])).toEqual([[cls.Amanah, true, 'not_evaluated']]);
+      const form = await getEvaluationForm(
+        db,
+        areaTeacher,
+        { roundId, componentId: deductC, target: { type: 'class', id: cls.Amanah! } },
+        now,
+      );
+      expect(form).toMatchObject({ deduction: true, photoMin: 1, requiresSignature: false, individual: false });
+
+      const e = await deduct(areaTeacher, 'Amanah');
+      expect(e).toMatchObject({ status: 'submitted', score: '2.000' });
+      // once per round (BR-P3)
+      await expect(deduct(areaTeacher, 'Amanah')).rejects.toMatchObject({ code: 'ALREADY_EVALUATED' });
+      // the area teacher sees their deduction, a committee member of the class does not get it as their own
+      expect((await getEvaluationDetail(db, areaTeacher, e.id, now)).deduction).toBe(true);
+      await approveEvaluation(db, admin, { id: e.id, expectedVersion: e.version }, meta, now);
+    } finally {
+      await db.update(scoreComponents).set({ enabled: false }).where(eq(scoreComponents.id, deductC));
+    }
+  });
+});
+
+describe('อนุมัติอัตโนมัติ (auto-approve, 2026-10-02)', () => {
+  test('approved on submit with its PDF queued; the owner still edits inside the window, not after finalize', async () => {
+    await expect(setAutoApprove(db, executive, { termId, enabled: true }, meta, now)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    await setAutoApprove(db, admin, { termId, enabled: true }, meta, now);
+    expect((await findTerm(db, termId))!.autoApprove).toBe(true);
+    const round2 = newId();
+    await db.insert(rounds).values({ id: round2, termId, roundNo: 2, opensAt, closesAt, status: 'open' });
+    try {
+      const e = await oneAudit(async () =>
+        submitEvaluation(
+          db,
+          t1,
+          {
+            roundId: round2,
+            componentId: roomC,
+            target: { type: 'class', id: cls.Amanah! },
+            score: '4',
+            siteEvidenceIds: await photos(t1, 3),
+            signatureEvidenceId: (await photos(t1, 1, 'signature'))[0],
+            comment: 'สะอาดดี',
+          },
+          meta,
+          now,
+        ),
+      );
+      const row = async () => (await db.select().from(evaluations).where(eq(evaluations.id, e.id)))[0]!;
+      expect(await row()).toMatchObject({ status: 'approved', approvedBy: null, pdfStatus: 'queued' });
+      expect((await getEvaluationDetail(db, t1, e.id, now)).canEdit).toBe(true);
+      // nothing waits for an admin
+      await expect(approveEvaluation(db, admin, { id: e.id, expectedVersion: e.version }, meta, now)).rejects.toThrow();
+
+      // inside the window: stays approved, a new PDF version is queued
+      await db.update(evaluations).set({ pdfStatus: 'ready' }).where(eq(evaluations.id, e.id));
+      const edited = await updateEvaluation(db, t1, { id: e.id, expectedVersion: e.version, score: '4.5' }, meta, now);
+      expect(edited).toMatchObject({ status: 'approved', score: '4.500', version: e.version + 1 });
+      expect((await row()).pdfStatus).toBe('queued');
+      // someone else still needs a request
+      await expect(
+        updateEvaluation(db, t2, { id: e.id, expectedVersion: edited.version, score: '3' }, meta, now),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      // after the window
+      await expect(
+        updateEvaluation(
+          db,
+          t1,
+          { id: e.id, expectedVersion: edited.version, score: '3' },
+          meta,
+          new Date(now.getTime() + 25 * hour),
+        ),
+      ).rejects.toMatchObject({ code: 'EDIT_WINDOW_PASSED' });
+      // a finalized round is frozen
+      await db.update(rounds).set({ status: 'finalized' }).where(eq(rounds.id, round2));
+      await expect(
+        updateEvaluation(db, t1, { id: e.id, expectedVersion: edited.version, score: '3' }, meta, now),
+      ).rejects.toMatchObject({ message: expect.stringContaining('ขออนุมัติ') });
+      expect((await getEvaluationDetail(db, t1, e.id, now)).canEdit).toBe(false);
+    } finally {
+      await setAutoApprove(db, admin, { termId, enabled: false }, meta, now);
+      await db.update(rounds).set({ status: 'closed' }).where(eq(rounds.id, round2));
     }
   });
 });

@@ -1,0 +1,1 @@
+ALTER TABLE "terms" ADD COLUMN "auto_approve" boolean DEFAULT false NOT NULL;

@@ -29,6 +29,7 @@ export const DUTY_MSG = {
   freelanceExpiry: 'มอบหมายชั่วคราวต้องกำหนดวันหมดอายุในอนาคต',
   freelanceCommitteeOnly: 'มอบหมายชั่วคราวใช้ได้กับกรรมการประเมินเท่านั้น',
   closedTerm: 'ภาคเรียนนี้ปิดแล้ว แก้หน้าที่ไม่ได้',
+  areaTeacherArea: 'ครูผู้รับผิดชอบพื้นที่ต้องเลือกอาคารหรือโซน',
 } as const;
 
 export const AREA_TYPE_LABEL = { building: 'อาคาร', zone: 'โซน' } as const;
@@ -37,7 +38,7 @@ export const assignDutyInput = z
   .object({
     termId: z.uuid(),
     userId: z.uuid(),
-    duty: z.enum(['committee', 'approver']),
+    duty: z.enum(['committee', 'approver', 'area_teacher']),
     targetType: z.enum(['class', 'area']).nullable().default(null),
     targetId: z.uuid().nullable().default(null),
     isFreelance: z.boolean().default(false),
@@ -116,6 +117,10 @@ export async function assignInTx(
     throw new AppError('VALIDATION', { field: 'userId', message: DUTY_MSG.inactiveUser });
   if (input.duty === 'approver' && user.role !== 'admin' && user.role !== 'super_admin')
     throw new AppError('VALIDATION', { field: 'userId', message: DUTY_MSG.approverRole });
+
+  // T41 (FR-E12): an area teacher is responsible for an area; the classes come from round_class_areas
+  if (input.duty === 'area_teacher' && input.targetType !== 'area')
+    throw new AppError('VALIDATION', { field: 'targetId', message: DUTY_MSG.areaTeacherArea });
 
   if (input.isFreelance) {
     if (input.duty !== 'committee')
@@ -263,6 +268,8 @@ export interface CoverageTarget {
   roomNumber: string | null;
   committee: DutyHolder[];
   approvers: DutyHolder[];
+  /** T41: area teachers of an area (they may deduct from the classes in it); [] for a class */
+  areaTeachers: DutyHolder[];
   status: CoverageStatus;
 }
 
@@ -325,7 +332,7 @@ export async function getCommitteeOverview(
     validUntil: d.validUntil,
   });
   const active = duties.filter(inForce);
-  const holdersOf = (duty: 'committee' | 'approver', type: 'class' | 'area', id: string) =>
+  const holdersOf = (duty: 'committee' | 'approver' | 'area_teacher', type: 'class' | 'area', id: string) =>
     active
       .filter(
         (d) =>
@@ -343,6 +350,7 @@ export async function getCommitteeOverview(
       roomNumber,
       committee,
       approvers: holdersOf('approver', type, id),
+      areaTeachers: type === 'area' ? holdersOf('area_teacher', type, id) : [],
       status: coverageStatus(committee.length),
     };
   };

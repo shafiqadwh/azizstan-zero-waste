@@ -35,7 +35,8 @@ const RETRY_MS = 15_000;
 export interface InitialContent {
   evaluationId: string;
   version: number;
-  status: 'submitted' | 'returned';
+  /** approved = auto-approved, still inside the owner's window */
+  status: 'submitted' | 'returned' | 'approved';
   score: Th | null;
   /** individual mode: each student's saved score */
   studentScores?: Record<string, Th>;
@@ -258,6 +259,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
           requiresSignature: ctx.requiresSignature,
           commentMax: ctx.commentMax,
           rosterIds: ctx.individual ? ctx.students.map((st) => st.id) : null,
+          deduction: ctx.deduction,
         },
       ),
     [score, studentMap, sitePresent, signaturePresent, comment, ctx],
@@ -320,7 +322,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
         setDirty(false);
         if (key) await deleteDraft(key);
         if (typeof navigator.vibrate === 'function') navigator.vibrate(30);
-        router.push(`/tasks?saved=1`);
+        router.push(`/tasks?saved=${ctx.autoApprove && !initial ? 'auto' : '1'}`);
         return;
       }
       const field = (result.error.field ?? 'form') as Field | 'form';
@@ -375,7 +377,15 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
     ? initial.status === 'returned'
       ? 'แก้แล้วส่งให้ Admin อนุมัติอีกครั้ง'
       : 'บันทึกการแก้ไข'
-    : 'บันทึกและส่งให้ Admin อนุมัติ';
+    : ctx.autoApprove
+      ? ctx.deduction
+        ? 'บันทึกการหักคะแนน'
+        : 'บันทึกผลประเมิน'
+      : ctx.deduction
+        ? 'บันทึกการหักคะแนนและส่งให้ Admin อนุมัติ'
+        : 'บันทึกและส่งให้ Admin อนุมัติ';
+  // T41: a deduction's comment is its required reason
+  const commentTitle = ctx.deduction ? 'เหตุผลที่หักคะแนน (จำเป็น)' : 'คำแนะนำและข้อติชม';
 
   return (
     <div className="flex flex-col gap-4 pb-40">
@@ -439,7 +449,8 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
             title={ctx.componentLabel}
             aside={
               <span className="text-[13px] text-ink-muted">
-                เต็ม {show(ctx.max)} · {ctx.scoreFormat === 'integer' ? 'จำนวนเต็ม' : `ทีละ ${show(ctx.step)}`}
+                {ctx.deduction ? `หักได้สูงสุด ${show(ctx.max)}` : `เต็ม ${show(ctx.max)}`} ·{' '}
+                {ctx.scoreFormat === 'integer' ? 'จำนวนเต็ม' : `ทีละ ${show(ctx.step)}`}
               </span>
             }
             error={errors.score}
@@ -452,6 +463,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
               value={score}
               onChange={(v) => (touch(), setScore(v))}
               invalid={!!errors.score}
+              noZero={ctx.deduction}
               describedBy={errors.score ? 'err-score' : undefined}
             />
           </Card>
@@ -459,7 +471,12 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       )}
 
       <div id="card-sitePhotos">
-        <Card title="รูปสถานที่" aside={counter(sitePresent)} error={errors.sitePhotos} errorId="err-sitePhotos">
+        <Card
+          title={ctx.deduction ? 'รูปหลักฐานการหักคะแนน' : 'รูปสถานที่'}
+          aside={counter(sitePresent)}
+          error={errors.sitePhotos}
+          errorId="err-sitePhotos"
+        >
           <p className="mb-2 text-[13px] text-ink-muted">
             ถ่ายเฉพาะพื้นที่ หลีกเลี่ยงการถ่ายใบหน้านักเรียน · ถ่ายรูปหรือเลือกจากคลังรูป
             ระบบประทับวันเวลาลงรูปอัตโนมัติ
@@ -507,7 +524,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
 
       <div id="card-comment">
         <Card
-          title="คำแนะนำและข้อติชม"
+          title={commentTitle}
           aside={
             <span className={`text-[13px] ${commentLength > ctx.commentMax ? 'text-danger-ink' : 'text-ink-muted'}`}>
               {commentLength}/{ctx.commentMax}
@@ -517,7 +534,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
           errorId="err-comment"
         >
           <label htmlFor="comment" className="sr-only">
-            คำแนะนำและข้อติชม
+            {commentTitle}
           </label>
           <textarea
             id="comment"
@@ -561,7 +578,9 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
                 ? problem.message
                 : !online
                   ? 'ออฟไลน์ · ร่างถูกเก็บไว้ในเครื่อง'
-                  : `แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมงหลังบันทึก`}
+                  : ctx.autoApprove && !initial
+                    ? `อนุมัติอัตโนมัติเมื่อบันทึก · แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมง`
+                    : `แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมงหลังบันทึก`}
           </p>
         </div>
       </div>

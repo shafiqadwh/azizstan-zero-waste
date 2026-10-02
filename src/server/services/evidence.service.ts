@@ -50,15 +50,15 @@ export interface UploadResult {
 export const evidenceUrl = (id: string, w?: number) => `/api/v1/files/${id}${w ? `?w=${w}` : ''}`;
 
 /**
- * The upload's target in the active term and the text stamped on the photo. Scoring needs a committee duty on
- * the target (BR-P1), whatever the role (BR-P4), so uploading does too.
+ * The upload's target in the active term and the text stamped on the photo. Scoring needs a scoring duty on
+ * the target (BR-P1: committee, or area teacher of its area for T41), whatever the role (BR-P4), so uploading does too.
  */
 async function resolveTarget(db: Db, actor: SessionUser, targetRef: string, now: Date) {
   const [type, id] = targetRef.split(':') as ['class' | 'area', string];
   const term = await places.findActiveTerm(db);
   if (!term) throw new AppError('VALIDATION', { message: EVIDENCE_MSG.noActiveTerm });
   const target = type === 'class' ? { classId: id } : { areaId: id };
-  const hasDuty = await dutiesRepo.hasCommitteeDutyFor(db, term.id, actor.id, target, now);
+  const hasDuty = await dutiesRepo.hasAnyScoringDutyFor(db, term.id, actor.id, target, now);
   assertCan(actor, 'evaluation.create', { hasDuty });
   if (type === 'area') {
     const area = await places.findArea(db, id);
@@ -133,7 +133,7 @@ async function mayRead(db: Db, actor: SessionUser, row: repo.EvidenceRow, now: D
   const target = await repo.findEvaluationTarget(db, row.evaluationId);
   if (!target) return false;
   if (target.ownerId === actor.id) return true;
-  const ownTarget = await dutiesRepo.hasCommitteeDutyFor(
+  const ownTarget = await dutiesRepo.hasAnyScoringDutyFor(
     db,
     target.termId,
     actor.id,
