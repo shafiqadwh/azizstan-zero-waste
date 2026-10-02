@@ -163,7 +163,11 @@ export function ModeForm({ values, disabled }: { values: ModeValues; disabled: b
             disabled={disabled}
             options={[
               { value: 'group', label: 'เหมารวม', hint: 'นักเรียนทุกคนในห้องได้คะแนนเดียวกัน' },
-              { value: 'individual', label: 'รายคน' },
+              {
+                value: 'individual',
+                label: 'รายคน',
+                hint: 'กรรมการให้คะแนนนักเรียนทีละคน (แสดงเฉพาะรหัส) ห้องใช้ค่าเฉลี่ยในการจัดอันดับ',
+              },
             ]}
           />
           <Choice
@@ -173,7 +177,7 @@ export function ModeForm({ values, disabled }: { values: ModeValues; disabled: b
             disabled={disabled}
             options={[
               { value: 'group', label: 'เหมารวม' },
-              { value: 'individual', label: 'รายคน' },
+              { value: 'individual', label: 'รายคน', hint: 'พื้นที่ไม่มีรายชื่อนักเรียน จึงให้คะแนนแบบเหมารวมเสมอ' },
             ]}
           />
         </div>

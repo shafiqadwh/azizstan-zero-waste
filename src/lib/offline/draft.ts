@@ -21,6 +21,8 @@ export interface Draft {
   updatedAt: number;
   /** thousandths, as the form holds it */
   score: number | null;
+  /** individual mode (T40): thousandths per student id */
+  studentScores?: Record<string, number | null>;
   comment: string;
   site: DraftPhoto[];
   signature: DraftPhoto[];
@@ -34,8 +36,12 @@ export const draftKey = (roundId: string, componentId: string, target: string) =
 export const isExpired = (d: Pick<Draft, 'updatedAt'>, now: number) => now - d.updatedAt > DRAFT_TTL_MS;
 
 /** A draft worth keeping: anything the user entered. An untouched form leaves no draft behind. */
-export const hasContent = (d: Pick<Draft, 'score' | 'comment' | 'site' | 'signature'>) =>
-  d.score !== null || d.comment.trim() !== '' || d.site.length > 0 || d.signature.length > 0;
+export const hasContent = (d: Pick<Draft, 'score' | 'studentScores' | 'comment' | 'site' | 'signature'>) =>
+  d.score !== null ||
+  Object.values(d.studentScores ?? {}).some((v) => v !== null) ||
+  d.comment.trim() !== '' ||
+  d.site.length > 0 ||
+  d.signature.length > 0;
 
 /** The evidence id still usable on restore, or undefined when the photo must be uploaded again. */
 export function reusableEvidence(p: DraftPhoto, now: number): string | undefined {

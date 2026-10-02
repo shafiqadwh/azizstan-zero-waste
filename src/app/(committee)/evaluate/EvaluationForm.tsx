@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { PhotoGrid, type PhotoItem } from '@/components/app/PhotoGrid';
 import { ScoreInput } from '@/components/app/ScoreInput';
+import { StudentScoreList } from '@/components/app/StudentScoreList';
 import { TargetHeader } from '@/components/app/TargetHeader';
 import { checkContent, type ContentError } from '@/lib/evaluation/validate';
 import {
@@ -36,6 +37,8 @@ export interface InitialContent {
   version: number;
   status: 'submitted' | 'returned';
   score: Th | null;
+  /** individual mode: each student's saved score */
+  studentScores?: Record<string, Th>;
   site: { evidenceId: string; src: string }[];
   signature: { evidenceId: string; src: string } | null;
   comment: string;
@@ -96,6 +99,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       : [],
   );
   const [comment, setComment] = useState(initial?.comment ?? '');
+  const [studentScores, setStudentScores] = useState<Record<string, Th | null>>(initial?.studentScores ?? {});
   const [errors, setErrors] = useState<Partial<Record<Field | 'form', string>>>({});
   const [dirty, setDirty] = useState(false);
   const [pending, start] = useTransition();
@@ -164,6 +168,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
         };
         const restored = { site: d.site.map(revive), signature: d.signature.map(revive) };
         setScore(d.score === null ? null : (d.score as Th));
+        setStudentScores(d.studentScores ?? {});
         setComment(d.comment);
         setSite(restored.site);
         setSignature(restored.signature);
@@ -197,6 +202,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       key,
       updatedAt: Date.now(),
       score,
+      studentScores,
       comment,
       site: keep(site),
       signature: keep(signature),
@@ -204,7 +210,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
     };
     const id = setTimeout(() => void (hasContent(draft) ? saveDraft(draft) : deleteDraft(key)), 300);
     return () => clearTimeout(id);
-  }, [key, loaded, dirty, score, comment, site, signature, submitRequested]);
+  }, [key, loaded, dirty, score, studentScores, comment, site, signature, submitRequested]);
 
   const touch = () => (setDirty(true), setErrors({}), setSubmitRequested(false));
   const all = [...site, ...signature];
@@ -230,12 +236,16 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       for (const p of lists.current[kind]) if (p.status === 'queued' && p.blob) startUpload(kind, p.key, p.blob);
   }, [online, tick, startUpload]);
 
+  const studentMap = useMemo(
+    () => new Map(ctx.students.map((st) => [st.id, studentScores[st.id] ?? null])),
+    [ctx.students, studentScores],
+  );
   const problem = useMemo(
     () =>
       checkContent(
         {
-          score,
-          studentScores: new Map(),
+          score: ctx.individual ? null : score,
+          studentScores: studentMap,
           siteCount: sitePresent,
           hasSignature: signaturePresent,
           comment,
@@ -247,10 +257,10 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
           photoMax: ctx.photoMax,
           requiresSignature: ctx.requiresSignature,
           commentMax: ctx.commentMax,
-          rosterIds: null,
+          rosterIds: ctx.individual ? ctx.students.map((st) => st.id) : null,
         },
       ),
-    [score, sitePresent, signaturePresent, comment, ctx],
+    [score, studentMap, sitePresent, signaturePresent, comment, ctx],
   );
 
   const addPhotos = (kind: Kind) => (files: File[]) => {
@@ -273,7 +283,12 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
   const retryAfter = useRef(0);
   const send = useCallback(() => {
     const content = {
-      score: score === null ? null : toDb(score),
+      score: ctx.individual || score === null ? null : toDb(score),
+      ...(ctx.individual
+        ? {
+            studentScores: [...studentMap].map(([studentId, v]) => ({ studentId, score: v === null ? null : toDb(v) })),
+          }
+        : {}),
       siteEvidenceIds: doneSite.map((p) => p.evidenceId!),
       signatureEvidenceId: doneSignature?.evidenceId ?? null,
       comment,
@@ -312,7 +327,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
       const known: (Field | 'form')[] = ['score', 'sitePhotos', 'signature', 'comment', 'studentScores'];
       setErrors({ [known.includes(field) ? field : 'form']: result.error.message });
     });
-  }, [score, doneSite, doneSignature, comment, initial, ctx, key, router]);
+  }, [score, studentMap, doneSite, doneSignature, comment, initial, ctx, key, router]);
 
   // 07-frontend §3.5: submits by itself once every upload finished and the user confirmed
   const sending = useRef(false);
@@ -390,28 +405,58 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
         </div>
       ) : null}
 
-      <div id="card-score">
-        <Card
-          title={ctx.componentLabel}
-          aside={
-            <span className="text-[13px] text-ink-muted">
-              เต็ม {show(ctx.max)} · {ctx.scoreFormat === 'integer' ? 'จำนวนเต็ม' : `ทีละ ${show(ctx.step)}`}
-            </span>
-          }
-          error={errors.score}
-          errorId="err-score"
-        >
-          <ScoreInput
-            id="score"
-            max={ctx.max}
-            step={ctx.step}
-            value={score}
-            onChange={(v) => (touch(), setScore(v))}
-            invalid={!!errors.score}
-            describedBy={errors.score ? 'err-score' : undefined}
-          />
-        </Card>
-      </div>
+      {ctx.individual ? (
+        <div id="card-studentScores">
+          <Card
+            title={ctx.componentLabel}
+            aside={
+              <span className="text-[13px] text-ink-muted">
+                รายคน · เต็ม {show(ctx.max)}
+                {ctx.scoreFormat === 'integer' ? '' : ` · ทีละ ${show(ctx.step)}`}
+              </span>
+            }
+            error={errors.studentScores}
+            errorId="err-studentScores"
+          >
+            <StudentScoreList
+              students={ctx.students}
+              max={ctx.max}
+              step={ctx.step}
+              values={studentScores}
+              onChange={(id, v) => (touch(), setStudentScores((m) => ({ ...m, [id]: v })))}
+              onFillEmpty={(v) => (
+                touch(),
+                setStudentScores((m) => Object.fromEntries(ctx.students.map((st) => [st.id, m[st.id] ?? v])))
+              )}
+              invalid={!!errors.studentScores}
+              describedBy={errors.studentScores ? 'err-studentScores' : undefined}
+            />
+          </Card>
+        </div>
+      ) : (
+        <div id="card-score">
+          <Card
+            title={ctx.componentLabel}
+            aside={
+              <span className="text-[13px] text-ink-muted">
+                เต็ม {show(ctx.max)} · {ctx.scoreFormat === 'integer' ? 'จำนวนเต็ม' : `ทีละ ${show(ctx.step)}`}
+              </span>
+            }
+            error={errors.score}
+            errorId="err-score"
+          >
+            <ScoreInput
+              id="score"
+              max={ctx.max}
+              step={ctx.step}
+              value={score}
+              onChange={(v) => (touch(), setScore(v))}
+              invalid={!!errors.score}
+              describedBy={errors.score ? 'err-score' : undefined}
+            />
+          </Card>
+        </div>
+      )}
 
       <div id="card-sitePhotos">
         <Card title="รูปสถานที่" aside={counter(sitePresent)} error={errors.sitePhotos} errorId="err-sitePhotos">

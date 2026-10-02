@@ -16,8 +16,23 @@ export default defineConfig({
     launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
   },
   projects: [
-    { name: 'mobile-360', use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 } } },
-    { name: 'desktop-1440', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
+    {
+      name: 'mobile-360',
+      testIgnore: /individual\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 } },
+    },
+    {
+      name: 'desktop-1440',
+      testIgnore: /individual\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+    },
+    // T40: switches the shared active term to individual mode, so it runs alone after every other spec
+    {
+      name: 'individual',
+      testMatch: /individual\.spec\.ts/,
+      dependencies: ['mobile-360', 'desktop-1440'],
+      use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 } },
+    },
   ],
   webServer: {
     command: `pnpm dev --port ${port}`,

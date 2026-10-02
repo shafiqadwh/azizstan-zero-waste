@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import type { Db } from '../../../db/client.ts';
 import { formatTermLabel, formatThaiDateTime } from '../../lib/dates/index.ts';
 import { newId } from '../../lib/ids.ts';
-import { parseScore, toDisplay } from '../../lib/scoring/decimal.ts';
+import { mean, parseScore, toDisplay, type Th } from '../../lib/scoring/decimal.ts';
 import { trimScore } from '../../lib/term/config.ts';
 import { AppError, notFound } from '../errors.ts';
 import { sarabunCss } from '../pdf/fonts.ts';
@@ -27,6 +27,7 @@ import { writeAudit } from './audit.service.ts';
 export const PDF_RENDER_QUEUE = 'pdf.render';
 
 const show = (s: string) => trimScore(toDisplay(parseScore(s)));
+const showTh = (th: Th) => trimScore(toDisplay(th));
 
 async function dataUri(relative: string, root: string): Promise<string | null> {
   try {
@@ -84,6 +85,11 @@ export async function preparePdf(db: Db, evaluationId: string, now: Date, root =
     if (uri) site.push(uri);
   }
   const sig = photos.find((x) => x.kind === 'signature');
+  // individual mode (T40): page 2+ lists every student's score by code, page 1 shows the class mean
+  const students =
+    e.score === null
+      ? (await evalRepo.listStudentScoresWithCodes(db, e.id)).map((r) => ({ code: r.code, th: parseScore(r.score) }))
+      : [];
   return {
     evaluation: e,
     docNumber,
@@ -98,7 +104,8 @@ export async function preparePdf(db: Db, evaluationId: string, now: Date, root =
       evaluatedAt: formatThaiDateTime(e.firstSubmittedAt),
       ownerName: owner?.displayName ?? '–',
       approverName: approver?.displayName ?? null,
-      score: e.score === null ? '–' : show(e.score),
+      score: e.score !== null ? show(e.score) : students.length ? showTh(mean(students.map((x) => x.th))!) : '–',
+      students: students.map((x) => ({ code: x.code, score: showTh(x.th) })),
       max: show(override?.maxValue ?? component.maxValue),
       comment: e.comment ?? '',
       sitePhotos: site,

@@ -7,6 +7,7 @@ import { createDb, type Db } from '../../../db/client.ts';
 import { runMigrations } from '../../../db/migrate.ts';
 import {
   auditLogs,
+  evaluationStudentScores,
   evaluations,
   notifications,
   requests,
@@ -61,6 +62,8 @@ let C: string;
 let b1: string;
 let b2: string;
 const roundIds: string[] = [];
+const studentIds: string[] = [];
+let amanahRound3Room: string;
 
 /** An approved evaluation straight in the table (results only read approved scores). */
 async function approved(
@@ -159,7 +162,8 @@ beforeAll(async () => {
     [r2, '5', '7'],
     [r3, '4', '10'],
   ] as const) {
-    await approved(round, roomC, { class: A }, room);
+    const id = await approved(round, roomC, { class: A }, room);
+    if (round === r3) amanahRound3Room = id;
     await approved(round, areaC, { area: b1 }, bld);
   }
   await approved(r1, roomC, { class: B }, '5'); // B: 5 + 9 = 14
@@ -168,6 +172,7 @@ beforeAll(async () => {
 
   // two students snapshot in Amanah for round 1
   const s = [newId(), newId()];
+  studentIds.push(...s);
   await db.insert(students).values(
     s.map((id, i) => ({
       id,
@@ -212,6 +217,33 @@ describe('live round results (BR-S1..S3, S5, S6)', () => {
         { componentId: areaC, targetType: 'area', targetId: b2 },
       ]),
     );
+  });
+});
+
+describe('individual mode student results (FR-R6, T40)', () => {
+  test('the class ranks on the mean; each student keeps their own room score', async () => {
+    const r3 = roundIds[2]!;
+    const [s0, s1] = studentIds as [string, string];
+    await db.update(terms).set({ roomMode: 'individual' }).where(eq(terms.id, termId));
+    await db.insert(rosterSnapshots).values([s0, s1].map((studentId) => ({ roundId: r3, studentId, classId: A })));
+    await db.update(evaluations).set({ score: null }).where(eq(evaluations.id, amanahRound3Room));
+    await db.insert(evaluationStudentScores).values([
+      { evaluationId: amanahRound3Room, studentId: s0, score: '5.000' },
+      { evaluationId: amanahRound3Room, studentId: s1, score: '2.000' },
+    ]);
+    try {
+      const r = await computeRoundResults(db, r3);
+      // room mean 3.5 + building 10
+      expect(r.classes.find((c) => c.classId === A)).toMatchObject({ classScore: th(3.5), total: th(13.5) });
+      const byStudent = new Map(r.students.map((x) => [x.studentId, x.total]));
+      expect(byStudent.get(s0)).toBe(th(15));
+      expect(byStudent.get(s1)).toBe(th(12));
+    } finally {
+      await db.delete(evaluationStudentScores).where(eq(evaluationStudentScores.evaluationId, amanahRound3Room));
+      await db.update(evaluations).set({ score: '4.000' }).where(eq(evaluations.id, amanahRound3Room));
+      await db.delete(rosterSnapshots).where(eq(rosterSnapshots.roundId, r3));
+      await db.update(terms).set({ roomMode: 'group' }).where(eq(terms.id, termId));
+    }
   });
 });
 

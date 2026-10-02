@@ -57,11 +57,7 @@ export default async function NewEvaluationPage({
         </Link>
         <h1 className="text-[18px] font-bold">{ctx.target.type === 'class' ? 'ประเมินห้องเรียน' : 'ประเมินพื้นที่'}</h1>
       </div>
-      {ctx.individual ? (
-        <p role="note" className="rounded-lg bg-warn-soft px-4 py-3 text-warn-ink">
-          ภาคเรียนนี้ให้คะแนนรายบุคคล หน้านี้ยังรองรับเฉพาะการให้คะแนนทั้งห้อง
-        </p>
-      ) : ctx.canEnter ? (
+      {ctx.canEnter ? (
         <EvaluationForm ctx={ctx} />
       ) : (
         <>

@@ -34,6 +34,7 @@ import {
   updateEvaluation,
 } from './evaluation.service.ts';
 import { linkClassRoom, setTermClasses, upsertArea, upsertClass, upsertPhysicalRoom } from './place.service.ts';
+import { getEvaluationDetail, getEvaluationForm } from './task.service.ts';
 import { activateTerm, createTerm } from './term.service.ts';
 import { createUser } from './user.service.ts';
 
@@ -448,10 +449,27 @@ describe('individual mode (FR-R6)', () => {
           deleteAfter: '2027-12-31',
         })),
       );
-      await db.insert(rosterSnapshots).values(sIds.map((studentId) => ({ roundId, studentId, classId: cls.Hormat! })));
       // free the Hormat slot (t1's group-mode evaluation from T-E3)
       const hormat = await liveEval(cls.Hormat!);
       await deleteEvaluation(db, t1, { id: hormat.id, expectedVersion: hormat.version }, meta, now);
+      // no snapshot yet: nothing to score per student, so nothing may be sent (T40)
+      await expect(submitRoom(t2, 'Hormat', { score: undefined, studentScores: [] })).rejects.toMatchObject({
+        field: 'studentScores',
+        message: 'ยังไม่มีรายชื่อนักเรียนของห้องนี้ในรอบนี้ แจ้งผู้ดูแลระบบให้ซิงก์รายชื่อก่อน',
+      });
+      await db.insert(rosterSnapshots).values(sIds.map((studentId) => ({ roundId, studentId, classId: cls.Hormat! })));
+      const form = await getEvaluationForm(
+        db,
+        t2,
+        { roundId, componentId: roomC, target: { type: 'class', id: cls.Hormat! } },
+        now,
+      );
+      expect(form.individual).toBe(true);
+      expect(form.students).toEqual([
+        { id: sIds[0], code: 'S0' },
+        { id: sIds[1], code: 'S1' },
+      ]);
+      expect(JSON.stringify(form)).not.toContain('ทดสอบ'); // codes only, never names (FR-S1)
 
       await expect(
         submitRoom(t2, 'Hormat', { score: undefined, studentScores: [{ studentId: sIds[0]!, score: 4 }] }),
@@ -469,6 +487,13 @@ describe('individual mode (FR-R6)', () => {
         .from(evaluationStudentScores)
         .where(eq(evaluationStudentScores.evaluationId, e.id));
       expect(rows.map((r) => r.score).sort()).toEqual(['3.500', '4.000']);
+      const detail = await getEvaluationDetail(db, t2, e.id, now);
+      expect(detail.score).toBe('3.750'); // class mean shown in place of a class score
+      expect(detail.studentScores).toEqual([
+        { studentId: sIds[0], code: 'S0', score: 4000 },
+        { studentId: sIds[1], code: 'S1', score: 3500 },
+      ]);
+      expect(JSON.stringify(detail)).not.toContain('ทดสอบ');
     } finally {
       await db.update(terms).set({ roomMode: 'group' }).where(eq(terms.id, termId));
     }

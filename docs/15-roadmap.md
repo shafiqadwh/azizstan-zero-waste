@@ -161,6 +161,6 @@ T25 (student sync), T26 (push; in-app inbox first), T27 (ปพ.5 — needed onl
 - **T34** QR code sheet generator for all physical rooms (A4, 12 per page).
 
 ## Phase 3 — Future rule sets
-- **T40** Individual mode end to end (per-student scores UI with codes only, student-level results, ปพ.5 students).
+- **T40** Individual mode end to end (per-student scores UI with codes only, student-level results, ปพ.5 students). *Built:* area-unit components stay group-scored (areas have no students).
 - **T41** Area-teacher deductions (FR-E12) with limits and PDFs.
 - **T42** Zone head, zone teacher teams (FR-P4) and teacher-as-committee terms (priority rule Q2).

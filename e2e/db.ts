@@ -277,3 +277,38 @@ export async function seedOldEvaluation(f: {
     await client.end();
   }
 }
+
+/** T40: snapshot students (codes + a name that must never be shown) into the fixture class for its round. */
+export async function seedRoster(f: { roundId: string; classId: string }, codes: string[]) {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    for (const code of codes) {
+      const id = (
+        await client.query<{ id: string }>(
+          `INSERT INTO students (id, student_code, full_name, home_class_id, delete_after)
+           VALUES (gen_random_uuid(), $1, $2, $3, current_date + 365) RETURNING id`,
+          [code, `ชื่อลับ ${code}`, f.classId],
+        )
+      ).rows[0]!.id;
+      await client.query('INSERT INTO roster_snapshots (round_id, student_id, class_id) VALUES ($1, $2, $3)', [
+        f.roundId,
+        id,
+        f.classId,
+      ]);
+    }
+  } finally {
+    await client.end();
+  }
+}
+
+/** T40: the shared active term's room mode (the "individual" project runs alone, after every other spec). */
+export async function setRoomMode(mode: 'group' | 'individual') {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    await client.query("UPDATE terms SET room_mode = $1 WHERE status = 'active'", [mode]);
+  } finally {
+    await client.end();
+  }
+}

@@ -91,15 +91,24 @@ export async function computeRoundResults(db: DbOrTx, roundId: string): Promise<
     approved.map((e) => e.id),
   );
 
-  /** value of a component for a target: individual mode → mean of student scores (BR-S2) */
-  const valueOf = (componentId: string, type: 'class' | 'area', id: string): Th | null => {
-    const e = approved.find(
+  const evaluationOf = (componentId: string, type: 'class' | 'area', id: string) =>
+    approved.find(
       (x) => x.componentId === componentId && (type === 'class' ? x.targetClassId === id : x.targetAreaId === id),
     );
+  /** value of a component for a target: individual mode → mean of student scores (BR-S2) */
+  const valueOf = (componentId: string, type: 'class' | 'area', id: string): Th | null => {
+    const e = evaluationOf(componentId, type, id);
     if (!e) return null;
     if (e.score !== null) return parseScore(e.score);
     return individualClassValue(studentScores.filter((s) => s.evaluationId === e.id).map((s) => parseScore(s.score)));
   };
+  /** Individual mode (FR-R6, T40): a student's own score for a class-unit component; null = use the class value. */
+  const ownScore = new Map(studentScores.map((s) => [`${s.evaluationId}:${s.studentId}`, parseScore(s.score)]));
+  const studentValueOf = (componentId: string, classId: string, studentId: string): Th | null => {
+    const e = evaluationOf(componentId, 'class', classId);
+    return e && e.score === null ? (ownScore.get(`${e.id}:${studentId}`) ?? null) : null;
+  };
+  const appliedByClass = new Map<string, { componentId: string; applied: AppliedComponent }[]>();
 
   const missing: MissingItem[] = [];
   const usedAreas = new Set<string>();
@@ -109,22 +118,26 @@ export async function computeRoundResults(db: DbOrTx, roundId: string): Promise<
     if (areaId) usedAreas.add(areaId);
     else if (round.status !== 'scheduled') missing.push({ componentId: null, targetType: 'class', targetId: c.id });
     const applied: AppliedComponent[] = [];
+    const withIds: { componentId: string; applied: AppliedComponent }[] = [];
     let max = 0;
     for (const comp of components) {
       if (comp.unit === 'area' && !areaId) continue; // BR-S1
       const value = comp.unit === 'class' ? valueOf(comp.id, 'class', c.id) : valueOf(comp.id, 'area', areaId!);
       if (comp.unit === 'class' && value === null && comp.kind === 'score')
         missing.push({ componentId: comp.id, targetType: 'class', targetId: c.id });
-      applied.push({
+      const a: AppliedComponent = {
         kind: comp.kind,
         unit: comp.unit,
         max: maxOf(comp),
         // a deduction nobody entered counts as 0; a score nobody entered leaves the total open
         value: value ?? (comp.kind === 'deduct' ? 0 : null),
-      });
+      };
+      applied.push(a);
+      withIds.push({ componentId: comp.id, applied: a });
       if (comp.kind === 'score') max += maxOf(comp);
     }
     const t = roundTotal(applied);
+    appliedByClass.set(c.id, withIds);
     classResults.push({
       classId: c.id,
       rankGroup: c.rankGroup,
@@ -169,10 +182,21 @@ export async function computeRoundResults(db: DbOrTx, roundId: string): Promise<
     ({ id: _id, ...rest }) => rest,
   );
 
-  // BR-S6: each snapshot student gets the total of the class they were in for this round
+  // BR-S6: each snapshot student gets the total of the class they were in for this round. Individual mode
+  // (FR-R6): the class components scored per student use the student's own score instead of the class mean.
   const totalByClass = new Map(classResults.map((c) => [c.classId, c.total]));
+  const studentTotal = (classId: string, studentId: string): Th | null => {
+    const classTotal = totalByClass.get(classId) ?? null;
+    if (classTotal === null || studentScores.length === 0) return classTotal;
+    const own = (appliedByClass.get(classId) ?? []).map(({ componentId, applied }) => {
+      if (applied.unit !== 'class' || applied.kind !== 'score') return applied;
+      const v = studentValueOf(componentId, classId, studentId);
+      return v === null ? applied : { ...applied, value: v };
+    });
+    return roundTotal(own)?.total ?? classTotal;
+  };
   const students = (await repo.listRoster(db, round.id))
-    .map((s) => ({ studentId: s.studentId, classId: s.classId, total: totalByClass.get(s.classId) ?? null }))
+    .map((s) => ({ studentId: s.studentId, classId: s.classId, total: studentTotal(s.classId, s.studentId) }))
     .filter((s): s is { studentId: string; classId: string; total: Th } => s.total !== null);
 
   return { roundId: round.id, frozen: false, classes: ranked, areas: rankedAreas, students, missing };

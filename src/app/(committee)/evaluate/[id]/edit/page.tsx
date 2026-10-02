@@ -63,7 +63,9 @@ export default async function EditEvaluationPage({ params }: { params: Promise<{
           evaluationId: d.id,
           version: d.version,
           status: d.status,
-          score: d.score === null ? null : parseScore(d.score),
+          // individual mode: d.score is the class mean, not something the owner entered
+          score: ctx.individual || d.score === null ? null : parseScore(d.score),
+          studentScores: Object.fromEntries(d.studentScores.map((r) => [r.studentId, r.score])),
           site: d.photos.filter((p) => p.kind === 'site').map((p) => ({ evidenceId: p.id, src: p.thumb })),
           signature: signature ? { evidenceId: signature.id, src: signature.thumb } : null,
           comment: d.comment ?? '',

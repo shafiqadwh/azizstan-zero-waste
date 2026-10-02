@@ -43,8 +43,10 @@ worker: ─► sign token (HMAC, 5 min) ─► Playwright chromium.newPage()
 - Fewer than 5 site photos: empty cells are omitted and the grid reflows; the signature is always last.
 - Area evaluation PDF: no signature cell (grid shows up to 5 site photos); same layout otherwise, title "แบบรายงานผลการประเมินความสะอาดอาคาร/โซน", info row "พื้นที่"
   instead of "ห้อง", plus zone description (1 line, truncated with "…").
-- Individual mode (future): page 1 as above with class average; page 2 table of student codes and scores
-  (**codes only, no names**) — requirement to confirm when that mode is used.
+- Individual mode (T40): page 1 as above, the score box reads "คะแนนเฉลี่ยห้อง" with the class mean; then one page
+  per 100 students (4 columns × 25 rows: ที่ · รหัสนักเรียน · คะแนน), header repeated, title line "คะแนนรายคน ·
+  {target} · รอบที่ n · {N} คน · เฉลี่ยห้อง …", note "แสดงเฉพาะรหัสนักเรียน ไม่แสดงชื่อ" (**codes only, no names**),
+  footer adds "หน้า k/N". Group mode stays exactly one page.
 - Fonts: Sarabun 400/600/700 bundled in the image (`/app/fonts`), `@font-face` local files only.
 - Images: pass the 1600 px WebP; the PDF stays < 1.5 MB.
 

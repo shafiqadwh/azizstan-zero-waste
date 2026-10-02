@@ -27,6 +27,8 @@ describe('offline drafts (07-frontend §3.5)', () => {
     expect(hasContent(empty)).toBe(false);
     expect(hasContent({ ...empty, comment: '   ' })).toBe(false);
     expect(hasContent({ ...empty, score: 0 })).toBe(true);
+    expect(hasContent({ ...empty, studentScores: { s1: null } })).toBe(false);
+    expect(hasContent({ ...empty, studentScores: { s1: 0 } })).toBe(true);
     expect(hasContent({ ...empty, comment: 'ดี' })).toBe(true);
     expect(hasContent({ ...empty, signature: [{ key: 'a', blob }] })).toBe(true);
   });

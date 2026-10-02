@@ -4,7 +4,7 @@
  * Decisions go through evaluation.service (approve / return) and result.service (finalize).
  */
 import type { Db } from '../../../db/client.ts';
-import { parseScore, toDisplay, type Th } from '../../lib/scoring/decimal.ts';
+import { mean, parseScore, toDisplay, type Th } from '../../lib/scoring/decimal.ts';
 import { componentsInUse, trimScore } from '../../lib/term/config.ts';
 import { assertCan, can, type SessionUser } from '../policies/index.ts';
 import * as dutiesRepo from '../repositories/duties.repository.ts';
@@ -53,9 +53,11 @@ export interface ResultCard {
   componentLabel: string;
   ownerName: string;
   submittedAt: Date;
-  /** "4.5"; null in individual mode (per-student scores) */
+  /** "4.5"; in individual mode the class mean of the student scores (BR-S2) */
   score: string | null;
   max: string;
+  /** individual mode (T40): every student's score by code — never names (FR-S1); [] in group mode */
+  students: { code: string; score: string }[];
   photos: { id: string; kind: 'site' | 'signature'; thumb: string }[];
   comment: string;
   /** BR-E6: false when another admin is this target's approver (or for executives) */
@@ -103,6 +105,10 @@ export async function listWaitingResults(db: Db, actor: SessionUser, now: Date):
     const photos = (await evalRepo.listEvaluationEvidence(db, e.id))
       .map((p) => ({ id: p.id, kind: p.kind, thumb: evidenceUrl(p.id, 320) }))
       .sort((a, b) => Number(a.kind === 'signature') - Number(b.kind === 'signature'));
+    const students =
+      e.score === null
+        ? (await evalRepo.listStudentScoresWithCodes(db, e.id)).map((r) => ({ code: r.code, th: parseScore(r.score) }))
+        : [];
     const approvers = await evalRepo.listApproverIds(
       db,
       term.id,
@@ -123,7 +129,9 @@ export async function listWaitingResults(db: Db, actor: SessionUser, now: Date):
       componentLabel: component.label,
       ownerName,
       submittedAt: e.lastEditedAt,
-      score: e.score === null ? null : show(parseScore(e.score)),
+      score:
+        e.score !== null ? show(parseScore(e.score)) : students.length ? show(mean(students.map((x) => x.th))!) : null,
+      students: students.map(({ code, th }) => ({ code, score: show(th) })),
       max: show(parseScore(max)),
       photos,
       comment: e.comment ?? '',

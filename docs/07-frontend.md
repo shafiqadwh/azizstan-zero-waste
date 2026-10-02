@@ -49,7 +49,11 @@ Layouts: `(public)` top bar + bottom actions on mobile; `(committee)` app shell 
    camera via the phone's native scanner — no in-app scanner library needed; the QR is just a URL).
 2. **Confirm target**: the header shows `121 · ม.1 Amanah · อาคาร 1 ชั้น 2 · รอบที่ 1` (green bar). If the
    server says another member already scored it, the form is replaced by the read-only result + "ขออนุมัติแก้ไข".
-3. **Score input**: stepper (−/+ by `score_step`) + quick chips for integers 0…max (max ≤ 10 → chips; > 10 →
+3. **Individual mode** (T40): the score card lists the round's snapshot students by **code only** (FR-S1), one
+   select per student (a number field when there would be more than 41 choices), "ใส่แล้ว n / N คน", the live
+   class mean, and "ใส่ให้คนที่ยังว่าง" to fill every empty row with one value. Detail, approval cards and the
+   "แก้คะแนน" request use the same codes-only list.
+   **Score input**: stepper (−/+ by `score_step`) + quick chips for integers 0…max (max ≤ 10 → chips; > 10 →
    numeric keypad input `inputmode="decimal"`). Value starts **empty** (FR-E2: 0 must be chosen).
 4. **Photos**: `<input type="file" accept="image/*">` per tap (no `capture`: the phone offers camera **or** gallery, Q7); each photo is resized
    client-side to ≤ 2000 px JPEG 0.85 (canvas) before upload to save mobile data, then uploaded immediately

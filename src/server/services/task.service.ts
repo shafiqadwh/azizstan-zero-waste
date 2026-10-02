@@ -4,7 +4,8 @@
  */
 import type { Db } from '../../../db/client.ts';
 import { bangkokDateString } from '../../lib/dates/index.ts';
-import { parseScore, type Th } from '../../lib/scoring/decimal.ts';
+import { parseScore, toDb, type Th } from '../../lib/scoring/decimal.ts';
+import { individualClassValue } from '../../lib/scoring/index.ts';
 import { componentsInUse, scoreStepFor } from '../../lib/term/config.ts';
 import { AppError, notFound } from '../errors.ts';
 import { assertCan, can, type SessionUser } from '../policies/index.ts';
@@ -212,6 +213,8 @@ export interface EvaluationForm {
   commentMax: number;
   selfEditHours: number;
   individual: boolean;
+  /** Individual mode (T40): the class's snapshot students for the round, codes only (FR-S1); [] otherwise. */
+  students: { id: string; code: string }[];
   /** Entry is open for this user: the round is open, or they hold a late-entry grant (BR-P2). */
   canEnter: boolean;
   /** Someone already scored it (BR-P3): the form is replaced by the detail. */
@@ -248,6 +251,7 @@ export async function getEvaluationForm(
   )!;
   const live = await repo.findLiveEvaluation(db, round.id, component.id, q.target);
   const open = entryOpen(round, now);
+  const individual = component.unit === 'class' && term.roomMode === 'individual';
   const granted =
     !open &&
     round.status !== 'scheduled' &&
@@ -270,7 +274,8 @@ export async function getEvaluationForm(
     requiresSignature: component.requiresSignature,
     commentMax: term.commentMax,
     selfEditHours: term.selfEditHours,
-    individual: component.unit === 'class' && term.roomMode === 'individual',
+    individual,
+    students: individual && round.status !== 'scheduled' ? await repo.listRosterCodes(db, round.id, q.target.id) : [],
     canEnter: open || granted,
     existingId: live?.evaluation.id ?? null,
     canRequestLate: !open && !granted && (round.status === 'open' || round.status === 'closed'),
@@ -302,8 +307,11 @@ export interface EvaluationDetail {
   componentLabel: string;
   target: TargetView;
   status: Exclude<TaskStatus, 'not_evaluated'> | 'void';
+  /** the score; in individual mode the class mean of the student scores (BR-S2) */
   score: string | null;
   max: Th;
+  /** Individual mode (T40): each snapshot student's score by code (no names, FR-S1); [] in group mode. */
+  studentScores: { studentId: string; code: string; score: Th }[];
   comment: string | null;
   ownerName: string;
   isOwner: boolean;
@@ -380,12 +388,15 @@ export async function getEvaluationDetail(
     });
   }
   const override = (await termsRepo.listRoundMax(db, [round.id])).find((m) => m.componentId === component.id);
-  const [view, photos, history, owner] = await Promise.all([
+  const [view, photos, history, owner, studentRows] = await Promise.all([
     describeTargets(db, round.id, [t], now),
     repo.listEvaluationEvidence(db, e.id),
     repo.listEvaluationHistory(db, e.id),
     usersRepo.findUserById(db, e.ownerId),
+    repo.listStudentScoresWithCodes(db, e.id),
   ]);
+  const studentScores = studentRows.map((r) => ({ ...r, score: parseScore(r.score) }));
+  const classMean = e.score === null ? individualClassValue(studentScores.map((r) => r.score)) : null;
   return {
     id: e.id,
     roundId: round.id,
@@ -394,8 +405,9 @@ export async function getEvaluationDetail(
     componentLabel: component.label,
     target: { ...view.get(targetRef(t))!, roomNumber: e.roomNumberAtEval ?? view.get(targetRef(t))!.roomNumber },
     status: e.status,
-    score: e.score,
+    score: e.score ?? (classMean === null ? null : toDb(classMean)),
     max: parseScore(override?.maxValue ?? component.maxValue),
+    studentScores,
     comment: e.comment,
     ownerName: owner?.displayName ?? '–',
     isOwner,

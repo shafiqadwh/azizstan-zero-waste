@@ -81,7 +81,32 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
           {d.score === null ? '–' : show(d.score)}
           <span className="text-[17px] font-normal text-ink-muted"> / {trimScore(toDisplay(d.max))}</span>
         </p>
+        {d.studentScores.length > 0 ? <p className="text-[14px] text-ink-muted">เฉลี่ยห้องจากคะแนนรายคน</p> : null}
         <p className="text-[14px] text-ink-muted">ประเมินโดย {d.ownerName}</p>
+        {d.studentScores.length > 0 ? (
+          <details className="mt-3">
+            <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-brand-ink">
+              คะแนนรายคน ({d.studentScores.length} คน)
+            </summary>
+            {/* codes only — names are never shown (FR-S1) */}
+            <table className="mt-2 w-full text-[15px]" data-testid="student-scores">
+              <thead>
+                <tr className="border-b border-line text-left text-[13px] text-ink-muted">
+                  <th className="py-1 font-semibold">รหัสนักเรียน</th>
+                  <th className="py-1 text-right font-semibold">คะแนน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.studentScores.map((r) => (
+                  <tr key={r.studentId} className="border-b border-line">
+                    <td className="py-1 tabular-nums">{r.code}</td>
+                    <td className="py-1 text-right tabular-nums">{trimScore(toDisplay(r.score))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        ) : null}
       </section>
 
       {d.status === 'approved' ? (
@@ -161,6 +186,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
           target={`${d.target.type}:${d.target.id}`}
           isOwner={d.isOwner}
           score={d.score === null ? null : parseScore(d.score)}
+          studentScores={d.studentScores}
           max={d.max}
           step={d.step}
           comment={d.comment ?? ''}
