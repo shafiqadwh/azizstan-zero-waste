@@ -54,7 +54,8 @@ time sync (`timedatectl set-ntp true`, timezone Asia/Bangkok).
 6. **Create the super admin** (step 5's `create-super-admin.js`; you type the password) → log in.
 7. **Admin setup order** — `/admin` shows it as the "ตั้งค่าเริ่มต้น n/9" checklist, each step ticked from the
    data and linked to its settings page; the card disappears once all nine are done: buildings/zones → physical
-   rooms → classes & aliases → a successful student sync → active term (2/2569) → rounds → classes taking part
+   rooms → classes & aliases (or let the sync create them) → active term (2/2569) → a successful student sync (it
+   needs the active term) → rounds → classes taking part
    this term → committee duties (Excel import) → appointment order PDF. Guide pages ship with defaults
    (migrations 0006, 0008); review them on `/admin/settings/content`.
 8. **Backups**: install `age` and `rclone`, put `backup.pub`, configure the rclone remote, add cron

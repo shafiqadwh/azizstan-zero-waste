@@ -57,3 +57,61 @@ export function classLookupKey(raw: string | null | undefined): string | null {
 export function homeClassKey(generalRaw: string | null | undefined, religiousRaw: string | null | undefined): string | null {
   return classLookupKey(generalRaw) ?? classLookupKey(religiousRaw);
 }
+
+/** Known misspellings in the student API → the class name to create (10-integrations §1.4 seed aliases). */
+const CANONICAL_NAMES: Record<string, string> = {
+  'usaha(ijtihad)': 'Usaha',
+  iklas: 'Ikhlas',
+  biruni: 'Al-Biruni',
+  'al-khawarizmi': 'Al-Khawarizmi',
+  "ash-shafi'i": "Ash-Shafi'i",
+};
+
+export interface ClassDraft {
+  track: 'general' | 'vocational';
+  gradeCode: string;
+  gradeLabel: string;
+  rankGroup: string;
+  roomNo: number;
+  name: string;
+  displayName: string;
+}
+
+/**
+ * A class the student sync may create by itself when the register has no match (BR-Y step 4b):
+ *   "ม.1/1 Amanah" → general M1 "ม.1 Amanah" (room 1) · "ปวช.2/1" → vocational VOC2 "ปวช.2/1"
+ * Religious classes (ซานาวี, chosen per term; มุตะวัซซิต skipped) and anything else return null and go to review.
+ */
+export function classDraftFrom(raw: string | null | undefined): ClassDraft | null {
+  if (!raw) return null;
+  const s = normalizeClassString(raw);
+  const g = parseGeneralClass(s);
+  if (g) {
+    const grade = Number(g.gradeLabel.slice(2));
+    if (grade < 1 || grade > 6) return null;
+    const name = CANONICAL_NAMES[g.name.toLowerCase()] ?? g.name;
+    return {
+      track: 'general',
+      gradeCode: `M${grade}`,
+      gradeLabel: g.gradeLabel,
+      rankGroup: g.gradeLabel,
+      roomNo: g.roomNo,
+      name,
+      displayName: `${g.gradeLabel} ${name}`,
+    };
+  }
+  const voc = /^ปวช\.([1-3])\s*\/\s*(\d{1,2})$/.exec(s);
+  if (voc) {
+    const name = `ปวช.${voc[1]}/${Number(voc[2])}`;
+    return {
+      track: 'vocational',
+      gradeCode: `VOC${voc[1]}`,
+      gradeLabel: `ปวช.${voc[1]}`,
+      rankGroup: 'ปวช.',
+      roomNo: Number(voc[2]),
+      name,
+      displayName: name,
+    };
+  }
+  return null;
+}

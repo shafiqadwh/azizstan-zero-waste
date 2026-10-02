@@ -256,6 +256,15 @@ If final max were 20: 13 × 20/15 = 17.3333… → display **17.33**.
    มุตะวัซซิต prefixes (`มุตะวัซซิต`, `1M `, `2M `, `3M `) — those classes are not part of the system (Q13).
    A student already in the DB who becomes skipped is treated as absent (step 5) but is **not** counted towards the
    abort guard (step 6).
+4b. **New classes (2026-10-02)**: a general class string the register lacks that parses as `ม.<1–6>/<room> <name>`
+   (`ม.1/1 Amanah`), or a vocational one as `ปวช.<1–3>/<room>` (`ปวช.2/1`), creates the class in the same
+   transaction as the students: general → `M<g>` / `ม.<g>` / rank group `ม.<g>` / display `ม.<g> <name>`;
+   vocational → `VOC<g>` / `ปวช.<g>` / rank group `ปวช.` / display `ปวช.<g>/<room>`. Known misspellings fold into
+   the register name (`Iklas`→Ikhlas, `Biruni`→Al-Biruni, `Usaha(Ijtihad)`→Usaha, `Al-khawarizmi`, `Ash-Shafi’i`),
+   and an existing class with the same display name is reused. Religious classes are never created (ซานาวี are
+   chosen per term, มุตะวัซซิต skipped) and still go to `review`. `counts.created` per source; admins get one
+   `classes_created` notice listing the names. New classes are **not** added to the term's selection (FR-P7): the
+   admin chooses them on the classes page. An aborted or failed sync creates nothing.
 5. Diff against DB by `student_code`: new → insert; class changed → update (moved); name changed → update;
    present in DB but absent from both sources → candidate inactive; same code twice in the input → `review`.
 6. **Abort guard**: if candidates to inactivate > `SYNC_ABORT_RATIO` × active students → status `aborted`,

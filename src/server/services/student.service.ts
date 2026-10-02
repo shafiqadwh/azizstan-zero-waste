@@ -9,7 +9,13 @@
 import { z } from 'zod';
 import type { Db } from '../../../db/client.ts';
 import { newId } from '../../lib/ids.ts';
-import { classLookupKey, normalizeClassString, parseGeneralClass } from '../../lib/scoring/classKey.ts';
+import {
+  classDraftFrom,
+  classLookupKey,
+  normalizeClassString,
+  parseGeneralClass,
+  type ClassDraft,
+} from '../../lib/scoring/classKey.ts';
 import { parseStudentCsv, type StudentRow } from '../../lib/students/csv.ts';
 import { AppError, notFound, parseInput, validation } from '../errors.ts';
 import { assertCan, type SessionUser } from '../policies/index.ts';
@@ -30,7 +36,7 @@ export const SYNC_SOURCES: SyncSource[] = ['general', 'vocational'];
 export type StudentFetcher = (source: SyncSource, params: { academicYear: number; termNo: number }) => Promise<string>;
 
 export const STUDENT_MSG = {
-  noTerm: 'ยังไม่มีภาคเรียนที่ใช้งาน',
+  noTerm: 'ยังไม่มีภาคเรียนที่ใช้งาน — สร้างและเปิดใช้ภาคเรียนที่ ตั้งค่า → ภาคเรียน ก่อน แล้วกด sync ใหม่',
   busy: 'กำลัง sync อยู่แล้ว',
   prefix: 'กรุณาระบุคำขึ้นต้น (ไม่เกิน 60 ตัวอักษร)',
   prefixTaken: 'มีคำขึ้นต้นนี้แล้ว',
@@ -112,6 +118,8 @@ interface Counts {
   review: number;
   malformed: number;
   skipped: number;
+  /** classes the sync created because the register had no match (BR-Y step 4b) */
+  created: number;
 }
 const zero = (): Counts => ({
   rows: 0,
@@ -122,6 +130,7 @@ const zero = (): Counts => ({
   review: 0,
   malformed: 0,
   skipped: 0,
+  created: 0,
 });
 
 export type SyncChange =
@@ -230,6 +239,25 @@ export async function runStudentSync(
 
   // 4 / 4a: skip rules, then class resolution (religious only when the general cell is empty)
   const r = await resolver(db);
+  // 4b: a general or vocational class string the register lacks ("ม.1/1 Amanah", "ปวช.2/1") becomes a new class,
+  // created in the same transaction as the students; anything else still goes to review
+  const planned = new Map<string, ClassDraft & { id: string }>();
+  const plan = (raw: string, source: SyncSource): string | null => {
+    const draft = classDraftFrom(raw);
+    if (!draft) return null;
+    const existing = r.resolve(draft.displayName);
+    if (existing) return existing;
+    const key = `${draft.track}|${draft.gradeCode}|${draft.name}`.toLowerCase();
+    let p = planned.get(key);
+    if (!p) {
+      p = { ...draft, id: newId() };
+      planned.set(key, p);
+      counts[source].created++;
+    }
+    return p.id;
+  };
+  const className = (id: string | null) =>
+    r.className(id) ?? [...planned.values()].find((p) => p.id === id)?.displayName ?? null;
   const incoming = new Map<string, Incoming>();
   const duplicates = new Set<string>();
   const skippedCodes = new Set<string>();
@@ -246,7 +274,7 @@ export async function runStudentSync(
       let generalClassId: string | null = null;
       let religiousClassId: string | null = null;
       if (row.general) {
-        generalClassId = r.resolve(row.general);
+        generalClassId = r.resolve(row.general) ?? plan(row.general, source);
         if (!generalClassId) review = `unknown_class:${normalizeClassString(row.general)}`;
       } else if (row.religious) {
         religiousClassId = r.resolve(row.religious);
@@ -290,7 +318,7 @@ export async function runStudentSync(
       });
       if (!inc.review) {
         c.added++;
-        changes.push({ code, change: 'added', to: r.className(home) });
+        changes.push({ code, change: 'added', to: className(home) });
       }
       continue;
     }
@@ -307,7 +335,7 @@ export async function runStudentSync(
         homeClassId: home,
       });
       c.moved++;
-      changes.push({ code, change: 'moved', from: r.className(cur.homeClassId), to: r.className(home) });
+      changes.push({ code, change: 'moved', from: className(cur.homeClassId), to: className(home) });
     }
     if (inc.row.fullName && inc.row.fullName !== cur.fullName) {
       patch.fullName = inc.row.fullName;
@@ -336,6 +364,7 @@ export async function runStudentSync(
   try {
     await withTransaction(db, async (tx) => {
       if (!(await repo.lockSync(tx))) throw new AppError('VALIDATION', { message: STUDENT_MSG.busy });
+      for (const c of planned.values()) await places.insertClass(tx, { ...c, isActive: true });
       await repo.insertStudents(tx, inserts);
       for (const u of updates) await repo.updateStudent(tx, u.id, u.patch);
       await repo.setInactive(
@@ -349,10 +378,28 @@ export async function runStudentSync(
           action: 'students.sync',
           entity: 'sync',
           entityId: term.id,
-          after: { general: counts.general, vocational: counts.vocational },
+          after: {
+            general: counts.general,
+            vocational: counts.vocational,
+            classesCreated: [...planned.values()].map((c) => c.displayName),
+          },
         },
         now,
       );
+      if (planned.size > 0) {
+        const names = [...planned.values()].map((c) => c.displayName).sort((a, b) => a.localeCompare(b, 'th'));
+        await send(
+          tx,
+          {
+            userIds: await evalRepo.listAdminIds(tx),
+            type: 'classes_created',
+            title: `sync สร้างห้องเรียนใหม่ ${names.length} ห้อง`,
+            body: `${names.slice(0, 12).join(', ')}${names.length > 12 ? ` และอีก ${names.length - 12} ห้อง` : ''} · ตรวจชื่อและเลือกห้องที่ร่วมประเมินภาคนี้`,
+            link: '/admin/settings/classes',
+          },
+          now,
+        );
+      }
     });
   } catch (err) {
     return fail('failed', err instanceof AppError ? err.message : 'apply failed');

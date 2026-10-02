@@ -46,15 +46,8 @@ export async function getSetupChecklist(db: Db, actor: SessionUser): Promise<Set
       key: 'classes',
       label: 'ห้องเรียนและชื่อเรียกอื่น',
       done: c.classes > 0,
-      detail: count(c.classes, 'ห้องเรียน', 'ยังไม่มีห้องเรียน'),
+      detail: count(c.classes, 'ห้องเรียน', 'ยังไม่มีห้องเรียน · sync รายชื่อสร้างห้องสามัญและ ปวช. ให้ได้'),
       href: '/admin/settings/classes',
-    },
-    {
-      key: 'students',
-      label: 'ซิงก์รายชื่อนักเรียน',
-      done: c.syncedOk > 0,
-      detail: c.syncedOk > 0 ? 'ซิงก์สำเร็จแล้ว' : 'ยังไม่เคยซิงก์สำเร็จ',
-      href: '/admin/settings/students',
     },
     {
       key: 'term',
@@ -62,6 +55,13 @@ export async function getSetupChecklist(db: Db, actor: SessionUser): Promise<Set
       done: term !== null,
       detail: term ? `ใช้งาน ${formatTermLabel(term.termNo, term.academicYear)}` : 'ยังไม่มีภาคเรียนที่ใช้งาน',
       href: '/admin/settings/term',
+    },
+    {
+      key: 'students',
+      label: 'ซิงก์รายชื่อนักเรียน',
+      done: c.syncedOk > 0,
+      detail: c.syncedOk > 0 ? 'ซิงก์สำเร็จแล้ว' : 'ยังไม่เคยซิงก์สำเร็จ',
+      href: '/admin/settings/students',
     },
     {
       key: 'rounds',

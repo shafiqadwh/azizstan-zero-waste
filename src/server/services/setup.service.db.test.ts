@@ -67,7 +67,7 @@ test('a new install starts with nothing done; per-term steps wait for an active 
   expect(await state()).toEqual({
     areas: 'ยังไม่มีอาคาร',
     rooms: 'ยังไม่มีห้อง',
-    classes: 'ยังไม่มีห้องเรียน',
+    classes: 'ยังไม่มีห้องเรียน · sync รายชื่อสร้างห้องสามัญและ ปวช. ให้ได้',
     students: 'ยังไม่เคยซิงก์สำเร็จ',
     term: 'ยังไม่มีภาคเรียนที่ใช้งาน',
     rounds: 'เปิดใช้ภาคเรียนก่อน',
