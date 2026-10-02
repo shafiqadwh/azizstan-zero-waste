@@ -1,10 +1,10 @@
-import { Bell, CircleHelp, LogOut } from 'lucide-react';
+import { Bell, CircleHelp } from 'lucide-react';
 import Link from 'next/link';
-import { logoutAction } from '@/app/actions/auth';
 import { getDb } from '@/server/db';
 import type { SessionUser } from '@/server/policies';
 import { unreadCount } from '@/server/services/push.service';
 import { Logo } from './Logo';
+import { LogoutButton } from './LogoutButton';
 
 const ROLE_LABEL: Record<SessionUser['role'], string> = {
   super_admin: 'ผู้ดูแลระบบสูงสุด',
@@ -49,17 +49,7 @@ export async function SignedInHeader({ user }: { user: SessionUser }) {
           <span className="block font-semibold text-ink">{user.displayName}</span>
           {ROLE_LABEL[user.role]}
         </span>
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            aria-label="ออกจากระบบ"
-            className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-line-strong px-3 text-[14px] font-medium whitespace-nowrap text-ink hover:bg-surface-muted"
-          >
-            <LogOut size={18} aria-hidden />
-            {/* icon only on phones so the help and inbox buttons fit at 360 px */}
-            <span className="hidden md:inline">ออกจากระบบ</span>
-          </button>
-        </form>
+        <LogoutButton userId={user.id} />
       </div>
     </header>
   );

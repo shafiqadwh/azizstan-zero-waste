@@ -34,6 +34,9 @@ export interface Draft {
 export const draftKey = (userId: string, roundId: string, componentId: string, target: string) =>
   `draft:${userId}:${roundId}:${componentId}:${target}`;
 
+/** Every draft of one user starts with this; logout deletes them (12-security §2 item 13). */
+export const draftPrefix = (userId: string) => `draft:${userId}:`;
+
 export const isExpired = (d: Pick<Draft, 'updatedAt'>, now: number) => now - d.updatedAt > DRAFT_TTL_MS;
 
 /** A draft worth keeping: anything the user entered. An untouched form leaves no draft behind. */
