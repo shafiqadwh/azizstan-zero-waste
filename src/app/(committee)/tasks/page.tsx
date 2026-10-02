@@ -32,7 +32,7 @@ export default async function TasksPage({
     getMyTasks(getDb(), user, now),
     listMyRequests(getDb(), user, now),
   ]);
-  const saved = sp.saved === '1';
+  const saved = sp.saved === '1' || sp.saved === 'auto';
   const view = sp.view === 'requests' ? 'requests' : 'tasks';
   const waiting = requests.filter((r) => r.status === 'waiting').length;
   return (
@@ -63,7 +63,7 @@ export default async function TasksPage({
       {view === 'requests' ? <MyRequests requests={requests} /> : null}
       {view === 'tasks' && saved ? (
         <p role="status" className="rounded-lg bg-brand-soft px-4 py-3 text-[14px] font-semibold text-brand-ink">
-          ส่งแล้ว รออนุมัติ
+          {sp.saved === 'auto' ? 'บันทึกแล้ว อนุมัติอัตโนมัติ' : 'ส่งแล้ว รออนุมัติ'}
         </p>
       ) : null}
       {view === 'tasks' && round ? <DeadlineBanner round={round} now={now} /> : null}

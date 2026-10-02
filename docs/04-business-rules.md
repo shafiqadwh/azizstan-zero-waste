@@ -120,6 +120,13 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 - **BR-E5 Delete** by owner within the window → status `void` (row kept; unique index frees the slot).
 - **BR-E6 Approve** (admin; if the target has an `approver` duty holder, only that admin or a super admin):
   status `approved`, `approved_at/by`, enqueue `pdf.render`, revalidate public cache, recompute live results.
+- **BR-E6b อนุมัติอัตโนมัติ (2026-10-02)** Per term switch `terms.auto_approve` (admin, any time — not part of the
+  config lock; on the mode settings page and the approvals page; audited `term.auto_approve`). On: a submitted
+  evaluation is stored `approved` at once with `approved_by = null` and its PDF queued (approver printed as
+  "อนุมัติอัตโนมัติ"). Its owner keeps the self-edit window (BR-E2): each change stays `approved`, `version + 1` and
+  queues the next PDF version; deleting voids it. Once the round is finalized, or for an admin-approved evaluation,
+  changes go through requests (BR-E9). Requests (late entry, edits after the window, delete, move) still wait for an
+  admin. Applies to evaluations submitted while it is on.
 - **BR-E7 Return** (admin, reason required ≥ 5 chars): status `returned`, `returned_reason`,
   `self_edit_until = max(self_edit_until, now + self_edit_hours)` so the owner can fix it. Notifies owner.
 - **BR-E8 Resubmit** from `returned` → `submitted` (same validation as BR-E1).

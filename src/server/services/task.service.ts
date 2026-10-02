@@ -240,6 +240,8 @@ export interface EvaluationForm {
   individual: boolean;
   /** T41 (FR-E12): an area teacher's deduction — the score is the points taken off, the comment is the reason */
   deduction: boolean;
+  /** "อนุมัติอัตโนมัติ" is on: submitting approves at once (no admin step) */
+  autoApprove: boolean;
   /** Individual mode (T40): the class's snapshot students for the round, codes only (FR-S1); [] otherwise. */
   students: { id: string; code: string }[];
   /** Entry is open for this user: the round is open, or they hold a late-entry grant (BR-P2). */
@@ -304,6 +306,7 @@ export async function getEvaluationForm(
     photoMax: term.photoMax,
     requiresSignature: deduction ? false : component.requiresSignature,
     deduction,
+    autoApprove: term.autoApprove,
     commentMax: term.commentMax,
     selfEditHours: term.selfEditHours,
     individual,
@@ -339,6 +342,8 @@ export interface EvaluationDetail {
   componentLabel: string;
   /** T41: an area teacher's deduction (score = points taken off, comment = reason) */
   deduction: boolean;
+  /** approved on submit by "อนุมัติอัตโนมัติ" (no admin) */
+  autoApproved: boolean;
   target: TargetView;
   status: Exclude<TaskStatus, 'not_evaluated'> | 'void';
   /** the score; in individual mode the class mean of the student scores (BR-S2) */
@@ -399,7 +404,12 @@ export async function getEvaluationDetail(
   if (!can(actor, 'staff.read', { ownTarget })) throw new AppError('FORBIDDEN');
   const component = (await termsRepo.listComponents(db, round.termId)).find((c) => c.id === e.componentId)!;
   const term = (await places.findTerm(db, round.termId))!;
-  const canEdit = isOwner && (e.status === 'submitted' || e.status === 'returned') && now < e.selfEditUntil;
+  // "อนุมัติอัตโนมัติ": an evaluation nobody approved stays the owner's to fix inside the window, until finalize
+  const autoApproved = e.status === 'approved' && e.approvedBy === null;
+  const canEdit =
+    isOwner &&
+    (e.status === 'submitted' || e.status === 'returned' || (autoApproved && round.status !== 'finalized')) &&
+    now < e.selfEditUntil;
   const roundOpenForRequests = round.status !== 'finalized' || actor.role === 'super_admin';
   const canRequest = ownTarget && e.status !== 'void' && !canEdit && roundOpenForRequests;
   let moveOptions: EvaluationDetail['moveOptions'] = [];
@@ -442,6 +452,7 @@ export async function getEvaluationDetail(
     componentId: component.id,
     componentLabel: component.label,
     deduction: component.kind === 'deduct',
+    autoApproved,
     target: { ...view.get(targetRef(t))!, roomNumber: e.roomNumberAtEval ?? view.get(targetRef(t))!.roomNumber },
     status: e.status,
     score: e.score ?? (classMean === null ? null : toDb(classMean)),

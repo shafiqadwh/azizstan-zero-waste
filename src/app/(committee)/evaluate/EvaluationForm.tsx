@@ -35,7 +35,8 @@ const RETRY_MS = 15_000;
 export interface InitialContent {
   evaluationId: string;
   version: number;
-  status: 'submitted' | 'returned';
+  /** approved = auto-approved, still inside the owner's window */
+  status: 'submitted' | 'returned' | 'approved';
   score: Th | null;
   /** individual mode: each student's saved score */
   studentScores?: Record<string, Th>;
@@ -321,7 +322,7 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
         setDirty(false);
         if (key) await deleteDraft(key);
         if (typeof navigator.vibrate === 'function') navigator.vibrate(30);
-        router.push(`/tasks?saved=1`);
+        router.push(`/tasks?saved=${ctx.autoApprove && !initial ? 'auto' : '1'}`);
         return;
       }
       const field = (result.error.field ?? 'form') as Field | 'form';
@@ -376,9 +377,13 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
     ? initial.status === 'returned'
       ? 'แก้แล้วส่งให้ Admin อนุมัติอีกครั้ง'
       : 'บันทึกการแก้ไข'
-    : ctx.deduction
-      ? 'บันทึกการหักคะแนนและส่งให้ Admin อนุมัติ'
-      : 'บันทึกและส่งให้ Admin อนุมัติ';
+    : ctx.autoApprove
+      ? ctx.deduction
+        ? 'บันทึกการหักคะแนน'
+        : 'บันทึกผลประเมิน'
+      : ctx.deduction
+        ? 'บันทึกการหักคะแนนและส่งให้ Admin อนุมัติ'
+        : 'บันทึกและส่งให้ Admin อนุมัติ';
   // T41: a deduction's comment is its required reason
   const commentTitle = ctx.deduction ? 'เหตุผลที่หักคะแนน (จำเป็น)' : 'คำแนะนำและข้อติชม';
 
@@ -573,7 +578,9 @@ export function EvaluationForm({ ctx, initial }: { ctx: FormContext; initial?: I
                 ? problem.message
                 : !online
                   ? 'ออฟไลน์ · ร่างถูกเก็บไว้ในเครื่อง'
-                  : `แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมงหลังบันทึก`}
+                  : ctx.autoApprove && !initial
+                    ? `อนุมัติอัตโนมัติเมื่อบันทึก · แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมง`
+                    : `แก้ไขเองได้ภายใน ${ctx.selfEditHours} ชั่วโมงหลังบันทึก`}
           </p>
         </div>
       </div>

@@ -103,7 +103,7 @@ export async function preparePdf(db: Db, evaluationId: string, now: Date, root =
       roundNo: round.roundNo,
       evaluatedAt: formatThaiDateTime(e.firstSubmittedAt),
       ownerName: owner?.displayName ?? '–',
-      approverName: approver?.displayName ?? null,
+      approverName: approver?.displayName ?? (e.status === 'approved' ? 'อนุมัติอัตโนมัติ' : null),
       score: e.score !== null ? show(e.score) : students.length ? showTh(mean(students.map((x) => x.th))!) : '–',
       students: students.map((x) => ({ code: x.code, score: showTh(x.th) })),
       deduction: component.kind === 'deduct',

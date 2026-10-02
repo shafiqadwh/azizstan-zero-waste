@@ -302,7 +302,10 @@ export async function submitEvaluation(
         score: content.score === null ? null : toDb(content.score),
         comment: content.comment || null,
         roomNumberAtEval: t.type === 'class' ? await repo.frozenRoomNumber(tx, ctx.round.id, t.id) : null,
-        status: 'submitted',
+        // "อนุมัติอัตโนมัติ": approved on submit, by nobody (approved_by stays null), PDF queued for the worker
+        ...(ctx.term.autoApprove
+          ? { status: 'approved' as const, approvedAt: now, approvedBy: null, pdfStatus: 'queued' as const }
+          : { status: 'submitted' as const }),
         firstSubmittedAt: now,
         selfEditUntil,
         lastEditedAt: now,
@@ -328,6 +331,7 @@ export async function submitEvaluation(
             target: t,
             score: value,
             photos: content.siteIds.length,
+            ...(ctx.term.autoApprove ? { autoApproved: true } : {}),
           },
           ip: meta.ip,
         },
@@ -357,13 +361,22 @@ export async function submitEvaluation(
 
 // ───────────── owner changes (BR-E2..E5, BR-E8) ─────────────
 
+/** Approved on submit by "อนุมัติอัตโนมัติ" (nobody approved it): the owner keeps the self-edit window. */
+export const isAutoApproved = (e: Pick<repo.EvaluationRow, 'status' | 'approvedBy'>) =>
+  e.status === 'approved' && e.approvedBy === null;
+
 async function lockOwned(tx: Tx, actor: SessionUser, id: string, expectedVersion: number, now: Date) {
   const e = await repo.lockEvaluation(tx, id);
   if (!e) throw notFound();
   // BR-E4: anyone else goes through a request (the UI offers "ขออนุมัติแก้ไข")
   if (e.ownerId !== actor.id) throw new AppError('FORBIDDEN');
   if (e.status === 'void') throw new AppError('VALIDATION', { message: EVALUATION_MSG.voided });
-  if (e.status === 'approved') throw new AppError('VALIDATION', { message: EVALUATION_MSG.approvedUseRequest });
+  if (e.status === 'approved') {
+    // an admin's approval is final (BR-E9); an automatic one keeps the window until the round is finalized
+    const round = (await termsRepo.findRound(tx, e.roundId))!;
+    if (!isAutoApproved(e) || round.status === 'finalized')
+      throw new AppError('VALIDATION', { message: EVALUATION_MSG.approvedUseRequest });
+  }
   if (e.version !== expectedVersion) throw new AppError('CONFLICT');
   // BR-E2/E3: the window, not the round, decides
   if (now >= e.selfEditUntil) throw new AppError('EDIT_WINDOW_PASSED');
@@ -443,6 +456,8 @@ async function applyOwnerChange(
       lastEditedAt: now,
       version: e.version + 1,
       ...(mode === 'resubmit' ? { status: 'submitted' as const } : {}),
+      // auto-approved: stays approved; the worker renders the next PDF version (09-pdf §5)
+      ...(isAutoApproved(e) ? { pdfStatus: 'queued' as const, pdfError: null } : {}),
     });
     const what = describeChange(before, after, ctx);
     await writeAudit(

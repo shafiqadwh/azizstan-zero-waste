@@ -355,3 +355,13 @@ export async function disableDeduction() {
     await client.end();
   }
 }
+
+export async function setAutoApprove(enabled: boolean) {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL! });
+  await client.connect();
+  try {
+    await client.query("UPDATE terms SET auto_approve = $1 WHERE status = 'active'", [enabled]);
+  } finally {
+    await client.end();
+  }
+}

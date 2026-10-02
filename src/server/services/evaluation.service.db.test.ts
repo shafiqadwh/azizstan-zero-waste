@@ -35,7 +35,7 @@ import {
 } from './evaluation.service.ts';
 import { linkClassRoom, setTermClasses, upsertArea, upsertClass, upsertPhysicalRoom } from './place.service.ts';
 import { getEvaluationDetail, getEvaluationForm, getMyTasks } from './task.service.ts';
-import { activateTerm, createTerm } from './term.service.ts';
+import { activateTerm, createTerm, setAutoApprove } from './term.service.ts';
 import { createUser } from './user.service.ts';
 
 const baseUrl = process.env.DATABASE_URL;
@@ -590,6 +590,71 @@ describe('area-teacher deductions (T41, FR-E12, Q4)', () => {
       await approveEvaluation(db, admin, { id: e.id, expectedVersion: e.version }, meta, now);
     } finally {
       await db.update(scoreComponents).set({ enabled: false }).where(eq(scoreComponents.id, deductC));
+    }
+  });
+});
+
+describe('อนุมัติอัตโนมัติ (auto-approve, 2026-10-02)', () => {
+  test('approved on submit with its PDF queued; the owner still edits inside the window, not after finalize', async () => {
+    await expect(setAutoApprove(db, executive, { termId, enabled: true }, meta, now)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    await setAutoApprove(db, admin, { termId, enabled: true }, meta, now);
+    expect((await findTerm(db, termId))!.autoApprove).toBe(true);
+    const round2 = newId();
+    await db.insert(rounds).values({ id: round2, termId, roundNo: 2, opensAt, closesAt, status: 'open' });
+    try {
+      const e = await oneAudit(async () =>
+        submitEvaluation(
+          db,
+          t1,
+          {
+            roundId: round2,
+            componentId: roomC,
+            target: { type: 'class', id: cls.Amanah! },
+            score: '4',
+            siteEvidenceIds: await photos(t1, 3),
+            signatureEvidenceId: (await photos(t1, 1, 'signature'))[0],
+            comment: 'สะอาดดี',
+          },
+          meta,
+          now,
+        ),
+      );
+      const row = async () => (await db.select().from(evaluations).where(eq(evaluations.id, e.id)))[0]!;
+      expect(await row()).toMatchObject({ status: 'approved', approvedBy: null, pdfStatus: 'queued' });
+      expect((await getEvaluationDetail(db, t1, e.id, now)).canEdit).toBe(true);
+      // nothing waits for an admin
+      await expect(approveEvaluation(db, admin, { id: e.id, expectedVersion: e.version }, meta, now)).rejects.toThrow();
+
+      // inside the window: stays approved, a new PDF version is queued
+      await db.update(evaluations).set({ pdfStatus: 'ready' }).where(eq(evaluations.id, e.id));
+      const edited = await updateEvaluation(db, t1, { id: e.id, expectedVersion: e.version, score: '4.5' }, meta, now);
+      expect(edited).toMatchObject({ status: 'approved', score: '4.500', version: e.version + 1 });
+      expect((await row()).pdfStatus).toBe('queued');
+      // someone else still needs a request
+      await expect(
+        updateEvaluation(db, t2, { id: e.id, expectedVersion: edited.version, score: '3' }, meta, now),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      // after the window
+      await expect(
+        updateEvaluation(
+          db,
+          t1,
+          { id: e.id, expectedVersion: edited.version, score: '3' },
+          meta,
+          new Date(now.getTime() + 25 * hour),
+        ),
+      ).rejects.toMatchObject({ code: 'EDIT_WINDOW_PASSED' });
+      // a finalized round is frozen
+      await db.update(rounds).set({ status: 'finalized' }).where(eq(rounds.id, round2));
+      await expect(
+        updateEvaluation(db, t1, { id: e.id, expectedVersion: edited.version, score: '3' }, meta, now),
+      ).rejects.toMatchObject({ message: expect.stringContaining('ขออนุมัติ') });
+      expect((await getEvaluationDetail(db, t1, e.id, now)).canEdit).toBe(false);
+    } finally {
+      await setAutoApprove(db, admin, { termId, enabled: false }, meta, now);
+      await db.update(rounds).set({ status: 'closed' }).where(eq(rounds.id, round2));
     }
   });
 });

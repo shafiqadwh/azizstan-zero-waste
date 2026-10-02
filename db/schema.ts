@@ -94,6 +94,7 @@ export const terms = pgTable('terms', {
   reminderHours: jsonb('reminder_hours').$type<number[]>().notNull().default([72, 24]), // before closes_at
   publicRankingsVisible: boolean('public_rankings_visible').notNull().default(true),
   publicShowLiveScores: boolean('public_show_live_scores').notNull().default(true),    // false = only finalized rounds
+  autoApprove: boolean('auto_approve').notNull().default(false),        // evaluations approved on submit (no admin step)
   copiedFromTermId: uuid('copied_from_term_id'),
   configLockedAt: ts('config_locked_at'),               // set when first evaluation is created (FR-C9)
   closedAt: ts('closed_at'),                            // BR-D1

@@ -16,7 +16,7 @@ async function load(user: SessionUser, id: string, now: Date) {
   const db = getDb();
   try {
     const d = await getEvaluationDetail(db, user, id, now);
-    if (!d.canEdit || (d.status !== 'submitted' && d.status !== 'returned')) return { d, ctx: null };
+    if (!d.canEdit || d.status === 'void') return { d, ctx: null };
     const ctx = await getEvaluationForm(
       db,
       user,
@@ -38,7 +38,7 @@ export default async function EditEvaluationPage({ params }: { params: Promise<{
   const loaded = await load(user, id, new Date());
   if (!loaded) notFound();
   const { d, ctx } = loaded;
-  if (!ctx || (d.status !== 'submitted' && d.status !== 'returned')) redirect(`/evaluate/${id}`);
+  if (!ctx) redirect(`/evaluate/${id}`);
   const signature = d.photos.find((p) => p.kind === 'signature');
   return (
     <main className="mx-auto flex max-w-[720px] flex-col gap-4 px-5 py-4">
