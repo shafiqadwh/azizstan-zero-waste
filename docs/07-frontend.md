@@ -15,8 +15,6 @@
 | `/login` | public | Login | client form |
 | `/account/password` | staff | Change password | client form |
 | `/tasks` | committee | My tasks (tabs: ต้องทำ · รออนุมัติ · เสร็จ · คำขอของฉัน) | RSC + 30 s refresh |
-| `/r/[qrToken]` | public | Room hub (door QR): room, class, building/floor and a menu of the room's programs (only "ประเมินความสะอาด" for now; IT and facility reporting are added to the menu once built); unknown/inactive token → 404 | RSC |
-| `/r/[qrToken]/cleanliness` | public | Cleanliness program of the room: latest round and term scores; signed-in committee gets "ประเมินห้องนี้" / "ดูผลประเมินของห้องนี้", signed out gets login with `next` back here | RSC |
 | `/evaluate/new?round=&component=&target=` | committee | Evaluation form | client (offline-capable) |
 | `/evaluate/[id]` | committee/staff | Evaluation detail / edit / request | RSC + client |
 | `/requests/new?…` | committee | Request form (sheet) | client |
@@ -47,8 +45,8 @@ Layouts: `(public)` top bar + bottom actions on mobile; `(committee)` app shell 
 
 ## 3. Committee evaluation form — technical design
 
-1. **Entry**: from `/tasks` (one tap), from search by room number, or by scanning the door QR (`/r/[qrToken]`,
-   camera via the phone's native scanner — no in-app scanner library needed; the QR is just a URL).
+1. **Entry**: from `/tasks` (one tap) or from search by class name. (The door QR and room hub moved to the
+   facilities system on 2026-10-03.)
 2. **Confirm target**: the header shows `121 · ม.1 Amanah · อาคาร 1 ชั้น 2 · รอบที่ 1` (green bar). If the
    server says another member already scored it, the form is replaced by the read-only result + "ขออนุมัติแก้ไข".
 3. **Individual mode** (T40): the score card lists the round's snapshot students by **code only** (FR-S1), one

@@ -32,7 +32,7 @@ student moves, class-string keys (§9.2), home class (FR-R10). Run:
 | T-Q1 | BR-Q3 | approve `edit_score` with value off the step grid → approval fails, request stays waiting |
 | T-Q2 | BR-Q | approve `move_target` to a target that already has a live evaluation → fails with `ALREADY_EVALUATED` |
 | T-Q3 | BR-E9 | applied request on approved evaluation → version+1, new PDF version, old PDF `superseded_at` set |
-| T-R1 | BR-R1 | round.open freezes `round_class_areas` from class_room_links at `opens_at`; later room move does not change it |
+| T-R1 | BR-R1 | round.open freezes `round_class_areas` from the term's class areas (`term_class_zones`); a later change of building or room does not change it |
 | T-R2 | BR-R3 | finalize with 1 missing evaluation → `ROUND_NOT_COMPLETE (1)`; with waiting request → blocked |
 | T-R3 | BR-R3 | finalize writes frozen results equal to live computation; public API returns them |
 | T-TM1 | BR-TM2 | first evaluation sets `config_locked_at`; updateTermConfig afterwards → `CONFIG_LOCKED` |

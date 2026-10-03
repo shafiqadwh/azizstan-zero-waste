@@ -61,7 +61,9 @@ note "โปรดถ่ายรูปแผ่นนี้แนบในร�
 Staff, or a committee member with a duty on the class in that term. Linked from the evaluation form's
 "ใบลงชื่อนักเรียน" card and the monitor popover.
 
-## 4. Room QR sheet (P2, T34)
+## 4. Room QR sheet (P2, T34) — removed 2026-10-03
+**Moved out 2026-10-03:** physical rooms belong to the facilities system (ฝ่ายอาคารสถานที่), which will sync them in later. The QR sheet goes with them; the text below is history.
+
 Route `GET /api/v1/pdf/room-qr[?buildingId=|roomId=]` (`&format=html` for the printable page); admins
 (`place.manage`). A4 portrait, **12 cards per page** (3 × 4, dashed cut lines), active rooms ordered by building,
 floor and number. Each card: QR of the door URL `{APP_URL}/r/{qrToken}` (error correction M), the room number

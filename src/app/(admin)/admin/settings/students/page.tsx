@@ -88,9 +88,10 @@ export default async function StudentsPage() {
                           ['รอตรวจสอบ', c.review],
                           ['ไฟล์ผิดรูปแบบ', c.malformed],
                           ['ข้าม', c.skipped],
+                          ['สร้างห้องเรียน', c.created],
                         ]
                           .filter(([, n]) => (n as number | undefined) !== undefined && (n as number) > 0)
-                          .map(([l, n]) => `${l} ${n}${l === 'ข้าม' ? ' คน' : ''}`)
+                          .map(([l, n]) => `${l} ${n}${l === 'ข้าม' ? ' คน' : l === 'สร้างห้องเรียน' ? ' ห้อง' : ''}`)
                           .join(' · ') || '–'}
                       </td>
                     </tr>

@@ -6,12 +6,12 @@
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Db } from '../../../db/client.ts';
-import { bangkokDateString } from '../../lib/dates/index.ts';
 import { newId } from '../../lib/ids.ts';
 import { classLookupKey } from '../../lib/scoring/classKey.ts';
 import { AppError, notFound, parseInput, validation } from '../errors.ts';
 import { assertCan, type SessionUser } from '../policies/index.ts';
 import * as repo from '../repositories/places.repository.ts';
+import * as termsRepo from '../repositories/terms.repository.ts';
 import { withTransaction, type Tx } from '../transaction.ts';
 import { writeAudit } from './audit.service.ts';
 import type { ClientMeta } from './auth.service.ts';
@@ -30,6 +30,7 @@ export const PLACE_MSG = {
   roomBusy: (room: string, cls: string) => `ห้อง ${room} มี ${cls} ใช้อยู่ในวันที่นั้น ย้าย ${cls} ออกก่อน`,
   overlap: 'ช่วงวันที่ซ้อนกับการใช้ห้องที่มีอยู่ (ห้องเรียนหนึ่งใช้ได้ห้องเดียว และห้องหนึ่งมีห้องเรียนได้ห้องเดียว)',
   unknownClass: 'ไม่พบห้องเรียนที่เลือก',
+  unknownArea: 'อาคารหรือโซนที่เลือกไม่ตรงกับโหมดของภาคเรียน หรือถูกปิดใช้งาน',
 } as const;
 
 const isoDate = z
@@ -78,7 +79,15 @@ export const aliasInput = z.object({
   alias: z.string().trim().min(1, PLACE_MSG.aliasEmpty).max(100),
 });
 export const linkInput = z.object({ classId: z.uuid(), physicalRoomId: z.uuid(), effectiveFrom: isoDate });
-export const termClassesInput = z.object({ termId: z.uuid(), classIds: z.array(z.uuid()).max(500) });
+export const termClassesInput = z.object({
+  termId: z.uuid(),
+  classIds: z.array(z.uuid()).max(500),
+  /** the area (building or zone, per the term's mode) of each selected class; a class without one is left out */
+  areas: z
+    .array(z.object({ classId: z.uuid(), areaId: z.uuid() }))
+    .max(500)
+    .default([]),
+});
 
 /** FR-P1 display: general "ม.1 Amanah", vocational "ปวช.2/1" (name already carries it), religious "{grade} {name}". */
 export function defaultDisplayName(c: { track: string; gradeLabel: string; name: string }): string {
@@ -117,56 +126,20 @@ async function audit(
 // ───────────── reads ─────────────
 
 export interface PlacesOverview {
-  today: string;
   areas: repo.AreaRow[];
-  rooms: (repo.RoomRow & { buildingCode: string | null; currentClassId: string | null })[];
-  classes: (repo.ClassRow & {
-    aliases: { id: string; alias: string }[];
-    currentRoomId: string | null;
-    currentRoomNumber: string | null;
-    /** The next planned move, if any (a link starting after today). */
-    nextRoom: { roomNumber: string; effectiveFrom: string } | null;
-  })[];
+  classes: (repo.ClassRow & { aliases: { id: string; alias: string }[] })[];
 }
 
-export async function getPlaces(db: Db, actor: SessionUser, now: Date): Promise<PlacesOverview> {
+/** The admin register (/admin/settings/classes): areas and classes with their aliases. */
+export async function getPlaces(db: Db, actor: SessionUser): Promise<PlacesOverview> {
   assertCan(actor, 'staff.read');
-  const today = bangkokDateString(now);
-  const [areas, rooms, classes, aliases, links, upcoming] = await Promise.all([
-    repo.listAreas(db),
-    repo.listRooms(db),
-    repo.listClasses(db),
-    repo.listAliases(db),
-    repo.listLinksOnDate(db, today),
-    repo.upcomingLinks(db, today),
-  ]);
-  const buildingCode = new Map(areas.map((a) => [a.id, a.code]));
-  const roomNumber = new Map(rooms.map((r) => [r.id, r.roomNumber]));
-  const classInRoom = new Map(links.map((l) => [l.physicalRoomId, l.classId]));
-  const roomOfClass = new Map(links.map((l) => [l.classId, l.physicalRoomId]));
+  const [areas, classes, aliases] = await Promise.all([repo.listAreas(db), repo.listClasses(db), repo.listAliases(db)]);
   return {
-    today,
     areas,
-    rooms: rooms.map((r) => ({
-      ...r,
-      buildingCode: buildingCode.get(r.buildingId) ?? null,
-      currentClassId: classInRoom.get(r.id) ?? null,
+    classes: classes.map((c) => ({
+      ...c,
+      aliases: aliases.filter((a) => a.classId === c.id).map((a) => ({ id: a.id, alias: a.alias })),
     })),
-    classes: classes.map((c) => {
-      const roomId = roomOfClass.get(c.id) ?? null;
-      return {
-        ...c,
-        aliases: aliases.filter((a) => a.classId === c.id).map((a) => ({ id: a.id, alias: a.alias })),
-        currentRoomId: roomId,
-        currentRoomNumber: roomId ? (roomNumber.get(roomId) ?? null) : null,
-        nextRoom: (() => {
-          const next = upcoming.find((l) => l.classId === c.id);
-          return next
-            ? { roomNumber: roomNumber.get(next.physicalRoomId) ?? '', effectiveFrom: next.effectiveFrom }
-            : null;
-        })(),
-      };
-    }),
   };
 }
 
@@ -206,6 +179,10 @@ export async function upsertArea(
   });
 }
 
+/**
+ * Physical rooms and class ↔ room links have no screen in this system any more (2026-10-03): rooms belong to the
+ * facilities system, which will sync them in. Kept as the write path for that sync and for room numbers on records.
+ */
 export async function upsertPhysicalRoom(
   db: Db,
   actor: SessionUser,
@@ -420,8 +397,19 @@ export async function setTermClasses(
     if (!term) throw notFound();
     if (term.configLockedAt) throw new AppError('CONFIG_LOCKED');
     if ((await repo.countExistingClasses(tx, ids)) !== ids.length) throw validation('classIds', PLACE_MSG.unknownClass);
+    const chosen = new Set(ids);
+    const areaIds = new Set(
+      (await repo.listAreas(tx)).filter((a) => a.type === term.areaType && a.isActive).map((a) => a.id),
+    );
+    const areas = input.areas.filter((a) => chosen.has(a.classId));
+    if (areas.some((a) => !areaIds.has(a.areaId))) throw validation('areas', PLACE_MSG.unknownArea);
     const before = await repo.listTermClassIds(tx, term.id);
     await repo.replaceTermClasses(tx, term.id, ids);
+    await termsRepo.replaceTermClassZones(
+      tx,
+      term.id,
+      areas.map((a) => ({ termId: term.id, classId: a.classId, areaId: a.areaId })),
+    );
     await audit(
       tx,
       actor,
@@ -431,7 +419,7 @@ export async function setTermClasses(
       'term',
       term.id,
       { count: before.length },
-      { count: ids.length, classIds: ids },
+      { count: ids.length, classIds: ids, areas: areas.length },
     );
   });
 }
@@ -441,5 +429,9 @@ export async function getActiveTermSelection(db: Db, actor: SessionUser) {
   assertCan(actor, 'staff.read');
   const term = await repo.findActiveTerm(db);
   if (!term) return null;
-  return { term, classIds: await repo.listTermClassIds(db, term.id) };
+  const [classIds, areas] = await Promise.all([
+    repo.listTermClassIds(db, term.id),
+    termsRepo.listTermClassZones(db, term.id),
+  ]);
+  return { term, classIds, areaByClass: Object.fromEntries(areas.map((a) => [a.classId, a.areaId])) };
 }

@@ -238,10 +238,10 @@ describe('duties.xlsx', () => {
     expect(b2Now.committee.map((h) => h.userId)).toEqual([teacherId]); // t.sara not added
   });
 
-  test('commit: room number or class name, existing rows are no-ops, uncovered targets reported', async () => {
+  test('commit: class name or alias, existing rows are no-ops, uncovered targets reported', async () => {
     const rows: DutyImportRow[] = await parseDutiesWorkbook(
       await workbook([
-        ['t.kamal', 'ครูกามัล', 'committee', 'ห้อง', '121'], // already assigned via the form
+        ['t.kamal', 'ครูกามัล', 'committee', 'ห้อง', 'ม.1 Amanah'], // already assigned via the form
         ['T.Sara', '', 'committee', 'ห้อง', 'ม.1 Berdikari'], // already assigned
         ['exe', '', 'committee', 'อาคาร', '2'],
         ['adm', '', 'approver', '', ''],

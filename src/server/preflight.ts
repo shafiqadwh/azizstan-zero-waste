@@ -37,7 +37,7 @@ export function checkEnv(env: Env): Finding[] {
   const add = (level: Level, key: string, message: string) => out.push({ level, key, message });
   const get = (k: string) => (env[k] ?? '').trim();
 
-  // APP_URL: printed on QR sheets and in every notification link
+  // APP_URL: in every notification and push link
   const appUrl = get('APP_URL');
   let url: URL | null = null;
   try {
@@ -45,10 +45,10 @@ export function checkEnv(env: Env): Finding[] {
   } catch {
     url = null;
   }
-  if (!url) add('error', 'APP_URL', 'ยังไม่ได้ตั้ง หรือไม่ใช่ URL ที่ถูกต้อง (QR และลิงก์แจ้งเตือนใช้ค่านี้)');
+  if (!url) add('error', 'APP_URL', 'ยังไม่ได้ตั้ง หรือไม่ใช่ URL ที่ถูกต้อง (ลิงก์ในการแจ้งเตือนใช้ค่านี้)');
   else if (url.protocol !== 'https:') add('error', 'APP_URL', 'ต้องเป็น https://');
   else if (['localhost', '127.0.0.1'].includes(url.hostname))
-    add('error', 'APP_URL', 'ยังชี้ไปที่ localhost — พิมพ์ QR แล้วจะสแกนไม่ได้');
+    add('error', 'APP_URL', 'ยังชี้ไปที่ localhost — ลิงก์ในการแจ้งเตือนจะเปิดไม่ได้');
   else if (url.pathname !== '/' || appUrl.endsWith('/'))
     add('warn', 'APP_URL', 'ไม่ควรมี / หรือ path ต่อท้าย (เช่น https://zerowaste.azizstan.net)');
   else add('ok', 'APP_URL', appUrl);

@@ -364,7 +364,9 @@ hidden with the note "ปีการศึกษาใหม่ต้องเ�
 4) summary → "สร้างภาคเรียน" (creates a `draft` term; the old term stays active until "เปิดใช้ภาคเรียนนี้").
 Copy explains: "ข้อมูลเทอมก่อนไม่ถูกลบ ดูย้อนหลังและเทียบกราฟได้ตลอด".
 
-### 6.21 Buildings and room numbers `/admin/settings/rooms` (canvas: "ตั้งค่า · อาคารและหมายเลขห้อง")
+### 6.21 Buildings and room numbers `/admin/settings/rooms` (canvas: "ตั้งค่า · อาคารและหมายเลขห้อง") — removed 2026-10-03
+**Moved out 2026-10-03:** physical rooms belong to the facilities system (ฝ่ายอาคารสถานที่), which will sync them in later. `/admin/settings/classes` keeps the building list and "+ เพิ่มอาคาร"; the class selection card has a building (or zone) select per class. The text below is history.
+
 Building chips (with room counts, "+ เพิ่มอาคาร") → selected building card with floors top-down, each floor a
 6-column grid of room tiles: number (16/700) + class using it, or amber dashed "ยังไม่ผูกห้องเรียน". Selecting a
 tile opens the right panel: room number, floor, building; "ห้องเรียนที่ใช้ห้องนี้" select + "มีผลตั้งแต่วันที่"

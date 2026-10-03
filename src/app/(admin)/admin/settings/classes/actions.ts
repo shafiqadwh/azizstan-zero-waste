@@ -3,18 +3,14 @@
 import { revalidatePath } from 'next/cache';
 import { clientMeta, requireUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
-import { validation } from '@/server/errors';
 import { toResult, type Result } from '@/server/result';
 import {
   addClassAlias,
-  linkClassRoom,
   removeClassAlias,
   setTermClasses,
   upsertArea,
   upsertClass,
-  upsertPhysicalRoom,
 } from '@/server/services/place.service';
-import { importRooms, parseRoomsWorkbook, type ImportReport } from '@/server/services/rooms-import.service';
 
 const PATH = '/admin/settings/classes';
 export type ActionState = (Result<{ message: string }> & { seq: number }) | null;
@@ -34,10 +30,14 @@ async function run(prev: ActionState, fn: () => Promise<string>): Promise<Action
 export async function saveTermClassesAction(prev: ActionState, form: FormData): Promise<ActionState> {
   return run(prev, async () => {
     const classIds = form.getAll('classId').map(String);
+    const areas = classIds.flatMap((classId) => {
+      const areaId = str(form, `area:${classId}`);
+      return areaId ? [{ classId, areaId }] : [];
+    });
     await setTermClasses(
       getDb(),
       await requireUser(),
-      { termId: str(form, 'termId'), classIds },
+      { termId: str(form, 'termId'), classIds, areas },
       await clientMeta(),
       new Date(),
     );
@@ -79,15 +79,6 @@ export async function classRowAction(prev: ActionState, form: FormData): Promise
       case 'alias-remove':
         await removeClassAlias(getDb(), user, { aliasId: str(form, 'aliasId') }, meta, now);
         return 'ลบชื่อเรียกแล้ว';
-      case 'move':
-        await linkClassRoom(
-          getDb(),
-          user,
-          { classId, physicalRoomId: str(form, 'physicalRoomId'), effectiveFrom: str(form, 'effectiveFrom') },
-          meta,
-          now,
-        );
-        return 'ย้ายห้องแล้ว';
       default:
         return '';
     }
@@ -105,38 +96,5 @@ export async function addBuildingAction(prev: ActionState, form: FormData): Prom
       new Date(),
     );
     return `เพิ่มอาคาร ${code} แล้ว`;
-  });
-}
-
-export async function addRoomAction(prev: ActionState, form: FormData): Promise<ActionState> {
-  return run(prev, async () => {
-    const roomNumber = str(form, 'roomNumber');
-    await upsertPhysicalRoom(
-      getDb(),
-      await requireUser(),
-      { buildingId: str(form, 'buildingId'), roomNumber, floor: int(form, 'floor') },
-      await clientMeta(),
-      new Date(),
-    );
-    return `เพิ่มห้อง ${roomNumber} แล้ว`;
-  });
-}
-
-export async function importRoomsAction(form: FormData): Promise<Result<ImportReport>> {
-  return toResult(async () => {
-    const user = await requireUser();
-    const file = form.get('file');
-    if (!(file instanceof File) || file.size === 0) throw validation('file', 'กรุณาเลือกไฟล์ rooms.xlsx');
-    const rows = await parseRoomsWorkbook(await file.arrayBuffer());
-    const report = await importRooms(
-      getDb(),
-      user,
-      rows,
-      { commit: form.get('commit') === '1' },
-      await clientMeta(),
-      new Date(),
-    );
-    if (report.committed) revalidatePath(PATH);
-    return report;
   });
 }

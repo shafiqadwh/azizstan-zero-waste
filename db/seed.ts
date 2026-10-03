@@ -7,8 +7,7 @@
  * working super admin with `pnpm user:super-admin`. Students are fake — never seed real student data.
  */
 import { fileURLToPath } from 'node:url';
-import { randomBytes } from 'node:crypto';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { classLookupKey } from '../src/lib/scoring/classKey.ts';
 import { newId } from '../src/lib/ids.ts';
 import { createDb, type Db } from './client.ts';
@@ -130,27 +129,6 @@ export async function seed(db: Db) {
       .where(eq(s.areas.type, 'building'));
     const buildingId = new Map(buildings.map((b) => [b.code, b.id]));
 
-    // Physical rooms 1xx…8xx: room number = building, floor, room (121 = building 1, floor 2, room 1)
-    const roomRows = [];
-    for (let b = 1; b <= BUILDINGS; b++) {
-      for (let f = 1; f <= FLOORS; f++) {
-        for (let r = 1; r <= ROOMS_PER_FLOOR; r++) {
-          roomRows.push({
-            id: newId(),
-            buildingId: buildingId.get(String(b))!,
-            roomNumber: `${b}${f}${r}`,
-            floor: f,
-            qrToken: randomBytes(16).toString('base64url'),
-          });
-        }
-      }
-    }
-    await tx.insert(s.physicalRooms).values(roomRows).onConflictDoNothing({ target: s.physicalRooms.roomNumber });
-    const rooms = await tx
-      .select({ id: s.physicalRooms.id, roomNumber: s.physicalRooms.roomNumber })
-      .from(s.physicalRooms)
-      .orderBy(s.physicalRooms.roomNumber);
-
     // Classes + aliases
     await tx
       .insert(s.classes)
@@ -182,24 +160,21 @@ export async function seed(db: Db) {
       )
       .onConflictDoNothing();
 
-    // Class ↔ room links: class n → room n, from the term start; only for classes that have no link yet
-    const linked = new Set(
-      (
-        await tx
-          .select({ classId: s.classRoomLinks.classId })
-          .from(s.classRoomLinks)
-          .where(inArray(s.classRoomLinks.classId, seedIds))
-      ).map((l) => l.classId),
-    );
-    const links = seedIds
-      .map((id, i) => ({ id: newId(), classId: id, physicalRoomId: rooms[i]!.id, effectiveFrom: TERM.startDate }))
-      .filter((l) => !linked.has(l.classId));
-    if (links.length > 0) await tx.insert(s.classRoomLinks).values(links);
-
     // Every seeded class takes part in the seed term (FR-P7)
     await tx
       .insert(s.termClasses)
       .values(seedIds.map((id) => ({ termId: term.id, classId: id })))
+      .onConflictDoNothing();
+    // …each in a building (FR-P4): fill the buildings in order, FLOORS × ROOMS_PER_FLOOR classes per building
+    await tx
+      .insert(s.termClassZones)
+      .values(
+        seedIds.map((id, i) => ({
+          termId: term.id,
+          classId: id,
+          areaId: buildingId.get(String(Math.min(BUILDINGS, Math.floor(i / (FLOORS * ROOMS_PER_FLOOR)) + 1)))!,
+        })),
+      )
       .onConflictDoNothing();
 
     // Fake students spread over the classes (codes S00001…; names are obviously fake)

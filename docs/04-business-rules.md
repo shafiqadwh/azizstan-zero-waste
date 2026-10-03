@@ -34,7 +34,7 @@ Reference implementation of the scoring rules: `src/lib/scoring/` (runs, tested)
   missing sync or students in `review` are warnings, because group scores do not depend on the roster);
   3. mode and score format set; 4. components' max > 0 and every round has dates; 5. at least one class is
   selected for the term (`term_classes`, FR-P7) and every selected class has a
-  current physical room (building mode) or a zone for the term (zone mode); 6. every selected class and every area has ≥ 1
+  building (building mode) or zone (zone mode) for the term in `term_class_zones`; 6. every selected class and every area has ≥ 1
   committee member; 7. at least one appointment order uploaded (warning only — does not block);
   8. no class shares a room (guaranteed by the DB) and no area is empty of classes.
   If round 1's `opens_at` arrives while checks fail, the job does not open the round and notifies admins.
@@ -55,8 +55,10 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 - **BR-R1 Open** (job `round.open`, runs at `opens_at`): in one transaction
   1. status → `open`;
   2. write `round_class_areas` for every class selected for the term (`term_classes`):
-     - building mode: building of the physical room linked to the class on the date of `opens_at`;
-     - zone mode: the class's row in `term_class_zones`;
+     - both modes: the class's row in `term_class_zones` — its building (building mode) or zone (zone mode),
+       chosen by the admin with the term's class selection (2026-10-03; before, building mode followed the
+       class's physical room). `physical_room_id` is frozen too when a (synced) room link exists, for the room
+       number on records;
      - a class with no area → listed in the dashboard as "ไม่มีพื้นที่" (blocks finalize);
   3. write `roster_snapshots` from active students' `home_class_id` (students whose home class is not selected
      for the term are not snapshotted);
@@ -256,6 +258,15 @@ If final max were 20: 13 × 20/15 = 17.3333… → display **17.33**.
    มุตะวัซซิต prefixes (`มุตะวัซซิต`, `1M `, `2M `, `3M `) — those classes are not part of the system (Q13).
    A student already in the DB who becomes skipped is treated as absent (step 5) but is **not** counted towards the
    abort guard (step 6).
+4b. **New classes (2026-10-02)**: a general class string the register lacks that parses as `ม.<1–6>/<room> <name>`
+   (`ม.1/1 Amanah`), or a vocational one as `ปวช.<1–3>/<room>` (`ปวช.2/1`), creates the class in the same
+   transaction as the students: general → `M<g>` / `ม.<g>` / rank group `ม.<g>` / display `ม.<g> <name>`;
+   vocational → `VOC<g>` / `ปวช.<g>` / rank group `ปวช.` / display `ปวช.<g>/<room>`. Known misspellings fold into
+   the register name (`Iklas`→Ikhlas, `Biruni`→Al-Biruni, `Usaha(Ijtihad)`→Usaha, `Al-khawarizmi`, `Ash-Shafi’i`),
+   and an existing class with the same display name is reused. Religious classes are never created (ซานาวี are
+   chosen per term, มุตะวัซซิต skipped) and still go to `review`. `counts.created` per source; admins get one
+   `classes_created` notice listing the names. New classes are **not** added to the term's selection (FR-P7): the
+   admin chooses them on the classes page. An aborted or failed sync creates nothing.
 5. Diff against DB by `student_code`: new → insert; class changed → update (moved); name changed → update;
    present in DB but absent from both sources → candidate inactive; same code twice in the input → `review`.
 6. **Abort guard**: if candidates to inactivate > `SYNC_ABORT_RATIO` × active students → status `aborted`,

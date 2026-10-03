@@ -1,11 +1,10 @@
 /**
  * duties.xlsx import (10-integrations §4.1, FR-U9): username | ชื่อ | หน้าที่ | ประเภทเป้าหมาย | เป้าหมาย.
- * Like rooms.xlsx, dry-run and commit run the same code in one transaction; a dry-run or any row error rolls
+ * Dry-run and commit run the same code in one transaction; a dry-run or any row error rolls
  * everything back, so the report is exactly what the commit will do.
  */
 import ExcelJS from 'exceljs';
 import type { Db } from '../../../db/client.ts';
-import { bangkokDateString } from '../../lib/dates/index.ts';
 import { classLookupKey } from '../../lib/scoring/classKey.ts';
 import { AppError } from '../errors.ts';
 import { assertCan, type SessionUser } from '../policies/index.ts';
@@ -16,7 +15,20 @@ import { withTransaction, type Tx } from '../transaction.ts';
 import { writeAudit } from './audit.service.ts';
 import type { ClientMeta } from './auth.service.ts';
 import { assignInTx, notifyDutyAssigned } from './duty.service.ts';
-import { cellText, MAX_IMPORT_BYTES } from './rooms-import.service.ts';
+
+export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+
+/** The text of a cell: formula results, rich text and hyperlinks read as their text; dates as yyyy-mm-dd. */
+export function cellText(v: ExcelJS.CellValue): string {
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'object') {
+    if ('result' in v && v.result !== undefined) return cellText(v.result as ExcelJS.CellValue);
+    if ('richText' in v) return v.richText.map((t) => t.text).join('');
+    if ('text' in v) return String(v.text);
+  }
+  return String(v).trim();
+}
 
 export const DUTY_HEADERS = ['username', 'ชื่อ', 'หน้าที่', 'ประเภทเป้าหมาย', 'เป้าหมาย'] as const;
 
@@ -118,19 +130,13 @@ const TYPE_WORDS: Record<string, 'class' | 'zone' | 'building'> = {
 export const parseDutyWord = (s: string) => DUTY_WORDS[s.trim().toLowerCase()] ?? null;
 export const parseTargetTypeWord = (s: string) => TYPE_WORDS[s.trim().toLowerCase()] ?? null;
 
-/** "เป้าหมาย" for rooms: a room number (the class in it today) or a class name / alias. Areas: code or name. */
+/** "เป้าหมาย" for classes: a class name or alias. Areas: code or name. */
 async function resolveTarget(
   tx: Tx,
   kind: 'class' | 'zone' | 'building',
   text: string,
-  today: string,
 ): Promise<{ targetType: 'class' | 'area'; targetId: string } | null> {
   if (kind === 'class') {
-    const room = await places.findRoomByNumber(tx, text);
-    if (room) {
-      const link = await places.linkOfRoomOnDate(tx, room.id, today);
-      return link ? { targetType: 'class', targetId: link.classId } : null;
-    }
     const cls = await places.findClassByAliasOrDisplay(tx, classLookupKey(text), text);
     return cls ? { targetType: 'class', targetId: cls.id } : null;
   }
@@ -172,7 +178,6 @@ export async function importDuties(
   now: Date,
 ): Promise<DutyImportReport> {
   assertCan(actor, 'duty.manage');
-  const today = bangkokDateString(now);
   const results: DutyRowResult[] = [];
   const summary = { created: 0, existing: 0, enabledUsers: 0, errors: 0 };
   let uncovered: string[] = [];
@@ -207,7 +212,7 @@ export async function importDuties(
             fail(DUTY_IMPORT_MSG.unknownType(row.targetType));
             continue;
           }
-          target = row.target ? await resolveTarget(tx, kind, row.target, today) : null;
+          target = row.target ? await resolveTarget(tx, kind, row.target) : null;
           if (!target) {
             fail(row.target ? DUTY_IMPORT_MSG.unknownTarget(row.target) : DUTY_IMPORT_MSG.targetRequired);
             continue;

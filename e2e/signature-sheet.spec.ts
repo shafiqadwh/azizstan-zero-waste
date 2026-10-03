@@ -19,7 +19,7 @@ test('committee prints a blank sheet for the room from the form: one A4 page PDF
   const { roomNumber, className, roundId, classId } = await seedJourneyFixture(teacher);
   await signIn(page, teacher, 'teacher-password');
   await page.goto('/tasks');
-  await page.getByPlaceholder('เลขห้อง เช่น 121').fill(roomNumber);
+  await page.getByPlaceholder('ชื่อห้องเรียน เช่น Amanah').fill(className);
   await page.getByTestId(`task-${roomNumber}`).click();
   const link = page.getByRole('link', { name: 'พิมพ์ใบลงชื่อ (PDF)' });
   await expect(link).toHaveAttribute('href', `/api/v1/pdf/signature-sheet?classId=${classId}&roundId=${roundId}`);

@@ -12,7 +12,6 @@ export async function GET() {
   const ws = wb.addWorksheet('duties');
   ws.addRow(['username', 'ชื่อ (ไม่ใช้ในการนำเข้า)', 'หน้าที่', 'ประเภทเป้าหมาย', 'เป้าหมาย']);
   ws.addRow(['t.kamal', 'ครูกามัล', 'committee', 'อาคาร', '1']);
-  ws.addRow(['t.kamal', 'ครูกามัล', 'committee', 'ห้อง', '121']);
   ws.addRow(['t.kamal', 'ครูกามัล', 'committee', 'ห้อง', 'ม.1 Usaha']);
   ws.addRow(['adm', 'ผู้ดูแล', 'approver', '', '']);
   ws.columns.forEach((c) => (c.width = 20));

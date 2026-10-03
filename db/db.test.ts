@@ -137,11 +137,10 @@ describe('seed', () => {
     'rounds',
     'score_components',
     'areas',
-    'physical_rooms',
     'classes',
     'class_aliases',
-    'class_room_links',
     'term_classes',
+    'term_class_zones',
     'students',
   ];
   const counts = async () => {
@@ -166,10 +165,9 @@ describe('seed', () => {
         rounds: 3,
         score_components: 2,
         areas: 8 + 25,
-        physical_rooms: 96,
         classes: 77,
-        class_room_links: 77,
         term_classes: 77,
+        term_class_zones: 77,
         students: 200,
       });
     } finally {

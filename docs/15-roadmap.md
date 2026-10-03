@@ -158,11 +158,17 @@ T25 (student sync), T26 (push; in-app inbox first), T27 (ปพ.5 — needed onl
 - **T31** Scoring calendar page generated from rounds.
 - **T32** Merged PDF of a round; charts page `/charts` with table view.
 - **T33** Teacher login via school API (`ExternalAuthProvider`) when the API spec arrives (Q1).
-- **T34** QR code sheet generator for all physical rooms (A4, 12 per page).
+- **T34** QR code sheet generator for all physical rooms (A4, 12 per page). *Removed 2026-10-03 (T36).*
 
 - **T35** Room hub at `/r/[qrToken]` (2026-10-02): one public page per door QR with the room, its class and a
   menu of the room's programs — only "ประเมินความสะอาด" (`/r/[qrToken]/cleanliness`) for now; IT and facility
-  issue reporting (separate systems, same QR) get their menu entries when they are built. *Built.*
+  issue reporting (separate systems, same QR) get their menu entries when they are built. *Built; removed
+  2026-10-03 (T36).*
+- **T36** Rooms out (2026-10-03): physical rooms, class–room links, the rooms.xlsx import, the room QR sheet
+  and the room hub leave this system; the facilities system (ฝ่ายอาคารสถานที่) will own rooms and the door QR
+  (a hub with buttons for cleanliness evaluation, IT and facility reports, the IT weekly check) and sync rooms
+  back. Evaluation is per class; each class's building or zone is chosen per term with the class selection.
+  Buildings stay (the committee evaluates them). *Built.*
 
 - **T36** First-day setup checklist on `/admin` (2026-10-02): nine steps in the 14-deployment §2 step 7 order,
   ticked from the data (`setup.service`), admins only, hidden once complete. *Built.*

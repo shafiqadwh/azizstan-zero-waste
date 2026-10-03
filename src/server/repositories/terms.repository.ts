@@ -90,6 +90,12 @@ export async function replaceRoundMax(db: DbOrTx, roundIds: string[], rows: (typ
 export const listTermClassZones = (db: DbOrTx, termId: string) =>
   db.select().from(termClassZones).where(eq(termClassZones.termId, termId));
 
+/** Class → area of a term (building or zone, per the term's mode), replaced as a whole. */
+export async function replaceTermClassZones(db: DbOrTx, termId: string, rows: (typeof termClassZones.$inferInsert)[]) {
+  await db.delete(termClassZones).where(eq(termClassZones.termId, termId));
+  await insertTermClassZones(db, rows);
+}
+
 export async function insertTermClassZones(db: DbOrTx, rows: (typeof termClassZones.$inferInsert)[]) {
   if (rows.length > 0) await db.insert(termClassZones).values(rows);
 }

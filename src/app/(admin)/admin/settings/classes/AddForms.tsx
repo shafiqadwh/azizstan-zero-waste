@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { addBuildingAction, addClassAction, addRoomAction, type ActionState } from './actions';
+import { addBuildingAction, addClassAction, type ActionState } from './actions';
 import { ActionMessage, buttonClass, inputClass, Labelled, primaryClass } from './ui';
 
 export function AddClassForm() {
@@ -62,48 +62,6 @@ export function AddBuildingForm() {
       </div>
       <button type="submit" disabled={pending} className={buttonClass}>
         + เพิ่มอาคาร
-      </button>
-      <div className="w-full">
-        <ActionMessage state={state} />
-      </div>
-    </form>
-  );
-}
-
-export function AddRoomForm({ buildings }: { buildings: { id: string; name: string }[] }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(addRoomAction, null);
-  return (
-    <form action={action} key={state?.ok ? state.seq : 'add-room'} className="flex flex-wrap items-end gap-2">
-      <div className="min-w-[140px] flex-1">
-        <Labelled label="อาคาร" htmlFor="r-building">
-          <select id="r-building" name="buildingId" required className={inputClass}>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </Labelled>
-      </div>
-      <div className="w-[120px]">
-        <Labelled label="หมายเลขห้อง" htmlFor="r-number">
-          <input
-            id="r-number"
-            name="roomNumber"
-            required
-            inputMode="numeric"
-            className={inputClass}
-            placeholder="121"
-          />
-        </Labelled>
-      </div>
-      <div className="w-[90px]">
-        <Labelled label="ชั้น" htmlFor="r-floor">
-          <input id="r-floor" name="floor" type="number" min={0} max={20} className={inputClass} />
-        </Labelled>
-      </div>
-      <button type="submit" disabled={pending || buildings.length === 0} className={buttonClass}>
-        + เพิ่มห้อง
       </button>
       <div className="w-full">
         <ActionMessage state={state} />

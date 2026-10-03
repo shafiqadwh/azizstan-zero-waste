@@ -212,7 +212,6 @@ export const zonePlaces = pgTable('zone_places', {
   sortOrder: smallint('sort_order').notNull().default(0),
 }, (t) => [index('zone_places_zone_idx').on(t.zoneId)]);
 
-/** Zone mode only: which classes are responsible for which zone this term (FR-P4). */
 /**
  * Which classes take part in a term (FR-P7). Only these classes are evaluation targets, ranked, shown publicly
  * and exported. The class register (`classes`) keeps every class; this table is the per-term selection.
@@ -222,6 +221,10 @@ export const termClasses = pgTable('term_classes', {
   classId: uuid('class_id').notNull().references(() => classes.id),
 }, (t) => [primaryKey({ columns: [t.termId, t.classId] })]);
 
+/**
+ * Which area each class of a term belongs to (FR-P4): a building in building mode, a zone in zone mode. Chosen by
+ * the admin with the term's class selection; frozen into round_class_areas when a round opens.
+ */
 export const termClassZones = pgTable('term_class_zones', {
   termId: uuid('term_id').notNull().references(() => terms.id),
   classId: uuid('class_id').notNull().references(() => classes.id),
@@ -230,7 +233,7 @@ export const termClassZones = pgTable('term_class_zones', {
 
 /**
  * Frozen at round open: which area (and room) each class belonged to in this round (FR-R4).
- * Building mode: derived from class_room_links at rounds.opens_at. Zone mode: from term_class_zones.
+ * Both modes: from term_class_zones (physical_room_id kept from class_room_links when a room link exists).
  * Admin may correct rows while the round is not finalized.
  */
 export const roundClassAreas = pgTable('round_class_areas', {

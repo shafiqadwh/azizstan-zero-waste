@@ -40,6 +40,7 @@ writes an audit row with `actor_id = null` when it changes data.
 | `request_created` | admins | มีคำขออนุมัติใหม่ | {type} · {target} | /admin/approvals?tab=requests |
 | `request_decided` | requester | คำขอ{อนุมัติแล้ว/ถูกปฏิเสธ} | {target} {note} | /tasks |
 | `round_complete` | admins, executives | ประเมินครบทุกรายการแล้ว | รอบที่ {n} พร้อมปิดรอบ | /admin |
+| `classes_created` | admins | sync สร้างห้องเรียนใหม่ {n} ห้อง | {names} · ตรวจชื่อและเลือกห้องที่ร่วมประเมินภาคนี้ | /admin/settings/classes |
 | `sync_problem` | admins | Sync รายชื่อ{ล้มเหลว/หยุดอัตโนมัติ} | {reason} | /admin/settings/students |
 | `disk_space` | super admin, admins | พื้นที่ดิสก์ใกล้เต็ม (ใช้ไป {p}%) | เหลือ {free} จาก {total} … | /admin/settings/privacy |
 | `retention_warning` | super admin, admins | ข้อมูลภาคเรียน {term} จะถูกลบใน 30 วัน | ดาวน์โหลดข้อมูลเก็บถาวรได้ก่อนวันที่ {date} | /admin/settings/privacy |

@@ -36,25 +36,11 @@ export async function getSetupChecklist(db: Db, actor: SessionUser): Promise<Set
       href: '/admin/settings/classes',
     },
     {
-      key: 'rooms',
-      label: 'หมายเลขห้อง',
-      done: c.rooms > 0,
-      detail: count(c.rooms, 'ห้อง', 'ยังไม่มีห้อง'),
-      href: '/admin/settings/classes',
-    },
-    {
       key: 'classes',
       label: 'ห้องเรียนและชื่อเรียกอื่น',
       done: c.classes > 0,
-      detail: count(c.classes, 'ห้องเรียน', 'ยังไม่มีห้องเรียน'),
+      detail: count(c.classes, 'ห้องเรียน', 'ยังไม่มีห้องเรียน · sync รายชื่อสร้างห้องสามัญและ ปวช. ให้ได้'),
       href: '/admin/settings/classes',
-    },
-    {
-      key: 'students',
-      label: 'ซิงก์รายชื่อนักเรียน',
-      done: c.syncedOk > 0,
-      detail: c.syncedOk > 0 ? 'ซิงก์สำเร็จแล้ว' : 'ยังไม่เคยซิงก์สำเร็จ',
-      href: '/admin/settings/students',
     },
     {
       key: 'term',
@@ -62,6 +48,13 @@ export async function getSetupChecklist(db: Db, actor: SessionUser): Promise<Set
       done: term !== null,
       detail: term ? `ใช้งาน ${formatTermLabel(term.termNo, term.academicYear)}` : 'ยังไม่มีภาคเรียนที่ใช้งาน',
       href: '/admin/settings/term',
+    },
+    {
+      key: 'students',
+      label: 'ซิงก์รายชื่อนักเรียน',
+      done: c.syncedOk > 0,
+      detail: c.syncedOk > 0 ? 'ซิงก์สำเร็จแล้ว' : 'ยังไม่เคยซิงก์สำเร็จ',
+      href: '/admin/settings/students',
     },
     {
       key: 'rounds',
@@ -72,9 +65,12 @@ export async function getSetupChecklist(db: Db, actor: SessionUser): Promise<Set
     },
     {
       key: 'term-classes',
-      label: 'ห้องเรียนที่ร่วมประเมินภาคนี้',
-      done: c.termClasses > 0,
-      detail: perTerm(c.termClasses, 'ห้องเรียน', 'ยังไม่ได้เลือก'),
+      label: `ห้องเรียนที่ร่วมประเมินภาคนี้และ${area}`,
+      done: c.termClasses > 0 && c.termClassesNoArea === 0,
+      detail:
+        term && c.termClasses > 0 && c.termClassesNoArea > 0
+          ? `${c.termClasses} ห้องเรียน · ยังไม่ได้เลือก${area} ${c.termClassesNoArea} ห้องเรียน`
+          : perTerm(c.termClasses, 'ห้องเรียน', 'ยังไม่ได้เลือก'),
       href: '/admin/settings/classes',
     },
     {

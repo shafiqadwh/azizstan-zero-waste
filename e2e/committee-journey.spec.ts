@@ -31,8 +31,8 @@ test('journey 1: committee scores a room with photos and a signature sheet → �
   await expect(page.getByText(/รอบที่ 1 · เหลือเวลาลงคะแนน/)).toBeVisible();
   await noHorizontalScroll(page);
 
-  // search by room number, then open the room
-  await page.getByPlaceholder('เลขห้อง เช่น 121').fill(roomNumber);
+  // search by class name, then open the class
+  await page.getByPlaceholder('ชื่อห้องเรียน เช่น Amanah').fill(className);
   const row = page.getByTestId(`task-${roomNumber}`);
   await expect(row).toContainText(`${roomNumber} · ${className}`);
   await expect(row).toContainText('ยังไม่ประเมิน');

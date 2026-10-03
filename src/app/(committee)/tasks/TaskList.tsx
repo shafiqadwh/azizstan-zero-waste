@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleCheck, ChevronRight, QrCode, Search } from 'lucide-react';
+import { CircleCheck, ChevronRight, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { StatusPill } from '@/components/app/StatusPill';
@@ -64,21 +64,12 @@ export function TaskList({ items }: { items: TaskItem[] }) {
           <Search size={18} aria-hidden className="pointer-events-none absolute left-3 text-ink-muted" />
           <input
             type="search"
-            inputMode="numeric"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="เลขห้อง เช่น 121"
+            placeholder="ชื่อห้องเรียน เช่น Amanah"
             className="h-12 w-full rounded-md border border-line-strong bg-surface pr-3 pl-10 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
           />
         </label>
-        <a
-          href="#scan-help"
-          aria-label="สแกน QR หน้าห้อง"
-          title="ใช้กล้องมือถือสแกน QR ที่ประตูห้อง"
-          className="flex size-12 shrink-0 items-center justify-center rounded-md border border-line-strong bg-surface"
-        >
-          <QrCode size={22} aria-hidden />
-        </a>
       </div>
       {!query ? (
         <div role="tablist" aria-label="สถานะ" className="flex rounded-[14px] bg-[#E9E7DF] p-1">
@@ -132,10 +123,6 @@ export function TaskList({ items }: { items: TaskItem[] }) {
           </ul>
         </section>
       ) : null}
-      <p id="scan-help" className="text-[13px] text-ink-muted">
-        สแกน QR ที่ประตูห้องด้วยกล้องมือถือ ระบบจะเปิดหน้าของห้องนั้น เลือก &ldquo;ประเมินความสะอาด&rdquo; แล้วกด
-        &ldquo;ประเมินห้องนี้&rdquo;
-      </p>
     </div>
   );
 }

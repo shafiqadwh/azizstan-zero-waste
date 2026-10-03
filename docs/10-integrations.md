@@ -84,7 +84,7 @@ chosen per term (FR-P7); the dev seed selects all 77 for its term. Room numbers 
 | X | อัฒจันทร์ทั้งหมด (ฝั่งกูโบร์ถึงโรงเกษตร), สนามฟุตบอล, สนามซ้อมฟุตบอล |
 | Y | รอบอาคารศิลปะ และลานหน้าอาคารศิลปะ |
 
-Buildings and physical room numbers: to be entered by the admin (not in the order).
+Buildings: entered by the admin (not in the order). Physical room numbers: the facilities system (2026-10-03).
 
 ## 2. Teacher authentication API
 Pending (Q1). Implement against `ExternalAuthProvider` (06-auth §1.2). Preferred contract to propose to the school:
@@ -114,7 +114,9 @@ The school system never returns a password hash; this system never stores the pa
 "เป้าหมาย" for rooms accepts a room number **or** a class name (resolved via aliases). Dry-run reports
 unknown users, unknown targets, duplicates, and classes/areas left without any committee.
 
-### 4.2 `rooms.xlsx` — physical rooms and links
+### 4.2 `rooms.xlsx` — physical rooms and links (removed 2026-10-03)
+**Moved out 2026-10-03:** physical rooms belong to the facilities system (ฝ่ายอาคารสถานที่), which will sync them in later. The import and its template are gone; the table below is history.
+
 | อาคาร | หมายเลขห้อง | ชั้น | ห้องเรียน (optional) | มีผลตั้งแต่ |
 |---|---|---|---|---|
 | 1 | 121 | 2 | ม.1 Amanah | 2026-11-01 |

@@ -52,10 +52,10 @@ time sync (`timedatectl set-ntp true`, timezone Asia/Bangkok).
    (no Node.js needed on the host; from a checkout: `pnpm vapid:generate`). Put the **rotated** student API token.
 5. **Start**: same commands as §1 step 5.
 6. **Create the super admin** (step 5's `create-super-admin.js`; you type the password) → log in.
-7. **Admin setup order** — `/admin` shows it as the "ตั้งค่าเริ่มต้น n/9" checklist, each step ticked from the
-   data and linked to its settings page; the card disappears once all nine are done: buildings/zones → physical
-   rooms → classes & aliases → a successful student sync → active term (2/2569) → rounds → classes taking part
-   this term → committee duties (Excel import) → appointment order PDF. Guide pages ship with defaults
+7. **Admin setup order** — `/admin` shows it as the "ตั้งค่าเริ่มต้น n/8" checklist, each step ticked from the
+   data and linked to its settings page; the card disappears once all eight are done: buildings/zones → classes &
+   aliases (or let the sync create them) → active term (2/2569) → a successful student sync (it needs the active
+   term) → rounds → classes taking part this term, each with its building or zone → committee duties (Excel import) → appointment order PDF. Guide pages ship with defaults
    (migrations 0006, 0008); review them on `/admin/settings/content`.
 8. **Backups**: install `age` and `rclone`, put `backup.pub`, configure the rclone remote, add cron
    `30 1 * * * sh /opt/azizstan-zero-waste/deploy/backup.sh`. The backup holds the database and every folder of
@@ -64,7 +64,7 @@ time sync (`timedatectl set-ntp true`, timezone Asia/Bangkok).
 10. **Preflight before go-live** (and after any `.env` change):
     `sh deploy/zw.sh run --rm app node scripts/preflight.js`
     (from a checkout: `pnpm preflight`, which reads `.env`). It refuses (exit 1, `✗`) on: an `APP_URL` that is not
-    https or still localhost (QR sheets print it), example secrets or `change-me` passwords, a missing or example
+    https or still localhost (notification links use it), example secrets or `change-me` passwords, a missing or example
     student API token, an empty or malformed `PP5_ALLOWED_CIDRS`, half a VAPID key pair, `COMPOSE_PROFILES=tunnel` without a
     tunnel token, a data directory that is not writable, pending migrations, no super admin, a disk at 95 % or more. It warns (`!`) on: the student token (confirm it is the
     **rotated** one, Q14), the example private ranges in `PP5_ALLOWED_CIDRS` (narrow to the ปพ.5 machine), no push
