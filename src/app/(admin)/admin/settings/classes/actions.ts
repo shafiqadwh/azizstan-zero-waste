@@ -122,6 +122,26 @@ export async function addRoomAction(prev: ActionState, form: FormData): Promise<
   });
 }
 
+export async function editRoomAction(prev: ActionState, form: FormData): Promise<ActionState> {
+  return run(prev, async () => {
+    const roomNumber = str(form, 'roomNumber');
+    await upsertPhysicalRoom(
+      getDb(),
+      await requireUser(),
+      {
+        id: str(form, 'id'),
+        buildingId: str(form, 'buildingId'),
+        roomNumber,
+        floor: int(form, 'floor'),
+        isActive: form.get('isActive') === 'on',
+      },
+      await clientMeta(),
+      new Date(),
+    );
+    return `บันทึกห้อง ${roomNumber} แล้ว`;
+  });
+}
+
 export async function importRoomsAction(form: FormData): Promise<Result<ImportReport>> {
   return toResult(async () => {
     const user = await requireUser();

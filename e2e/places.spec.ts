@@ -92,6 +92,32 @@ test('admin registers rooms and classes, moves a class, and gets Thai overlap er
   expect(tpl.headers()['content-type']).toContain('spreadsheetml');
 });
 
+test('admin moves a room created in the wrong building', async ({ page }) => {
+  await ensureActiveTerm();
+  const admin = await createTestUser({ role: 'admin', password: 'admin-password' });
+  await signIn(page, admin, 'admin-password');
+  await page.goto('/admin/settings/classes');
+  const [wrong, right] = [`W${rand()}`.slice(0, 6), `R${rand()}`.slice(0, 6)];
+  for (const b of [wrong, right]) {
+    await page.getByLabel('รหัสอาคาร').fill(b);
+    await page.getByRole('button', { name: '+ เพิ่มอาคาร' }).click();
+    await expect(page.getByText(`เพิ่มอาคาร ${b} แล้ว`)).toBeVisible();
+  }
+  const room = `M${rand()}`;
+  await page.getByLabel('อาคาร', { exact: true }).selectOption({ label: `อาคาร ${wrong}` });
+  await page.getByLabel('หมายเลขห้อง', { exact: true }).fill(room);
+  await page.getByRole('button', { name: '+ เพิ่มห้อง' }).click();
+  await expect(page.getByText(`เพิ่มห้อง ${room} แล้ว`)).toBeVisible();
+
+  await page.getByLabel('ห้องที่จะแก้ไข').selectOption({ label: `${room} · อาคาร ${wrong}` });
+  await page.getByLabel('ย้ายไปอาคาร').selectOption({ label: `อาคาร ${right}` });
+  await page.getByRole('button', { name: 'บันทึกการแก้ไข' }).click();
+  await expect(page.getByText(`บันทึกห้อง ${room} แล้ว`)).toBeVisible();
+  const heading = page.getByRole('heading', { name: new RegExp(`^อาคาร ${right}`) });
+  await expect(heading).toContainText('1 ห้อง');
+  await expect(page.getByRole('heading', { name: new RegExp(`^อาคาร ${wrong}`) })).toContainText('0 ห้อง');
+});
+
 test('an executive sees the register read-only', async ({ page }) => {
   await ensureActiveTerm();
   const exec = await createTestUser({ role: 'executive', password: 'exec-password' });

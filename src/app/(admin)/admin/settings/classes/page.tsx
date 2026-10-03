@@ -7,6 +7,7 @@ import { can } from '@/server/policies';
 import { getActiveTermSelection, getPlaces } from '@/server/services/place.service';
 import { AddBuildingForm, AddClassForm, AddRoomForm } from './AddForms';
 import { ClassRow } from './ClassRow';
+import { RoomEditForm } from './RoomEdit';
 import { RoomsImport } from './RoomsImport';
 import { TermClassesCard } from './TermClassesCard';
 
@@ -139,6 +140,7 @@ export default async function ClassesPage() {
                   {rooms.map((r) => (
                     <li
                       key={r.id}
+                      data-testid={`room-${r.roomNumber}`}
                       className={`rounded-lg px-3 py-2 text-[13px] ${r.currentClassId ? 'border border-line' : 'border border-dashed border-warn-ink text-warn-ink'}`}
                     >
                       <span className="flex items-baseline justify-between gap-2">
@@ -156,6 +158,7 @@ export default async function ClassesPage() {
                         ) : null}
                       </span>
                       {r.currentClassId ? className.get(r.currentClassId) : 'ยังไม่ผูกห้องเรียน'}
+                      {r.isActive ? null : <span className="block text-[12px] text-ink-muted">ปิดใช้งาน</span>}
                     </li>
                   ))}
                 </ul>
@@ -167,6 +170,21 @@ export default async function ClassesPage() {
           <div className="mt-5 flex flex-col gap-4 border-t border-line pt-4">
             <AddBuildingForm />
             <AddRoomForm buildings={buildings.map((b) => ({ id: b.id, name: b.name }))} />
+            {places.rooms.length > 0 ? (
+              <div>
+                <h3 className="mb-2 font-semibold">แก้ไขห้อง / ย้ายอาคาร</h3>
+                <RoomEditForm
+                  rooms={places.rooms.map((r) => ({
+                    id: r.id,
+                    roomNumber: r.roomNumber,
+                    buildingId: r.buildingId,
+                    floor: r.floor,
+                    isActive: r.isActive,
+                  }))}
+                  buildings={buildings.map((b) => ({ id: b.id, name: b.name }))}
+                />
+              </div>
+            ) : null}
             <div>
               <h3 className="mb-2 font-semibold">นำเข้าจาก Excel</h3>
               <RoomsImport />
