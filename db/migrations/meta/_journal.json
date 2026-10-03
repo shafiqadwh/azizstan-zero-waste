@@ -64,6 +64,13 @@
       "when": 1790911367705,
       "tag": "0008_help_manuals",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790993064657,
+      "tag": "0009_guide_no_rooms",
+      "breakpoints": true
     }
   ]
 }

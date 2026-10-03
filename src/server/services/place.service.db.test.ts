@@ -1,6 +1,5 @@
 /** T13: places register against PostgreSQL. */
 import { randomBytes } from 'node:crypto';
-import ExcelJS from 'exceljs';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createDb, type Db } from '../../../db/client.ts';
@@ -9,6 +8,7 @@ import { newId } from '../../lib/ids.ts';
 import { LoginRateLimiter } from '../auth/rate-limit.ts';
 import type { SessionUser } from '../policies/index.ts';
 import * as repo from '../repositories/places.repository.ts';
+import * as termsRepo from '../repositories/terms.repository.ts';
 import { login, upsertSuperAdmin } from './auth.service.ts';
 import {
   addClassAlias,
@@ -20,7 +20,6 @@ import {
   upsertClass,
   upsertPhysicalRoom,
 } from './place.service.ts';
-import { importRooms, normalizeDate, parseRoomsWorkbook } from './rooms-import.service.ts';
 import { createUser } from './user.service.ts';
 
 const baseUrl = process.env.DATABASE_URL;
@@ -128,7 +127,7 @@ describe('register', () => {
   });
 
   test('executives read but cannot change places (FORBIDDEN)', async () => {
-    await expect(getPlaces(db, executive, now)).resolves.toBeTruthy();
+    await expect(getPlaces(db, executive)).resolves.toBeTruthy();
     await expect(
       upsertArea(db, executive, { type: 'zone', code: 'Z', name: 'โซน Z' }, meta, now),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
@@ -179,13 +178,6 @@ describe('class ↔ room links (FR-P3)', () => {
       field: 'effectiveFrom',
     });
   });
-
-  test('getPlaces shows the room in effect on the Bangkok date', async () => {
-    const before = await getPlaces(db, admin, new Date('2026-12-14T16:59:00Z')); // 23:59 on 14 Dec in Bangkok
-    const after = await getPlaces(db, admin, new Date('2026-12-14T17:00:00Z')); // 00:00 on 15 Dec in Bangkok
-    expect(before.classes.find((c) => c.id === amanah)?.currentRoomNumber).toBe('121');
-    expect(after.classes.find((c) => c.id === amanah)?.currentRoomNumber).toBe('122');
-  });
 });
 
 describe('per-term class selection (FR-P7)', () => {
@@ -202,6 +194,31 @@ describe('per-term class selection (FR-P7)', () => {
     expect(await repo.listTermClassIds(db, termId)).toEqual([amanah]);
     await setTermClasses(db, admin, { termId, classIds: [berdikari, berdikari] }, meta, now);
     expect(await repo.listTermClassIds(db, termId)).toEqual([berdikari]);
+  });
+
+  test('each selected class keeps its building; areas of other classes or the wrong type are refused', async () => {
+    const zone = await upsertArea(db, admin, { type: 'zone', code: 'ZA', name: 'โซน ZA' }, meta, now);
+    await setTermClasses(
+      db,
+      admin,
+      {
+        termId,
+        classIds: [amanah, berdikari],
+        areas: [
+          { classId: amanah, areaId: b1 },
+          { classId: newId(), areaId: b1 }, // not selected: ignored
+        ],
+      },
+      meta,
+      now,
+    );
+    expect(await termsRepo.listTermClassZones(db, termId)).toEqual([{ termId, classId: amanah, areaId: b1 }]);
+    await expect(
+      setTermClasses(db, admin, { termId, classIds: [amanah], areas: [{ classId: amanah, areaId: zone }] }, meta, now),
+    ).rejects.toMatchObject({ field: 'areas' });
+    // deselecting a class drops its building
+    await setTermClasses(db, admin, { termId, classIds: [berdikari], areas: [] }, meta, now);
+    expect(await termsRepo.listTermClassZones(db, termId)).toEqual([]);
   });
 
   test('unknown classes are refused; locked config → CONFIG_LOCKED; executives → FORBIDDEN', async () => {
@@ -221,68 +238,5 @@ describe('per-term class selection (FR-P7)', () => {
   test('a new academic year starts with no classes selected; the same year keeps the selection', () => {
     expect(classSelectionToCopy({ academicYear: 2569 }, { academicYear: 2569 }, [amanah])).toEqual([amanah]);
     expect(classSelectionToCopy({ academicYear: 2569 }, { academicYear: 2570 }, [amanah])).toEqual([]);
-  });
-});
-
-describe('rooms.xlsx import', () => {
-  async function workbook(
-    rows: (string | number | Date | null)[][],
-    headers = ['อาคาร', 'หมายเลขห้อง', 'ชั้น', 'ห้องเรียน (optional)', 'มีผลตั้งแต่'],
-  ) {
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('rooms');
-    ws.addRow(headers);
-    for (const r of rows) ws.addRow(r);
-    return parseRoomsWorkbook((await wb.xlsx.writeBuffer()) as ArrayBuffer);
-  }
-
-  test('dates: Excel dates, yyyy-mm-dd and dd/mm/พ.ศ.', () => {
-    expect(normalizeDate('2026-11-01')).toBe('2026-11-01');
-    expect(normalizeDate('1/11/2569')).toBe('2026-11-01');
-    expect(normalizeDate('31/02/2026')).toBeNull();
-  });
-
-  test('dry-run reports exactly what commit does, and changes nothing', async () => {
-    const rows = await workbook([
-      [2, 211, 1, 'ม.1 Amanah', new Date(Date.UTC(2027, 0, 10))],
-      [2, 212, 1, null, null],
-    ]);
-    const before = (await repo.listRooms(db)).length;
-    const dry = await importRooms(db, admin, rows, { commit: false }, meta, now);
-    expect(dry.committed).toBe(false);
-    expect(dry.summary).toEqual({ buildingsCreated: 1, roomsCreated: 2, roomsUpdated: 0, links: 1, errors: 0 });
-    expect(dry.rows[0]?.actions).toEqual(['เพิ่มอาคาร 2', 'เพิ่มห้อง 211', 'ผูก ม.1 Amanah ตั้งแต่ 2027-01-10']);
-    expect((await repo.listRooms(db)).length).toBe(before);
-
-    const done = await importRooms(db, admin, rows, { commit: true }, meta, now);
-    expect(done.committed).toBe(true);
-    expect(done.summary).toEqual(dry.summary);
-    expect((await repo.listRooms(db)).length).toBe(before + 2);
-    const links = await repo.linksOfClass(db, amanah);
-    expect(links.at(-2)?.effectiveTo).toBe('2027-01-10'); // previous room closed at the effective date
-  });
-
-  test('any row error → nothing is imported; errors are per row in Thai', async () => {
-    const rows = await workbook([
-      [3, 311, 1, null, null],
-      [3, 311, 1, null, null],
-      [3, 312, 1, 'ม.9 ไม่มีจริง', '2027-01-10'],
-      [3, 313, 1, 'ม.1 Berdikari', null],
-    ]);
-    const res = await importRooms(db, admin, rows, { commit: true }, meta, now);
-    expect(res.committed).toBe(false);
-    expect(res.rows.map((r) => r.error)).toEqual([
-      null,
-      'หมายเลขห้อง 311 ซ้ำในไฟล์',
-      'ไม่พบห้องเรียน "ม.9 ไม่มีจริง" (เพิ่มชื่อเรียกอื่นในหน้าห้องเรียนก่อน)',
-      'ต้องระบุวันที่มีผลเมื่อผูกห้องเรียน',
-    ]);
-    expect(await repo.findRoomByNumber(db, '311')).toBeNull();
-  });
-
-  test('missing required header is reported', async () => {
-    await expect(workbook([[1, 2]], ['ตึก', 'เลข'])).rejects.toMatchObject({
-      message: 'ไม่พบคอลัมน์ "อาคาร" ในแถวแรก',
-    });
   });
 });

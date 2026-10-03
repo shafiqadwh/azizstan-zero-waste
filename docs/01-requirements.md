@@ -47,10 +47,10 @@ Each requirement has an ID. Tickets, tests and code comments reference these IDs
 | ID | Requirement |
 |---|---|
 | FR-P1 | Class register: track (`general`, `religious`, `vocational`), grade, room number (sort only), name, aliases. Display: `ม.1 Amanah` (no "/1"); vocational keeps `ปวช.2/1`. Religious classes are created manually by admin. |
-| FR-P2 | Physical rooms: number (e.g. 121) under a building. Created once, reused every year. |
-| FR-P3 | Class ↔ physical room link with effective dates. One class ↔ one room at a time and vice versa (no sharing). Mid-year moves happen for some classes. |
+| FR-P2 | ~~Physical rooms: number (e.g. 121) under a building.~~ **Moved out 2026-10-03:** physical rooms belong to the facilities system (ฝ่ายอาคารสถานที่), which will sync them in later. No room screen in this system; the tables stay as the target of that sync. |
+| FR-P3 | ~~Class ↔ physical room link with effective dates.~~ Moved out with FR-P2 (2026-10-03). Evaluation is per **class**; each class's **building** (building mode) or zone (zone mode) is chosen per term with the class selection (FR-P4, FR-P7). |
 | FR-P4 | Zones: code (A–Y), description of the area, responsible classes (per term), responsible teachers (per term, P3), zone head (P3). |
-| FR-P5 | Everywhere a class is shown to staff it appears as `121 · ม.1 Amanah`. Committee can find a target by room number, by grade+name, or by QR code on the door (P2). |
+| FR-P5 | Staff see a class as `ม.1 Amanah` (with `121 · ` in front only when a synced room number exists). Committee finds a target by class name. The door QR moved to the facilities system (2026-10-03). |
 | FR-P7 | Per-term class selection: admin ticks which classes take part in the term (grouped by rank group, "เลือกทั้งหมด" per group). Only selected classes are evaluation targets, get committee duties, are ranked, appear on public pages and are exported to ปพ.5. Unselected classes stay in the register untouched. A new term in the **same** academic year starts with the previous term's selection; the first term of a **new** academic year starts with nothing selected and the admin must choose again. |
 | FR-P6 | Admin sees a coverage report: every class and every area has at least one committee member; no duplicates. |
 

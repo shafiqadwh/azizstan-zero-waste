@@ -34,7 +34,7 @@ Reference implementation of the scoring rules: `src/lib/scoring/` (runs, tested)
   missing sync or students in `review` are warnings, because group scores do not depend on the roster);
   3. mode and score format set; 4. components' max > 0 and every round has dates; 5. at least one class is
   selected for the term (`term_classes`, FR-P7) and every selected class has a
-  current physical room (building mode) or a zone for the term (zone mode); 6. every selected class and every area has ≥ 1
+  building (building mode) or zone (zone mode) for the term in `term_class_zones`; 6. every selected class and every area has ≥ 1
   committee member; 7. at least one appointment order uploaded (warning only — does not block);
   8. no class shares a room (guaranteed by the DB) and no area is empty of classes.
   If round 1's `opens_at` arrives while checks fail, the job does not open the round and notifies admins.
@@ -55,8 +55,10 @@ scheduled ──(opens_at reached, worker)──► open ──(closes_at reache
 - **BR-R1 Open** (job `round.open`, runs at `opens_at`): in one transaction
   1. status → `open`;
   2. write `round_class_areas` for every class selected for the term (`term_classes`):
-     - building mode: building of the physical room linked to the class on the date of `opens_at`;
-     - zone mode: the class's row in `term_class_zones`;
+     - both modes: the class's row in `term_class_zones` — its building (building mode) or zone (zone mode),
+       chosen by the admin with the term's class selection (2026-10-03; before, building mode followed the
+       class's physical room). `physical_room_id` is frozen too when a (synced) room link exists, for the room
+       number on records;
      - a class with no area → listed in the dashboard as "ไม่มีพื้นที่" (blocks finalize);
   3. write `roster_snapshots` from active students' `home_class_id` (students whose home class is not selected
      for the term are not snapshotted);

@@ -26,7 +26,7 @@ const SETTINGS = [
   ['/admin/settings/term', 'ภาคเรียน'],
   ['/admin/settings/mode', 'รูปแบบการประเมิน'],
   ['/admin/settings/scoring', 'ส่วนคะแนนและรอบ'],
-  ['/admin/settings/classes', 'ห้องเรียน อาคาร และหมายเลขห้อง'],
+  ['/admin/settings/classes', 'ห้องเรียนและอาคาร'],
   ['/admin/settings/committee', 'คณะกรรมการ'],
   ['/admin/settings/users', 'ผู้ใช้และสิทธิ์'],
   ['/admin/settings/students', 'นักเรียน'],

@@ -5,7 +5,7 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createDb, type Db } from '../../../db/client.ts';
 import { runMigrations } from '../../../db/migrate.ts';
-import { evidence, physicalRooms, roundClassAreas, rounds, scoreComponents } from '../../../db/schema.ts';
+import { evidence, roundClassAreas, rounds, scoreComponents } from '../../../db/schema.ts';
 import { newId } from '../../lib/ids.ts';
 import { LoginRateLimiter } from '../auth/rate-limit.ts';
 import type { SessionUser } from '../policies/index.ts';
@@ -13,7 +13,7 @@ import { login, upsertSuperAdmin } from './auth.service.ts';
 import { assignDuty } from './duty.service.ts';
 import { returnEvaluation, submitEvaluation } from './evaluation.service.ts';
 import { linkClassRoom, setTermClasses, upsertArea, upsertClass, upsertPhysicalRoom } from './place.service.ts';
-import { getEvaluationDetail, getEvaluationForm, getMyTasks, hrefForRoomQr } from './task.service.ts';
+import { getEvaluationDetail, getEvaluationForm, getMyTasks } from './task.service.ts';
 import { activateTerm, createTerm } from './term.service.ts';
 import { createUser } from './user.service.ts';
 
@@ -46,7 +46,6 @@ let b1: string;
 let amanah: string;
 let berdikari: string;
 let cergas: string;
-let qr121: string;
 
 async function photos(owner: SessionUser, n: number, kind: 'site' | 'signature' = 'site') {
   const ids = Array.from({ length: n }, () => newId());
@@ -114,7 +113,6 @@ beforeAll(async () => {
   const r121 = await upsertPhysicalRoom(db, admin, { buildingId: b1, roomNumber: '121', floor: 2 }, meta, now);
   const r122 = await upsertPhysicalRoom(db, admin, { buildingId: b1, roomNumber: '122', floor: 2 }, meta, now);
   const r131 = await upsertPhysicalRoom(db, admin, { buildingId: b1, roomNumber: '131', floor: 3 }, meta, now);
-  qr121 = (await db.select().from(physicalRooms).where(eq(physicalRooms.id, r121)))[0]!.qrToken;
   for (const [c, r] of [
     [amanah, r121],
     [berdikari, r122],
@@ -261,11 +259,5 @@ describe('form, detail, QR', () => {
     expect((await getEvaluationDetail(db, t2, id, now)).canEdit).toBe(false);
     expect((await getEvaluationDetail(db, admin, id, now)).isOwner).toBe(false);
     await expect(getEvaluationDetail(db, outsider, id, now)).rejects.toMatchObject({ code: 'FORBIDDEN' });
-  });
-
-  test('door QR leads to the room’s form or detail; unknown token or no task → null', async () => {
-    expect(await hrefForRoomQr(db, t1, qr121, now)).toMatch(/^\/evaluate\/[0-9a-f-]{36}$/);
-    expect(await hrefForRoomQr(db, outsider, qr121, now)).toBeNull();
-    expect(await hrefForRoomQr(db, t1, 'nope', now)).toBeNull();
   });
 });

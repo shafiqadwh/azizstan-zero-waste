@@ -367,7 +367,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
                 name="q"
                 defaultValue={f.q ?? ''}
                 inputMode="numeric"
-                placeholder="เลขห้อง เช่น 121"
+                placeholder="ห้องเรียน เช่น Amanah"
                 className="h-10 w-36 rounded-md border border-line-strong bg-surface px-2 text-[15px] font-normal"
               />
             </label>

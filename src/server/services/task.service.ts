@@ -1,6 +1,6 @@
 /**
  * Committee read models (05-api "Committee", 08-ux-ui §6.7–6.9): my task list for the current round, the context
- * of the evaluation form, an evaluation's detail and the door-QR lookup. Writes go through evaluation.service.
+ * of the evaluation form and an evaluation's detail. Writes go through evaluation.service.
  */
 import type { Db } from '../../../db/client.ts';
 import { bangkokDateString } from '../../lib/dates/index.ts';
@@ -479,19 +479,4 @@ export async function getEvaluationDetail(
     photos: photos.map((p) => ({ id: p.id, kind: p.kind, thumb: evidenceUrl(p.id, 320), full: evidenceUrl(p.id) })),
     history,
   };
-}
-
-// ───────────── door QR (/r/[qrToken]) ─────────────
-
-/**
- * The page a door QR leads to: the class in that room today, in the user's current round — the form when it is
- * not evaluated yet, else the detail. Null when the user has no task for that room.
- */
-export async function hrefForRoomQr(db: Db, actor: SessionUser, qrToken: string, now: Date): Promise<string | null> {
-  const room = await places.findRoomByQrToken(db, qrToken);
-  if (!room) return null;
-  const link = await places.linkOfRoomOnDate(db, room.id, bangkokDateString(now));
-  if (!link) return null;
-  const tasks = await getMyTasks(db, actor, now);
-  return tasks.items.find((i) => i.target.type === 'class' && i.target.id === link.classId)?.href ?? null;
 }

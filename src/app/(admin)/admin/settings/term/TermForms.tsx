@@ -58,7 +58,7 @@ export function CreateTermForm({
           กติกาและส่วนคะแนน (คัดลอกเสมอ) · ห้องเรียนที่ใช้ (เฉพาะปีการศึกษาเดียวกัน)
         </p>
         <label className="flex min-h-11 items-center gap-2">
-          <input type="checkbox" name="copyZones" defaultChecked className="size-5" /> โซนและห้องที่รับผิดชอบ
+          <input type="checkbox" name="copyZones" defaultChecked className="size-5" /> อาคารหรือโซนของแต่ละห้องเรียน
         </label>
         <label className="flex min-h-11 items-center gap-2">
           <input type="checkbox" name="copyDuties" className="size-5" /> คัดลอกผู้ประเมินจากเทอมก่อน

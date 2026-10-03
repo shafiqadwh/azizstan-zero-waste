@@ -10,7 +10,7 @@ import { LoginRateLimiter } from '../auth/rate-limit.ts';
 import type { SessionUser } from '../policies/index.ts';
 import { login, upsertSuperAdmin } from './auth.service.ts';
 import { assignDuty } from './duty.service.ts';
-import { setTermClasses, upsertArea, upsertClass, upsertPhysicalRoom } from './place.service.ts';
+import { setTermClasses, upsertArea, upsertClass } from './place.service.ts';
 import { getSetupChecklist } from './setup.service.ts';
 import { activateTerm, createTerm } from './term.service.ts';
 import { createUser } from './user.service.ts';
@@ -66,7 +66,6 @@ afterAll(async () => {
 test('a new install starts with nothing done; per-term steps wait for an active term', async () => {
   expect(await state()).toEqual({
     areas: 'ยังไม่มีอาคาร',
-    rooms: 'ยังไม่มีห้อง',
     classes: 'ยังไม่มีห้องเรียน · sync รายชื่อสร้างห้องสามัญและ ปวช. ให้ได้',
     students: 'ยังไม่เคยซิงก์สำเร็จ',
     term: 'ยังไม่มีภาคเรียนที่ใช้งาน',
@@ -79,7 +78,6 @@ test('a new install starts with nothing done; per-term steps wait for an active 
 
 test('steps tick as the admin fills the system in, in the documented order', async () => {
   const b1 = await upsertArea(db, admin, { type: 'building', code: '1', name: 'อาคาร 1' }, meta, now);
-  await upsertPhysicalRoom(db, admin, { buildingId: b1, roomNumber: '121', floor: 2 }, meta, now);
   const A = await upsertClass(
     db,
     admin,
@@ -94,7 +92,7 @@ test('steps tick as the admin fills the system in, in the documented order', asy
   const termId = await createTerm(db, admin, { academicYear: 2569, termNo: 2 }, meta, now);
   await activateTerm(db, admin, { termId }, meta, now);
   let s = await state();
-  expect(s).toMatchObject({ areas: 'done', rooms: 'done', classes: 'done', students: 'done', term: 'done' });
+  expect(s).toMatchObject({ areas: 'done', classes: 'done', students: 'done', term: 'done' });
   expect(s.rounds).toBe('ยังไม่มีรอบ');
   expect(s['term-classes']).toBe('ยังไม่ได้เลือก');
   expect(s.duties).toBe('ยังไม่ได้มอบหมาย');
@@ -108,6 +106,8 @@ test('steps tick as the admin fills the system in, in the documented order', asy
     closesAt: new Date('2026-11-20T09:30:00Z'),
   });
   await setTermClasses(db, admin, { termId, classIds: [A] }, meta, now);
+  expect((await state())['term-classes']).toBe('1 ห้องเรียน · ยังไม่ได้เลือกอาคาร 1 ห้องเรียน');
+  await setTermClasses(db, admin, { termId, classIds: [A], areas: [{ classId: A, areaId: b1 }] }, meta, now);
   await assignDuty(
     db,
     admin,

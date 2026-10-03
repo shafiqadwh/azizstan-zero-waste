@@ -36,13 +36,6 @@ export async function getSetupChecklist(db: Db, actor: SessionUser): Promise<Set
       href: '/admin/settings/classes',
     },
     {
-      key: 'rooms',
-      label: 'หมายเลขห้อง',
-      done: c.rooms > 0,
-      detail: count(c.rooms, 'ห้อง', 'ยังไม่มีห้อง'),
-      href: '/admin/settings/classes',
-    },
-    {
       key: 'classes',
       label: 'ห้องเรียนและชื่อเรียกอื่น',
       done: c.classes > 0,
@@ -72,9 +65,12 @@ export async function getSetupChecklist(db: Db, actor: SessionUser): Promise<Set
     },
     {
       key: 'term-classes',
-      label: 'ห้องเรียนที่ร่วมประเมินภาคนี้',
-      done: c.termClasses > 0,
-      detail: perTerm(c.termClasses, 'ห้องเรียน', 'ยังไม่ได้เลือก'),
+      label: `ห้องเรียนที่ร่วมประเมินภาคนี้และ${area}`,
+      done: c.termClasses > 0 && c.termClassesNoArea === 0,
+      detail:
+        term && c.termClasses > 0 && c.termClassesNoArea > 0
+          ? `${c.termClasses} ห้องเรียน · ยังไม่ได้เลือก${area} ${c.termClassesNoArea} ห้องเรียน`
+          : perTerm(c.termClasses, 'ห้องเรียน', 'ยังไม่ได้เลือก'),
       href: '/admin/settings/classes',
     },
     {

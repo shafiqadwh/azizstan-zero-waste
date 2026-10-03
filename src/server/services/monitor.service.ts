@@ -5,7 +5,6 @@
  * a staff role sees only the targets assigned to them, anyone else gets FORBIDDEN.
  */
 import type { Db } from '../../../db/client.ts';
-import { bangkokDateString } from '../../lib/dates/index.ts';
 import { parseScore, toDisplay } from '../../lib/scoring/decimal.ts';
 import { componentsInUse, trimScore } from '../../lib/term/config.ts';
 import { AppError, notFound } from '../errors.ts';
@@ -168,24 +167,18 @@ async function buildRows(db: Db, scope: Scope, round: termsRepo.RoundRow, now: D
   const components = componentsInUse(await termsRepo.listComponents(db, term.id)).filter(
     (c) => c.source === 'committee',
   );
-  const [classes, areas, selected, frozen, links, rooms] = await Promise.all([
+  const [classes, areas, selected, frozen, termAreasOfClass] = await Promise.all([
     places.listClasses(db),
     places.listAreas(db),
     places.listTermClassIds(db, term.id),
     roundsRepo.listRoundClassAreas(db, round.id),
-    places.listLinksOnDate(db, bangkokDateString(now)),
-    places.listRooms(db),
+    termsRepo.listTermClassZones(db, term.id),
   ]);
   const selectedSet = new Set(selected);
   const termAreas = areas.filter((a) => a.type === term.areaType && a.isActive);
   const frozenByClass = new Map(frozen.map((f) => [f.classId, f.areaId]));
-  const roomById = new Map(rooms.map((r) => [r.id, r]));
-  const linkByClass = new Map(links.map((l) => [l.classId, l]));
-  const classAreaId = (classId: string) =>
-    frozenByClass.get(classId) ??
-    (term.areaType === 'building'
-      ? (roomById.get(linkByClass.get(classId)?.physicalRoomId ?? '')?.buildingId ?? null)
-      : null);
+  const termAreaByClass = new Map(termAreasOfClass.map((z) => [z.classId, z.areaId]));
+  const classAreaId = (classId: string) => frozenByClass.get(classId) ?? termAreaByClass.get(classId) ?? null;
 
   const targets = [
     ...classes

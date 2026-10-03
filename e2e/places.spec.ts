@@ -23,99 +23,52 @@ async function addClass(page: Page, name: string) {
   await expect(page.getByTestId(`class-ม.E ${name}`)).toBeVisible();
 }
 
-async function move(page: Page, className: string, room: string, date: string) {
-  const row = page.getByTestId(`class-ม.E ${className}`);
-  const summary = row.getByText('ย้ายห้อง / เพิ่มชื่อเรียกอื่น');
-  if (
-    !(await row
-      .locator('details')
-      .getAttribute('open')
-      .then((v) => v !== null))
-  )
-    await summary.click();
-  await row.getByLabel('ย้ายไปห้อง').selectOption({ label: room });
-  await row.getByLabel('มีผลตั้งแต่วันที่').fill(date);
-  await row.getByRole('button', { name: 'ย้ายห้อง', exact: true }).click();
-  return row;
-}
-
-test('admin registers rooms and classes, moves a class, and gets Thai overlap errors', async ({ page }) => {
+test('admin adds buildings and classes, and gives each class of the term its building', async ({ page }) => {
   test.setTimeout(60_000);
   await ensureActiveTerm();
   const admin = await createTestUser({ role: 'admin', password: 'admin-password' });
   await signIn(page, admin, 'admin-password');
   await page.goto('/admin/settings/classes');
-  await expect(page.getByRole('heading', { name: 'ห้องเรียน อาคาร และหมายเลขห้อง' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ห้องเรียนและอาคาร' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  // rooms moved to the facilities system: no room register, no door QR
+  await expect(page.getByText('+ เพิ่มห้อง', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('พิมพ์ QR ทุกห้อง')).toHaveCount(0);
+  expect((await page.request.get('/api/v1/templates/rooms.xlsx')).status()).toBe(404);
 
   const b = `E${rand()}`.slice(0, 6);
-  const [roomA, roomB] = [`A${rand()}`, `B${rand()}`];
   await page.getByLabel('รหัสอาคาร').fill(b);
   await page.getByRole('button', { name: '+ เพิ่มอาคาร' }).click();
   await expect(page.getByText(`เพิ่มอาคาร ${b} แล้ว`)).toBeVisible();
-  for (const r of [roomA, roomB]) {
-    await page.getByLabel('อาคาร', { exact: true }).selectOption({ label: `อาคาร ${b}` });
-    await page.getByLabel('หมายเลขห้อง', { exact: true }).fill(r);
-    await page.getByRole('button', { name: '+ เพิ่มห้อง' }).click();
-    await expect(page.getByText(`เพิ่มห้อง ${r} แล้ว`)).toBeVisible();
-  }
 
   const c1 = `Alpha${rand()}`;
-  const c2 = `Beta${rand()}`;
   await addClass(page, c1);
-  await addClass(page, c2);
 
-  let row = await move(page, c1, roomA, '2026-11-01');
-  await expect(row.getByRole('status')).toContainText('ย้ายห้องแล้ว');
-  row = await move(page, c1, roomB, '2026-12-15');
-  await expect(row.getByRole('status')).toContainText('ย้ายห้องแล้ว');
-  await expect(row).toContainText(`เข้าห้อง ${roomA} ตั้งแต่ 1 พ.ย. 2569`);
-
-  // roomA is taken by c1 until 15 Dec: c2 cannot move in on 20 Nov
-  row = await move(page, c2, roomA, '2026-11-20');
-  await expect(row.getByRole('alert')).toContainText(`ห้อง ${roomA} มี ม.E ${c1} ใช้อยู่ในวันที่นั้น`);
-
-  // the term selection card saves (FR-P7). Other specs submit evaluations in the shared active term, which
-  // locks its config (BR-TM2), so unlock and retry until this save lands between them.
+  // the term selection card saves (FR-P7) with the class's building (FR-P4). Other specs submit evaluations in
+  // the shared active term, which locks its config (BR-TM2), so unlock and retry until this save lands between them.
   const card = page.getByRole('region', { name: /ห้องเรียนที่ใช้ใน/ });
   await expect(async () => {
     await unlockActiveTerm();
     await page.reload();
-    await card.getByLabel(`ม.E ${c1}`).check({ timeout: 2000 });
+    await card.getByRole('checkbox', { name: `ม.E ${c1}` }).check({ timeout: 2000 });
+    await card.getByLabel(`อาคารของ ม.E ${c1}`).selectOption({ label: `อาคาร ${b}` });
     await card.getByRole('button', { name: 'บันทึกห้องเรียนที่ใช้' }).click();
     await expect(card.getByRole('status')).toContainText('บันทึกแล้ว', { timeout: 3000 });
   }).toPass({ timeout: 30_000 });
+  await page.reload();
+  await expect(card.getByLabel(`อาคารของ ม.E ${c1}`)).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(card.getByLabel(`อาคารของ ม.E ${c1}`).locator('option:checked')).toHaveText(`อาคาร ${b}`);
 
-  // rooms.xlsx template downloads for admins
-  const tpl = await page.request.get('/api/v1/templates/rooms.xlsx');
+  // aliases still work on the class register
+  const row = page.getByTestId(`class-ม.E ${c1}`);
+  await row.getByText('เพิ่มชื่อเรียกอื่น').click();
+  await row.getByLabel('ชื่อในข้อมูลนักเรียน (ชื่อเรียกอื่น)').fill(`ม.E/9 ${c1}`);
+  await row.getByRole('button', { name: 'เพิ่ม', exact: true }).click();
+  await expect(row.getByRole('status')).toContainText('เพิ่มชื่อเรียกแล้ว');
+
+  // duties.xlsx template downloads for admins
+  const tpl = await page.request.get('/api/v1/templates/duties.xlsx');
   expect(tpl.status()).toBe(200);
-  expect(tpl.headers()['content-type']).toContain('spreadsheetml');
-});
-
-test('admin moves a room created in the wrong building', async ({ page }) => {
-  await ensureActiveTerm();
-  const admin = await createTestUser({ role: 'admin', password: 'admin-password' });
-  await signIn(page, admin, 'admin-password');
-  await page.goto('/admin/settings/classes');
-  const [wrong, right] = [`W${rand()}`.slice(0, 6), `R${rand()}`.slice(0, 6)];
-  for (const b of [wrong, right]) {
-    await page.getByLabel('รหัสอาคาร').fill(b);
-    await page.getByRole('button', { name: '+ เพิ่มอาคาร' }).click();
-    await expect(page.getByText(`เพิ่มอาคาร ${b} แล้ว`)).toBeVisible();
-  }
-  const room = `M${rand()}`;
-  await page.getByLabel('อาคาร', { exact: true }).selectOption({ label: `อาคาร ${wrong}` });
-  await page.getByLabel('หมายเลขห้อง', { exact: true }).fill(room);
-  await page.getByRole('button', { name: '+ เพิ่มห้อง' }).click();
-  await expect(page.getByText(`เพิ่มห้อง ${room} แล้ว`)).toBeVisible();
-
-  await page.getByLabel('ห้องที่จะแก้ไข').selectOption({ label: `${room} · อาคาร ${wrong}` });
-  await page.getByLabel('ย้ายไปอาคาร').selectOption({ label: `อาคาร ${right}` });
-  await page.getByRole('button', { name: 'บันทึกการแก้ไข' }).click();
-  await expect(page.getByText(`บันทึกห้อง ${room} แล้ว`)).toBeVisible();
-  const heading = page.getByRole('heading', { name: new RegExp(`^อาคาร ${right}`) });
-  await expect(heading).toContainText('1 ห้อง');
-  await expect(page.getByRole('heading', { name: new RegExp(`^อาคาร ${wrong}`) })).toContainText('0 ห้อง');
 });
 
 test('an executive sees the register read-only', async ({ page }) => {
@@ -126,5 +79,4 @@ test('an executive sees the register read-only', async ({ page }) => {
   await expect(page.getByRole('note')).toContainText('โหมดดูอย่างเดียว');
   await expect(page.getByRole('button', { name: '+ เพิ่มอาคาร' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'บันทึกห้องเรียนที่ใช้' })).toHaveCount(0);
-  expect((await page.request.get('/api/v1/templates/rooms.xlsx')).status()).toBe(403);
 });

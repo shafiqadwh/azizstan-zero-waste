@@ -30,33 +30,27 @@ type RoundClassArea = repo.RoundClassAreaRow;
 
 /**
  * BR-R1 step 2: the frozen area of every class selected for the term.
- * Building mode: the building of the room the class is linked to on the (Bangkok) date of `opens_at`.
- * Zone mode: the class's `term_class_zones` row. A class with no area gets no row ("ไม่มีพื้นที่").
+ * Both modes: the class's `term_class_zones` row (a building or a zone, chosen with the term's class selection).
+ * A class with no area gets no row ("ไม่มีพื้นที่"). The room linked on the (Bangkok) date of `opens_at`, if any,
+ * is frozen alongside for the room number on records.
  */
 export async function computeClassAreas(
   tx: Tx,
-  term: { id: string; areaType: 'building' | 'zone' },
+  term: { id: string },
   roundId: string,
   opensAt: Date,
 ): Promise<{ rows: RoundClassArea[]; missing: string[] }> {
   // one connection inside a transaction: reads run one after another
   const selected = await places.listTermClassIds(tx, term.id);
   const links = await places.listLinksOnDate(tx, bangkokDateString(opensAt));
-  const rooms = await places.listRooms(tx);
-  const zones = term.areaType === 'zone' ? await termsRepo.listTermClassZones(tx, term.id) : [];
-  const buildingOfRoom = new Map(rooms.map((r) => [r.id, r.buildingId]));
+  const zones = await termsRepo.listTermClassZones(tx, term.id);
   const roomOfClass = new Map(links.map((l) => [l.classId, l.physicalRoomId]));
   const zoneOfClass = new Map(zones.map((z) => [z.classId, z.areaId]));
   const rows: RoundClassArea[] = [];
   const missing: string[] = [];
   for (const classId of selected) {
     const physicalRoomId = roomOfClass.get(classId) ?? null;
-    const areaId =
-      term.areaType === 'building'
-        ? physicalRoomId
-          ? (buildingOfRoom.get(physicalRoomId) ?? null)
-          : null
-        : (zoneOfClass.get(classId) ?? null);
+    const areaId = zoneOfClass.get(classId) ?? null;
     if (areaId) rows.push({ roundId, classId, areaId, physicalRoomId });
     else missing.push(classId);
   }

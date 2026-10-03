@@ -1,11 +1,11 @@
 /** T16: round jobs (BR-R1, BR-R2, BR-R4, T-R1) against PostgreSQL. */
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createDb, type Db } from '../../../db/client.ts';
 import { runMigrations } from '../../../db/migrate.ts';
-import { auditLogs, notifications, rosterSnapshots, rounds, students } from '../../../db/schema.ts';
+import { auditLogs, notifications, rosterSnapshots, rounds, students, termClassZones } from '../../../db/schema.ts';
 import { newId } from '../../lib/ids.ts';
 import { LoginRateLimiter } from '../auth/rate-limit.ts';
 import type { SessionUser } from '../policies/index.ts';
@@ -110,7 +110,21 @@ beforeAll(async () => {
   );
 
   term = await createTerm(db, admin, { academicYear: 2569, termNo: 2 }, meta, setupAt); // building mode
-  await setTermClasses(db, admin, { termId: term, classIds: [amanah, berdikari, dedikasi] }, meta, setupAt);
+  // building mode: each class's building comes from the term selection; dedikasi has none
+  await setTermClasses(
+    db,
+    admin,
+    {
+      termId: term,
+      classIds: [amanah, berdikari, dedikasi],
+      areas: [
+        { classId: amanah, areaId: b1 },
+        { classId: berdikari, areaId: b2 },
+      ],
+    },
+    meta,
+    setupAt,
+  );
   await activateTerm(db, admin, { termId: term }, meta, setupAt);
   draftTerm = await createTerm(db, admin, { academicYear: 2570, termNo: 1 }, meta, setupAt);
   [round1, round2, draftRound] = [newId(), newId(), newId()];
@@ -167,7 +181,7 @@ describe('round.open (BR-R1)', () => {
     expect(await openRound(db, draftRound, new Date(opensAt.getTime() + hour))).toEqual({ changed: false });
   });
 
-  test('freezes buildings from class–room links at opens_at; snapshots active students of selected classes', async () => {
+  test('freezes each class’s building from the term selection (and its room, if linked); snapshots active students', async () => {
     const out = await openRound(db, round1, new Date(opensAt.getTime() + 60_000));
     expect(out).toEqual({ changed: true, classes: 2, missingArea: [dedikasi], students: 3 });
     expect(await frozen(round1)).toEqual(
@@ -194,7 +208,11 @@ describe('round.open (BR-R1)', () => {
     ]);
   });
 
-  test('T-R1: a later room move does not change the frozen building', async () => {
+  test('T-R1: a later change of building or room does not change the frozen row', async () => {
+    await db
+      .update(termClassZones)
+      .set({ areaId: b2 })
+      .where(and(eq(termClassZones.termId, term), eq(termClassZones.classId, amanah)));
     await linkClassRoom(
       db,
       admin,
@@ -203,6 +221,11 @@ describe('round.open (BR-R1)', () => {
       new Date('2026-11-06T02:00:00Z'),
     );
     expect((await frozen(round1)).find((r) => r.classId === amanah)).toMatchObject({ areaId: b1, physicalRoomId: r1 });
+    // back to building 1: the term selection is not dated, so a re-run of the open below would pick up the change
+    await db
+      .update(termClassZones)
+      .set({ areaId: b1 })
+      .where(and(eq(termClassZones.termId, term), eq(termClassZones.classId, amanah)));
   });
 
   test('idempotent: running again changes nothing; re-running from scheduled gives the same rows', async () => {

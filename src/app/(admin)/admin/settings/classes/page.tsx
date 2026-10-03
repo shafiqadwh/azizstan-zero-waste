@@ -5,40 +5,32 @@ import { getDb } from '@/server/db';
 import { ERRORS } from '@/server/errors';
 import { can } from '@/server/policies';
 import { getActiveTermSelection, getPlaces } from '@/server/services/place.service';
-import { AddBuildingForm, AddClassForm, AddRoomForm } from './AddForms';
+import { AddBuildingForm, AddClassForm } from './AddForms';
 import { ClassRow } from './ClassRow';
-import { RoomEditForm } from './RoomEdit';
-import { RoomsImport } from './RoomsImport';
 import { TermClassesCard } from './TermClassesCard';
 
 export const metadata: Metadata = { title: 'ห้องเรียน · AZIZSTAN ZERO WASTE' };
 
-/** 08-ux-ui §6.14: areas · rooms · classes (aliases, current room, move) · classes used this term (FR-P7). */
+/**
+ * 08-ux-ui §6.14: classes used this term with their building or zone (FR-P7, FR-P4) · class register (aliases) ·
+ * buildings. Physical rooms moved to the facilities system (2026-10-03): evaluation is per class.
+ */
 export default async function ClassesPage() {
   const user = await requirePageUser('/admin/settings/classes');
   const db = getDb();
-  const now = new Date();
-  const [places, selection] = await Promise.all([getPlaces(db, user, now), getActiveTermSelection(db, user)]);
+  const [places, selection] = await Promise.all([getPlaces(db, user), getActiveTermSelection(db, user)]);
   const canManage = can(user, 'place.manage');
   const canConfigure = can(user, 'term.configure');
 
   const buildings = places.areas.filter((a) => a.type === 'building');
-  const className = new Map(places.classes.map((c) => [c.id, c.displayName]));
-  const roomOptions = places.rooms
-    .filter((r) => r.isActive)
-    .map((r) => ({
-      id: r.id,
-      roomNumber: r.roomNumber,
-      label: `${r.roomNumber}${r.currentClassId ? ` (${className.get(r.currentClassId)})` : ''}`,
-    }));
   const groups = [...new Set(places.classes.map((c) => c.rankGroup))];
 
   return (
     <main className="mx-auto flex max-w-[1180px] flex-col gap-6 px-5 py-8 lg:px-12">
       <div>
-        <h1 className="text-[20px] leading-[1.3] font-bold lg:text-[26px]">ห้องเรียน อาคาร และหมายเลขห้อง</h1>
+        <h1 className="text-[20px] leading-[1.3] font-bold lg:text-[26px]">ห้องเรียนและอาคาร</h1>
         <p className="mt-1 text-[14px] text-ink-muted">
-          ห้องเรียน {places.classes.length} · ห้อง {places.rooms.length} · อาคาร {buildings.length}
+          ห้องเรียน {places.classes.length} · อาคาร {buildings.length}
         </p>
       </div>
 
@@ -59,6 +51,11 @@ export default async function ClassesPage() {
             isActive: c.isActive,
           }))}
           selected={selection.classIds}
+          areaByClass={selection.areaByClass}
+          areaKind={selection.term.areaType === 'zone' ? 'โซน' : 'อาคาร'}
+          areas={places.areas
+            .filter((a) => a.type === selection.term.areaType && a.isActive)
+            .map((a) => ({ id: a.id, name: a.name }))}
           readOnly={!canConfigure || selection.term.configLockedAt !== null}
           lockedNote={selection.term.configLockedAt ? ERRORS.CONFIG_LOCKED.message : null}
         />
@@ -72,9 +69,7 @@ export default async function ClassesPage() {
         <h2 id="classes" className="mb-1 text-[17px] font-bold">
           ทะเบียนห้องเรียน
         </h2>
-        <p className="mb-3 text-[13px] text-ink-muted">
-          ย้ายห้อง: ห้องเดิมจะสิ้นสุดในวันที่มีผล ประวัติเดิมยังอยู่ · ชื่อเรียกอื่น ใช้จับคู่ชื่อชั้นในข้อมูลนักเรียน
-        </p>
+        <p className="mb-3 text-[13px] text-ink-muted">ชื่อเรียกอื่น ใช้จับคู่ชื่อชั้นในข้อมูลนักเรียน</p>
         {places.classes.length === 0 ? (
           <p className="py-4">ยังไม่มีห้องเรียน · เพิ่มห้องเรียนด้านล่าง</p>
         ) : (
@@ -85,7 +80,7 @@ export default async function ClassesPage() {
                 {places.classes
                   .filter((c) => c.rankGroup === g)
                   .map((c) => (
-                    <ClassRow key={c.id} cls={c} rooms={roomOptions} today={places.today} canManage={canManage} />
+                    <ClassRow key={c.id} cls={c} canManage={canManage} />
                   ))}
               </ul>
             </div>
@@ -101,94 +96,29 @@ export default async function ClassesPage() {
         ) : null}
       </section>
 
-      <section aria-labelledby="rooms" className="rounded-xl border border-line bg-surface p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="rooms" className="text-[17px] font-bold">
-            อาคารและหมายเลขห้อง
-          </h2>
-          {canManage && places.rooms.length > 0 ? (
-            <a
-              href="/api/v1/pdf/room-qr"
-              target="_blank"
-              rel="noopener"
-              className="inline-flex h-11 items-center rounded-md border border-line-strong bg-surface px-4 text-[14px] font-semibold hover:bg-surface-muted"
-            >
-              พิมพ์ QR ทุกห้อง
-            </a>
-          ) : null}
-        </div>
-        {buildings.length === 0 ? <p className="mb-3">ยังไม่มีอาคาร · เพิ่มอาคารหรือนำเข้าจาก Excel</p> : null}
-        <div className="flex flex-col gap-4">
-          {buildings.map((b) => {
-            const rooms = places.rooms.filter((r) => r.buildingId === b.id);
-            return (
-              <div key={b.id}>
-                <h3 className="font-semibold">
-                  {b.name} <span className="text-[13px] font-normal text-ink-muted">· {rooms.length} ห้อง</span>
-                  {canManage && rooms.length > 0 ? (
-                    <a
-                      href={`/api/v1/pdf/room-qr?buildingId=${b.id}`}
-                      target="_blank"
-                      rel="noopener"
-                      className="ml-3 text-[13px] font-semibold text-brand-ink underline"
-                    >
-                      พิมพ์ QR อาคารนี้
-                    </a>
-                  ) : null}
-                </h3>
-                <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                  {rooms.map((r) => (
-                    <li
-                      key={r.id}
-                      data-testid={`room-${r.roomNumber}`}
-                      className={`rounded-lg px-3 py-2 text-[13px] ${r.currentClassId ? 'border border-line' : 'border border-dashed border-warn-ink text-warn-ink'}`}
-                    >
-                      <span className="flex items-baseline justify-between gap-2">
-                        <span className="text-[16px] font-bold text-ink">{r.roomNumber}</span>
-                        {canManage ? (
-                          <a
-                            href={`/api/v1/pdf/room-qr?roomId=${r.id}`}
-                            target="_blank"
-                            rel="noopener"
-                            aria-label={`พิมพ์ QR ห้อง ${r.roomNumber}`}
-                            className="text-[12px] font-semibold text-brand-ink underline"
-                          >
-                            QR
-                          </a>
-                        ) : null}
-                      </span>
-                      {r.currentClassId ? className.get(r.currentClassId) : 'ยังไม่ผูกห้องเรียน'}
-                      {r.isActive ? null : <span className="block text-[12px] text-ink-muted">ปิดใช้งาน</span>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
+      <section aria-labelledby="buildings" className="rounded-xl border border-line bg-surface p-5">
+        <h2 id="buildings" className="mb-1 text-[17px] font-bold">
+          อาคาร
+        </h2>
+        <p className="mb-3 text-[13px] text-ink-muted">
+          กรรมการประเมินอาคาร · เลือกอาคารของแต่ละห้องเรียนได้ที่ส่วนห้องเรียนที่ใช้ด้านบน ·
+          ห้องและหมายเลขห้องย้ายไปอยู่ในระบบฝ่ายอาคารสถานที่
+        </p>
+        {buildings.length === 0 ? (
+          <p className="mb-3">ยังไม่มีอาคาร · เพิ่มอาคารด้านล่าง</p>
+        ) : (
+          <ul className="mb-2 flex flex-wrap gap-2">
+            {buildings.map((b) => (
+              <li key={b.id} className="rounded-lg border border-line px-3 py-2 text-[14px]">
+                {b.name}
+                {!b.isActive ? <span className="ml-1 text-[12px] text-ink-muted">(ปิดใช้งาน)</span> : null}
+              </li>
+            ))}
+          </ul>
+        )}
         {canManage ? (
-          <div className="mt-5 flex flex-col gap-4 border-t border-line pt-4">
+          <div className="mt-4 border-t border-line pt-4">
             <AddBuildingForm />
-            <AddRoomForm buildings={buildings.map((b) => ({ id: b.id, name: b.name }))} />
-            {places.rooms.length > 0 ? (
-              <div>
-                <h3 className="mb-2 font-semibold">แก้ไขห้อง / ย้ายอาคาร</h3>
-                <RoomEditForm
-                  rooms={places.rooms.map((r) => ({
-                    id: r.id,
-                    roomNumber: r.roomNumber,
-                    buildingId: r.buildingId,
-                    floor: r.floor,
-                    isActive: r.isActive,
-                  }))}
-                  buildings={buildings.map((b) => ({ id: b.id, name: b.name }))}
-                />
-              </div>
-            ) : null}
-            <div>
-              <h3 className="mb-2 font-semibold">นำเข้าจาก Excel</h3>
-              <RoomsImport />
-            </div>
           </div>
         ) : null}
       </section>

@@ -12,12 +12,18 @@ export interface TermClassItem {
   isActive: boolean;
 }
 
-/** 08-ux-ui §6.14 "ห้องเรียนที่ใช้ในภาคเรียนนี้" (FR-P7). */
+/**
+ * 08-ux-ui §6.14 "ห้องเรียนที่ใช้ในภาคเรียนนี้" (FR-P7) and the building (or zone) of each class (FR-P4): a round
+ * freezes it when it opens, and the class shares that area's score.
+ */
 export function TermClassesCard({
   termId,
   termLabel,
   classes,
   selected,
+  areaByClass,
+  areaKind,
+  areas,
   readOnly,
   lockedNote,
 }: {
@@ -25,12 +31,17 @@ export function TermClassesCard({
   termLabel: string;
   classes: TermClassItem[];
   selected: string[];
+  /** saved building (or zone) of each class this term */
+  areaByClass: Record<string, string>;
+  areaKind: 'อาคาร' | 'โซน';
+  areas: { id: string; name: string }[];
   readOnly: boolean;
   lockedNote: string | null;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(saveTermClassesAction, null);
   const [chosen, setChosen] = useState(() => new Set(selected));
   const groups = [...new Set(classes.map((c) => c.rankGroup))];
+  const noArea = [...chosen].filter((id) => !areaByClass[id]).length;
   const toggle = (ids: string[], on: boolean) =>
     setChosen((prev) => {
       const next = new Set(prev);
@@ -54,6 +65,18 @@ export function TermClassesCard({
       {selected.length === 0 ? (
         <p className="mb-3 flex items-center gap-2 rounded-md bg-warn-soft px-3 py-2 text-[14px] text-warn-ink">
           <TriangleAlert size={16} aria-hidden /> ยังไม่ได้เลือกห้องเรียนที่ใช้
+        </p>
+      ) : null}
+      {selected.length > 0 && noArea > 0 ? (
+        <p className="mb-3 flex items-center gap-2 rounded-md bg-warn-soft px-3 py-2 text-[14px] text-warn-ink">
+          <TriangleAlert size={16} aria-hidden /> ยังไม่ได้เลือก{areaKind} {noArea} ห้องเรียน · ห้องเรียนที่ไม่มี
+          {areaKind}
+          จะไม่ได้คะแนน{areaKind}
+        </p>
+      ) : null}
+      {areas.length === 0 ? (
+        <p className="mb-3 rounded-md bg-surface-muted px-3 py-2 text-[14px]">
+          ยังไม่มี{areaKind} · เพิ่ม{areaKind}ก่อนแล้วจึงเลือก{areaKind}ให้ห้องเรียน
         </p>
       ) : null}
       {lockedNote ? <p className="mb-3 rounded-md bg-surface-muted px-3 py-2 text-[14px]">{lockedNote}</p> : null}
@@ -94,6 +117,22 @@ export function TermClassesCard({
                           <span>{c.displayName}</span>
                           {!on ? <span className="text-[12px]">· ไม่ใช้ในภาคเรียนนี้</span> : null}
                         </label>
+                        {on && areas.length > 0 ? (
+                          <select
+                            name={`area:${c.id}`}
+                            aria-label={`${areaKind}ของ ${c.displayName}`}
+                            defaultValue={areaByClass[c.id] ?? ''}
+                            disabled={readOnly}
+                            className="mb-2 ml-7 h-10 w-[calc(100%-1.75rem)] rounded-md border border-line-strong bg-surface px-2 text-[15px]"
+                          >
+                            <option value="">— เลือก{areaKind} —</option>
+                            {areas.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
                       </li>
                     );
                   })}
